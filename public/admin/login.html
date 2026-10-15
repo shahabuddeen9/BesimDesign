@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Admin Portal Login | MS Fusion Architects</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body class="login-wrapper">
+
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-logo">MS FUSION</div>
+      <div class="login-sub">Commercial Architecture • Admin Portal</div>
+    </div>
+
+    <form id="loginForm" novalidate>
+      <div id="loginAlert" style="display: none; padding: 12px 14px; background: rgba(239,68,68,0.15); border: 1px solid #ef4444; color: #fca5a5; font-size: 0.85rem; border-radius: 4px; margin-bottom: 20px;"></div>
+
+      <div class="form-group">
+        <label class="form-label" for="adminEmail">Administrator Email</label>
+        <input type="email" id="adminEmail" name="email" class="form-control" placeholder="admin@msfusion.com" required autocomplete="email">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="adminPassword">Security Password</label>
+        <input type="password" id="adminPassword" name="password" class="form-control" placeholder="••••••••••••" required autocomplete="current-password">
+      </div>
+
+      <button type="submit" class="btn btn-gold" id="btnLoginSubmit" style="width: 100%; justify-content: center; margin-top: 10px;">
+        <span id="btnLoginText">Authenticate Session 🔒</span>
+        <span id="btnLoginSpinner" style="display: none;">Verifying...</span>
+      </button>
+
+      <div style="text-align: center; margin-top: 24px; font-size: 0.8rem; color: var(--text-dim);">
+        Protected by IP rate-limiting & JWT httpOnly sessions.
+        <br>
+        <a href="/" style="color: var(--gold); text-decoration: underline; margin-top: 8px; display: inline-block;">← Return to Main Studio Website</a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // Check if session is already active
+    fetch('/api/auth/me')
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) {
+          window.location.replace('/admin/dashboard.html');
+        }
+      })
+      .catch(() => {});
+
+    const form = document.getElementById('loginForm');
+    const alertBox = document.getElementById('loginAlert');
+    const btnSubmit = document.getElementById('btnLoginSubmit');
+    const btnText = document.getElementById('btnLoginText');
+    const btnSpinner = document.getElementById('btnLoginSpinner');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      alertBox.style.display = 'none';
+
+      const email = document.getElementById('adminEmail').value.trim();
+      const password = document.getElementById('adminPassword').value;
+
+      if (!email || !password) {
+        alertBox.textContent = 'Please enter both administrator email and password.';
+        alertBox.style.display = 'block';
+        return;
+      }
+
+      btnSubmit.disabled = true;
+      btnText.style.display = 'none';
+      btnSpinner.style.display = 'inline';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          window.location.replace('/admin/dashboard.html');
+        } else {
+          alertBox.textContent = data.message || 'Invalid credentials.';
+          alertBox.style.display = 'block';
+        }
+      } catch (err) {
+        alertBox.textContent = 'Network or server communication error. Please try again.';
+        alertBox.style.display = 'block';
+      } finally {
+        btnSubmit.disabled = false;
+        btnText.style.display = 'inline';
+        btnSpinner.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>

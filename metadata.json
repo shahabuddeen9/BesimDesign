@@ -1,0 +1,6 @@
+{
+  "name": "MS Fusion Architects",
+  "description": "Commercial, hospitality, and industrial architecture & interior design firm with automated enquiry management and admin portal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Admin Dashboard | MS Fusion Architects CRM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+
+  <div class="admin-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo-mark">MS</div>
+        <div>
+          <div class="sidebar-brand-name">MS FUSION</div>
+          <div class="sidebar-brand-sub">Admin Portal</div>
+        </div>
+      </div>
+
+      <ul class="sidebar-nav">
+        <li class="nav-item">
+          <button class="nav-btn active" data-tab="enquiries">
+            📋 CRM Enquiries
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-btn" data-tab="projects">
+            🏛️ Projects Portfolio
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-btn" data-tab="testimonials">
+            ⭐ Client Reviews
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-btn" data-tab="faqs">
+            ❓ Architectural FAQs
+          </button>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div class="admin-profile-pill">
+          <span class="admin-email-text" id="loggedAdminEmail">admin@msfusion.com</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <a href="/" target="_blank" class="btn btn-outline btn-sm" style="flex: 1; justify-content: center;">
+            🌐 View Site
+          </a>
+          <button id="btnLogout" class="btn btn-danger btn-sm" style="flex: 1; justify-content: center;">
+            Logout
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Wrapper -->
+    <main class="main-wrapper">
+      <!-- Top Bar -->
+      <div class="top-bar">
+        <div>
+          <h1 class="page-title" id="pageTitle">CRM Enquiries & Leads</h1>
+          <p style="font-size: 0.85rem; color: var(--text-dim); margin-top: 4px;">Commercial studio pipeline, client briefs, and asset management.</p>
+        </div>
+        <button class="mobile-menu-btn" id="mobileMenuToggle">☰ Menu</button>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- TAB 1: ENQUIRIES -->
+      <!-- ============================================================== -->
+      <div class="tab-pane active" id="pane-enquiries">
+        <!-- Stat Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">Total Leads</span>
+            <span class="stat-value" id="statTotalEnquiries">0</span>
+            <span class="stat-subtext" id="statNewThisWeek">0 new this week</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Pipeline Status</span>
+            <span class="stat-value" id="statActivePipeline" style="font-size: 1.5rem; line-height: 1.4;">0 Won</span>
+            <span class="stat-subtext" id="statStatusBreakdown">0 New • 0 Contacted</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Lead Sources</span>
+            <span class="stat-value" id="statCalculatorLeads" style="font-size: 1.5rem; line-height: 1.4;">0 Calc</span>
+            <span class="stat-subtext" id="statSourceBreakdown">0 Forms • 0 Quotes</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Profile Downloads</span>
+            <span class="stat-value" id="statDownloads">0</span>
+            <span class="stat-subtext">Company credentials deck</span>
+          </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+          <div class="filter-group">
+            <input type="text" id="searchEnquiry" class="search-input" placeholder="Search client name, phone, email, city...">
+            <select id="filterStatus" class="filter-select">
+              <option value="all">All Statuses</option>
+              <option value="new">New Leads</option>
+              <option value="contacted">Contacted</option>
+              <option value="quoted">Quoted</option>
+              <option value="won">Won (Deal Closed)</option>
+              <option value="lost">Lost</option>
+            </select>
+            <select id="filterSource" class="filter-select">
+              <option value="all">All Sources</option>
+              <option value="contact_form">Contact Form</option>
+              <option value="calculator">Calculator Estimator</option>
+              <option value="quote">Quote Request</option>
+            </select>
+          </div>
+
+          <div>
+            <button id="btnExportCsv" class="btn btn-outline">
+              📥 Export RFC 4180 CSV
+            </button>
+          </div>
+        </div>
+
+        <!-- Enquiries Table -->
+        <div class="table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Client</th>
+                <th>Phone / Email</th>
+                <th>Sector</th>
+                <th>Area / City</th>
+                <th>Source</th>
+                <th>Pipeline Status</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="enquiriesTableBody">
+              <tr>
+                <td colspan="9" style="text-align: center; padding: 32px; color: var(--text-dim);">
+                  Loading enquiries...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Pagination Bar -->
+          <div class="pagination-bar">
+            <span id="paginationInfo">Showing 0 of 0 records</span>
+            <div class="page-controls">
+              <button id="btnPrevPage" class="btn btn-outline btn-sm">Previous</button>
+              <button id="btnNextPage" class="btn btn-outline btn-sm">Next</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- TAB 2: PORTFOLIO PROJECTS -->
+      <!-- ============================================================== -->
+      <div class="tab-pane" id="pane-projects" style="display: none;">
+        <div class="filter-bar">
+          <div>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Manage live showcase cases on the public studio website.</p>
+          </div>
+          <button id="btnNewProject" class="btn btn-gold">
+            + Add Architecture Project
+          </button>
+        </div>
+
+        <div class="table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Preview</th>
+                <th>Title / Slug</th>
+                <th>Category</th>
+                <th>Scope Highlights</th>
+                <th>Sort Order</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="projectsTableBody">
+              <tr>
+                <td colspan="7" style="text-align: center; padding: 32px; color: var(--text-dim);">
+                  Loading projects...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- TAB 3: TESTIMONIALS -->
+      <!-- ============================================================== -->
+      <div class="tab-pane" id="pane-testimonials" style="display: none;">
+        <div class="filter-bar">
+          <div>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Manage client testimonials, hospitality reviews, and publish visibility.</p>
+          </div>
+          <button id="btnNewTestimonial" class="btn btn-gold">
+            + Add Testimonial
+          </button>
+        </div>
+
+        <div class="table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Client Name</th>
+                <th>Hospitality / Commercial Entity</th>
+                <th>Rating</th>
+                <th>Review Snippet</th>
+                <th>Published</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="testimonialsTableBody">
+              <tr>
+                <td colspan="6" style="text-align: center; padding: 32px; color: var(--text-dim);">
+                  Loading testimonials...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- TAB 4: FAQS -->
+      <!-- ============================================================== -->
+      <div class="tab-pane" id="pane-faqs" style="display: none;">
+        <div class="filter-bar">
+          <div>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Manage architectural, commercial MEP, and statutory clearance FAQs.</p>
+          </div>
+          <button id="btnNewFaq" class="btn btn-gold">
+            + Add Architectural FAQ
+          </button>
+        </div>
+
+        <div class="table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Sort</th>
+                <th>Question</th>
+                <th>Answer Snippet</th>
+                <th>Published</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="faqsTableBody">
+              <tr>
+                <td colspan="5" style="text-align: center; padding: 32px; color: var(--text-dim);">
+                  Loading FAQs...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL: ENQUIRY DETAILS & ADMIN NOTES -->
+  <!-- ============================================================== -->
+  <div class="admin-modal-overlay" id="modalEnquiry">
+    <div class="admin-modal">
+      <button class="admin-modal-close" data-close="modalEnquiry">&times;</button>
+      <h3 style="font-family: var(--font-serif); margin-bottom: 6px; font-size: 1.4rem;" id="modalEnquiryTitle">Enquiry Details</h3>
+      <p style="font-size: 0.82rem; color: var(--gold); margin-bottom: 24px;" id="modalEnquiryMeta"></p>
+
+      <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--admin-border); border-radius: 6px; padding: 18px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; font-size: 0.88rem; margin-bottom: 14px;">
+          <div><strong style="color: var(--text-dim);">Phone:</strong> <span id="modalEnquiryPhone"></span></div>
+          <div><strong style="color: var(--text-dim);">Email:</strong> <span id="modalEnquiryEmail"></span></div>
+          <div><strong style="color: var(--text-dim);">Sector:</strong> <span id="modalEnquirySector"></span></div>
+          <div><strong style="color: var(--text-dim);">Location:</strong> <span id="modalEnquiryLocation"></span></div>
+          <div><strong style="color: var(--text-dim);">Carpet Area:</strong> <span id="modalEnquiryArea"></span></div>
+          <div><strong style="color: var(--text-dim);">Source:</strong> <span id="modalEnquirySource"></span></div>
+        </div>
+
+        <div>
+          <strong style="color: var(--text-dim); font-size: 0.82rem; text-transform: uppercase;">Client Project Message:</strong>
+          <div id="modalEnquiryMessage" style="margin-top: 6px; font-style: italic; color: var(--text-muted); line-height: 1.6;"></div>
+        </div>
+
+        <div id="modalEnquiryCalculatorWrapper" style="display: none; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--admin-border);">
+          <strong style="color: var(--gold); font-size: 0.82rem; text-transform: uppercase;">Calculator Estimations:</strong>
+          <div id="modalEnquiryCalculatorData" style="margin-top: 6px; font-size: 0.85rem;"></div>
+        </div>
+      </div>
+
+      <form id="formUpdateEnquiry">
+        <input type="hidden" id="editEnquiryId">
+        <div class="form-group">
+          <label class="form-label" for="editEnquiryStatus">Pipeline Status</label>
+          <select id="editEnquiryStatus" class="form-control">
+            <option value="new">New Lead</option>
+            <option value="contacted">Contacted</option>
+            <option value="quoted">Quoted</option>
+            <option value="won">Won (Deal Closed)</option>
+            <option value="lost">Lost</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editEnquiryNotes">Administrative Notes & Call Logs</label>
+          <textarea id="editEnquiryNotes" class="form-control" placeholder="Record discussion points, site survey dates, or preliminary quotation ranges..."></textarea>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+          <button type="button" class="btn btn-outline" data-close="modalEnquiry">Cancel</button>
+          <button type="submit" class="btn btn-gold">Save Status & Notes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL: ADD / EDIT PROJECT (WITH IMAGE UPLOAD) -->
+  <!-- ============================================================== -->
+  <div class="admin-modal-overlay" id="modalProject">
+    <div class="admin-modal">
+      <button class="admin-modal-close" data-close="modalProject">&times;</button>
+      <h3 style="font-family: var(--font-serif); margin-bottom: 20px; font-size: 1.4rem;" id="modalProjectTitle">Add Architecture Project</h3>
+
+      <form id="formProject" novalidate>
+        <input type="hidden" id="editProjectId">
+
+        <div class="form-group">
+          <label class="form-label" for="projTitle">Project Title *</label>
+          <input type="text" id="projTitle" class="form-control" placeholder="e.g. The Brass Peacock Lounge" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="projSlug">URL Slug (unique, lowercase-hyphens) *</label>
+          <input type="text" id="projSlug" class="form-control" placeholder="e.g. the-brass-peacock-lounge" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="projCategory">Category Typology *</label>
+          <select id="projCategory" class="form-control" required>
+            <option value="restaurant">Restaurant / Bistro</option>
+            <option value="hotel">Boutique Hotel & Resort</option>
+            <option value="bar">Bar, Taproom & Speakeasy</option>
+            <option value="industrial">Industrial PEB / Logistics Hub</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="projDesc">Architectural Narrative / Description *</label>
+          <textarea id="projDesc" class="form-control" placeholder="Describe the spatial concept, materials, and engineering solution..." required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Cover Image (URL or Upload File) *</label>
+          <div style="display: flex; gap: 10px; margin-bottom: 8px;">
+            <input type="url" id="projImageUrl" class="form-control" placeholder="https://images.unsplash.com/... or upload below" required>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <input type="file" id="projImageFile" accept="image/jpeg,image/png,image/webp" style="font-size: 0.85rem; color: var(--text-muted);">
+            <button type="button" id="btnUploadImage" class="btn btn-outline btn-sm">Upload to Server</button>
+          </div>
+          <span id="uploadStatusText" style="font-size: 0.8rem; color: var(--gold); margin-top: 4px; display: block;"></span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="projScope">Scope Deliverables (Comma-separated)</label>
+          <input type="text" id="projScope" class="form-control" placeholder="Space Planning, Kitchen MEP, Acoustic Ceiling, Brass Craft">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="projGallery">Gallery Images (Comma-separated URLs)</label>
+          <input type="text" id="projGallery" class="form-control" placeholder="https://image1.jpg, https://image2.jpg">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label class="form-label" for="projSort">Sort Order</label>
+            <input type="number" id="projSort" class="form-control" value="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="projFeatured">Featured on Homepage?</label>
+            <select id="projFeatured" class="form-control">
+              <option value="0">Standard</option>
+              <option value="1">Featured Highlight ★</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="projPublished">Visibility</label>
+          <select id="projPublished" class="form-control">
+            <option value="1">Published (Live)</option>
+            <option value="0">Draft (Hidden)</option>
+          </select>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+          <button type="button" class="btn btn-outline" data-close="modalProject">Cancel</button>
+          <button type="submit" class="btn btn-gold" id="btnSaveProject">Save Project</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL: ADD / EDIT TESTIMONIAL -->
+  <!-- ============================================================== -->
+  <div class="admin-modal-overlay" id="modalTestimonial">
+    <div class="admin-modal">
+      <button class="admin-modal-close" data-close="modalTestimonial">&times;</button>
+      <h3 style="font-family: var(--font-serif); margin-bottom: 20px; font-size: 1.4rem;" id="modalTestimonialTitle">Add Client Testimonial</h3>
+
+      <form id="formTestimonial" novalidate>
+        <input type="hidden" id="editTestimonialId">
+
+        <div class="form-group">
+          <label class="form-label" for="testClient">Client / Principal Name *</label>
+          <input type="text" id="testClient" class="form-control" placeholder="e.g. Rajeev Malhotra" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="testBusiness">Commercial Business Entity *</label>
+          <input type="text" id="testBusiness" class="form-control" placeholder="e.g. The Brass Peacock Hospitality Group" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="testRating">Star Rating (1 - 5) *</label>
+          <select id="testRating" class="form-control" required>
+            <option value="5">★★★★★ (5 Stars)</option>
+            <option value="4">★★★★☆ (4 Stars)</option>
+            <option value="3">★★★☆☆ (3 Stars)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="testReview">Client Review Text *</label>
+          <textarea id="testReview" class="form-control" placeholder="Client remarks on design, execution, speed, or cost savings..." required></textarea>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+          <button type="button" class="btn btn-outline" data-close="modalTestimonial">Cancel</button>
+          <button type="submit" class="btn btn-gold">Save Testimonial</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL: ADD / EDIT FAQ -->
+  <!-- ============================================================== -->
+  <div class="admin-modal-overlay" id="modalFaq">
+    <div class="admin-modal">
+      <button class="admin-modal-close" data-close="modalFaq">&times;</button>
+      <h3 style="font-family: var(--font-serif); margin-bottom: 20px; font-size: 1.4rem;" id="modalFaqTitle">Add Architectural FAQ</h3>
+
+      <form id="formFaq" novalidate>
+        <input type="hidden" id="editFaqId">
+
+        <div class="form-group">
+          <label class="form-label" for="faqQuestion">Question *</label>
+          <input type="text" id="faqQuestion" class="form-control" placeholder="e.g. What is MS Fusion’s typical turnaround time?" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="faqAnswer">Answer *</label>
+          <textarea id="faqAnswer" class="form-control" placeholder="Detailed architectural response..." required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="faqSort">Sort Order</label>
+          <input type="number" id="faqSort" class="form-control" value="0">
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+          <button type="button" class="btn btn-outline" data-close="modalFaq">Cancel</button>
+          <button type="submit" class="btn btn-gold">Save FAQ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/admin/admin.js"></script>
+</body>
+</html>
