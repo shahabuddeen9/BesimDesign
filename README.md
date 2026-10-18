@@ -1,6 +1,6 @@
-# MS Fusion Architects & Commercial Interiors
+# Besim Design & Commercial Interiors
 
-> A full-stack web application, interactive space & budget estimation engine, automated lead qualification system, and administration portal built for **MS Fusion Architects** — specializing in commercial, hospitality (fine dining restaurants, boutique hotels, speakeasy bars), and pre-engineered industrial facilities.
+> A full-stack web application, interactive space & budget estimation engine, automated lead qualification system, and administration portal built for **Besim Design** — specializing in commercial, hospitality (fine dining restaurants, boutique hotels, speakeasy bars), and pre-engineered industrial facilities.
 
 ---
 

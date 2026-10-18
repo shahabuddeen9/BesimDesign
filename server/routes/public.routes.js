@@ -6,6 +6,7 @@
 
 import { Router } from 'express';
 import { createEnquiry } from '../controllers/enquiry.controller.js';
+import { getPublishedClients } from '../controllers/client.controller.js';
 import { getPublishedFaqs } from '../controllers/faq.controller.js';
 import { getProjectBySlug, getPublishedProjects } from '../controllers/project.controller.js';
 import { downloadCompanyProfile } from '../controllers/stats.controller.js';
@@ -20,6 +21,9 @@ publicRouter.post('/enquiries', enquiryLimiter, createEnquiry);
 // 2. Portfolio Projects
 publicRouter.get('/projects', getPublishedProjects);
 publicRouter.get('/projects/:slug', getProjectBySlug);
+
+// 2.5 Clients & Brands
+publicRouter.get('/clients', getPublishedClients);
 
 // 3. Client Testimonials
 publicRouter.get('/testimonials', getPublishedTestimonials);

@@ -1,5 +1,5 @@
 # ==============================================================================
-# MS FUSION ARCHITECTS — PRODUCTION DOCKERFILE
+# BESIM DESIGN — PRODUCTION DOCKERFILE
 # Multi-stage optimized Node.js 20 container for Render, Railway, or VPS deployment
 # ==============================================================================
 

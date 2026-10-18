@@ -120,7 +120,7 @@ export function downloadCompanyProfile(req, res, next) {
     }
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="MS-Fusion-Architects-Company-Profile.pdf"');
+    res.setHeader('Content-Disposition', 'attachment; filename="Besim-Design-Company-Profile.pdf"');
 
     const readStream = fs.createReadStream(pdfPath);
     readStream.pipe(res);

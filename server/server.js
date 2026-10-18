@@ -12,7 +12,7 @@ import logger from './utils/logger.js';
 
 async function startServer() {
   try {
-    logger.info('Starting MS Fusion Architects application server...');
+    logger.info('Starting Besim Design application server...');
 
     // 1. Initialize SQLite Database and schema migrations
     await initDb();

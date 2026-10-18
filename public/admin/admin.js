@@ -1,6 +1,6 @@
 /**
  * @file /public/admin/admin.js
- * @description Administrative dashboard controller for MS Fusion Architects CRM.
+ * @description Administrative dashboard controller for Besim Design CRM.
  * Manages authenticated sessions, metric cards, enquiries CRM, portfolio CRUD,
  * file uploads, testimonials, and FAQs. Auto-redirects to login on 401.
  */
@@ -9,6 +9,7 @@ const state = {
   activeTab: 'enquiries',
   enquiries: [],
   projects: [],
+  clients: [],
   testimonials: [],
   faqs: [],
   pagination: {
@@ -99,6 +100,9 @@ function initTabs() {
       } else if (tabName === 'projects') {
         pageTitle.textContent = 'Projects Portfolio Management';
         loadAdminProjects();
+      } else if (tabName === 'clients') {
+        pageTitle.textContent = 'Client Brands & Partnerships';
+        loadAdminClients();
       } else if (tabName === 'testimonials') {
         pageTitle.textContent = 'Client Reviews & Testimonials';
         loadAdminTestimonials();
@@ -442,6 +446,12 @@ function editProject(id) {
   document.getElementById('projTitle').value = p.title;
   document.getElementById('projSlug').value = p.slug;
   document.getElementById('projCategory').value = p.category;
+  const clientInput = document.getElementById('projClientName');
+  if (clientInput) clientInput.value = p.client_name || '';
+  const locInput = document.getElementById('projLocation');
+  if (locInput) locInput.value = p.location || '';
+  const areaInput = document.getElementById('projAreaSqft');
+  if (areaInput) areaInput.value = p.area_sqft || 0;
   document.getElementById('projDesc').value = p.description;
   document.getElementById('projImageUrl').value = p.image_url;
   document.getElementById('projScope').value = Array.isArray(p.scope) ? p.scope.join(', ') : p.scope;
@@ -460,6 +470,104 @@ async function deleteProject(id) {
     if (res.ok) loadAdminProjects();
   } catch (err) {
     console.error('Failed to delete project:', err);
+  }
+}
+
+// =============================================================================
+// Clients & Brand Partnerships CRUD
+// =============================================================================
+
+async function loadAdminClients() {
+  const tbody = document.getElementById('clientsTableBody');
+  if (!tbody) return;
+
+  tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 32px; color: var(--text-dim);">Loading clients...</td></tr>`;
+
+  try {
+    const res = await fetch('/api/admin/clients');
+    if (res.status === 401) return window.location.replace('/admin/login.html');
+    const json = await res.json();
+
+    if (json.success) {
+      state.clients = json.data;
+      renderAdminClientsTable(json.data);
+    }
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: #f87171;">Failed to load clients.</td></tr>`;
+  }
+}
+
+function renderAdminClientsTable(clients) {
+  const tbody = document.getElementById('clientsTableBody');
+  if (!tbody) return;
+
+  if (clients.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 32px;">No clients created yet. Click "+ Add New Client" above.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = clients.map((c) => `
+    <tr>
+      <td style="width: 80px;">
+        ${c.logo_url ? `<img src="${c.logo_url}" alt="${c.name}" style="width: 60px; height: 40px; object-fit: contain; background: #fff; padding: 4px; border-radius: 4px; border: 1px solid var(--admin-border);">` : '<div style="width: 60px; height: 40px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--text-dim);">No logo</div>'}
+      </td>
+      <td>
+        <strong>${c.name}</strong>
+        ${c.description ? `<div style="font-size: 0.78rem; color: var(--text-dim); max-width: 250px;">${c.description}</div>` : ''}
+      </td>
+      <td style="font-size: 0.82rem; color: var(--gold);">${c.category || 'General'}</td>
+      <td style="font-size: 0.8rem;">
+        ${c.website_url ? `<a href="${c.website_url}" target="_blank" style="color: var(--gold); text-decoration: underline;">${c.website_url.replace(/^https?:\/\//, '')}</a>` : '<span style="color: var(--text-dim);">—</span>'}
+      </td>
+      <td>
+        <span class="badge-status ${c.is_featured ? 'badge-won' : 'badge-lost'}">
+          ${c.is_featured ? 'Showcase ★' : 'Hidden'}
+        </span>
+      </td>
+      <td>${c.sort_order}</td>
+      <td>
+        <div style="display: flex; gap: 6px;">
+          <button class="btn btn-outline btn-sm btn-edit-client" data-id="${c.id}">Edit</button>
+          <button class="btn btn-danger btn-sm btn-del-client" data-id="${c.id}">✕</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  document.querySelectorAll('.btn-edit-client').forEach((b) => {
+    b.onclick = () => editClient(b.dataset.id);
+  });
+  document.querySelectorAll('.btn-del-client').forEach((b) => {
+    b.onclick = () => deleteClient(b.dataset.id);
+  });
+}
+
+function editClient(id) {
+  const c = state.clients.find((item) => item.id.toString() === id.toString());
+  if (!c) return;
+
+  document.getElementById('modalClientTitle').textContent = `Edit Client: ${c.name}`;
+  document.getElementById('editClientId').value = c.id;
+  document.getElementById('clientName').value = c.name;
+  document.getElementById('clientCategory').value = c.category || '';
+  document.getElementById('clientLogoUrl').value = c.logo_url || '';
+  document.getElementById('clientWebsite').value = c.website_url || '';
+  document.getElementById('clientDesc').value = c.description || '';
+  document.getElementById('clientSort').value = c.sort_order || 0;
+  document.getElementById('clientFeatured').value = c.is_featured !== undefined ? c.is_featured : 1;
+  const statusEl = document.getElementById('clientUploadStatus');
+  if (statusEl) statusEl.textContent = '';
+
+  openModal('modalClient');
+}
+
+async function deleteClient(id) {
+  if (!confirm('Are you sure you want to permanently delete this client?')) return;
+  try {
+    const res = await fetch(`/api/admin/clients/${id}`, { method: 'DELETE' });
+    if (res.ok) loadAdminClients();
+  } catch (err) {
+    console.error('Failed to delete client:', err);
   }
 }
 
@@ -770,6 +878,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const title = document.getElementById('projTitle').value.trim();
       const slug = document.getElementById('projSlug').value.trim();
       const category = document.getElementById('projCategory').value;
+      const client_name = document.getElementById('projClientName')?.value.trim() || '';
+      const location = document.getElementById('projLocation')?.value.trim() || '';
+      const area_sqft = parseInt(document.getElementById('projAreaSqft')?.value, 10) || 0;
       const description = document.getElementById('projDesc').value.trim();
       const image_url = document.getElementById('projImageUrl').value.trim();
       const rawScope = document.getElementById('projScope').value.trim();
@@ -785,6 +896,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         title,
         slug,
         category,
+        client_name,
+        location,
+        area_sqft,
         description,
         image_url,
         scope,
@@ -813,6 +927,106 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       } catch (err) {
         console.error('Project save error:', err);
+      }
+    });
+  }
+
+  // Client Logo Upload
+  const btnUploadClientLogo = document.getElementById('btnUploadClientLogo');
+  const clientFileInput = document.getElementById('clientLogoFile');
+  const clientUploadStatus = document.getElementById('clientUploadStatus');
+
+  if (btnUploadClientLogo && clientFileInput) {
+    btnUploadClientLogo.addEventListener('click', async () => {
+      if (!clientFileInput.files || clientFileInput.files.length === 0) {
+        clientUploadStatus.textContent = 'Please choose an image file first.';
+        clientUploadStatus.style.color = '#ef4444';
+        return;
+      }
+
+      const file = clientFileInput.files[0];
+      const formData = new FormData();
+      formData.append('image', file);
+
+      clientUploadStatus.textContent = 'Uploading logo...';
+      clientUploadStatus.style.color = 'var(--gold)';
+
+      try {
+        const res = await fetch('/api/admin/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const json = await res.json();
+        if (res.ok && json.success) {
+          document.getElementById('clientLogoUrl').value = json.url;
+          clientUploadStatus.textContent = `Upload successful: ${json.filename}`;
+          clientUploadStatus.style.color = '#10b981';
+        } else {
+          clientUploadStatus.textContent = json.message || 'Upload failed.';
+          clientUploadStatus.style.color = '#ef4444';
+        }
+      } catch (err) {
+        clientUploadStatus.textContent = 'Upload network error.';
+        clientUploadStatus.style.color = '#ef4444';
+      }
+    });
+  }
+
+  // Add / Edit Client Form
+  const btnNewClient = document.getElementById('btnNewClient');
+  const formClient = document.getElementById('formClient');
+  if (btnNewClient && formClient) {
+    btnNewClient.addEventListener('click', () => {
+      formClient.reset();
+      document.getElementById('editClientId').value = '';
+      document.getElementById('modalClientTitle').textContent = 'Add Brand Client';
+      if (clientUploadStatus) clientUploadStatus.textContent = '';
+      openModal('modalClient');
+    });
+  }
+
+  if (formClient) {
+    formClient.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('editClientId').value;
+      const name = document.getElementById('clientName').value.trim();
+      const category = document.getElementById('clientCategory').value.trim();
+      const logo_url = document.getElementById('clientLogoUrl').value.trim();
+      const website_url = document.getElementById('clientWebsite').value.trim();
+      const description = document.getElementById('clientDesc').value.trim();
+      const sort_order = parseInt(document.getElementById('clientSort').value, 10) || 0;
+      const is_featured = parseInt(document.getElementById('clientFeatured').value, 10) || 1;
+
+      const payload = {
+        name,
+        category,
+        logo_url,
+        website_url,
+        description,
+        sort_order,
+        is_featured,
+      };
+
+      const url = id ? `/api/admin/clients/${id}` : '/api/admin/clients';
+      const method = id ? 'PATCH' : 'POST';
+
+      try {
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const json = await res.json();
+        if (res.ok && json.success) {
+          closeModal('modalClient');
+          loadAdminClients();
+        } else {
+          alert(json.message || 'Failed to save client.');
+        }
+      } catch (err) {
+        console.error('Client save error:', err);
       }
     });
   }

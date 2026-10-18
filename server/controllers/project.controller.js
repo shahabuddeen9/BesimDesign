@@ -13,7 +13,10 @@ import { stripHtml } from '../utils/sanitize.js';
 export const projectSchema = z.object({
   title: z.string().min(2, 'Title must be at least 2 characters').max(150),
   slug: z.string().min(2).max(150).regex(/^[a-z0-9-]+$/, 'Slug must only contain lowercase letters, numbers, and hyphens'),
-  category: z.enum(['restaurant', 'hotel', 'industrial', 'bar']),
+  category: z.string().min(2).max(50),
+  client_name: z.string().max(100).default(''),
+  location: z.string().max(100).default(''),
+  area_sqft: z.coerce.number().default(0),
   description: z.string().min(10, 'Description must be at least 10 characters'),
   scope: z.union([z.array(z.string()), z.string()]).default([]),
   image_url: z.string().url('Cover image must be a valid URL'),
@@ -30,15 +33,15 @@ export function getPublishedProjects(req, res, next) {
   try {
     const { category } = req.query;
     let sql = `
-      SELECT id, title, slug, category, description, scope, image_url, gallery, is_featured, sort_order, created_at
+      SELECT id, title, slug, category, client_name, location, area_sqft, description, scope, image_url, gallery, is_featured, sort_order, created_at
       FROM projects
       WHERE is_published = 1
     `;
     const params = [];
 
-    if (category && ['restaurant', 'hotel', 'industrial', 'bar'].includes(category)) {
-      sql += ' AND category = ?';
-      params.push(category);
+    if (category && category !== 'all') {
+      sql += ' AND (LOWER(category) = LOWER(?) OR category LIKE ?)';
+      params.push(category, `%${category}%`);
     }
 
     sql += ' ORDER BY sort_order ASC, created_at DESC';
@@ -127,11 +130,11 @@ export function createProject(req, res, next) {
 
     const result = db.prepare(`
       INSERT INTO projects (
-        title, slug, category, description, scope,
+        title, slug, category, client_name, location, area_sqft, description, scope,
         image_url, gallery, is_featured, sort_order, is_published,
         created_at, updated_at
       ) VALUES (
-        ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?,
         datetime('now'), datetime('now')
       )
@@ -139,6 +142,9 @@ export function createProject(req, res, next) {
       stripHtml(validated.title),
       validated.slug.toLowerCase(),
       validated.category,
+      stripHtml(validated.client_name || ''),
+      stripHtml(validated.location || ''),
+      validated.area_sqft || 0,
       validated.description,
       scopeJson,
       validated.image_url,
@@ -175,6 +181,9 @@ export function updateProject(req, res, next) {
       title,
       slug,
       category,
+      client_name,
+      location,
+      area_sqft,
       description,
       scope,
       image_url,
@@ -196,14 +205,17 @@ export function updateProject(req, res, next) {
 
     db.prepare(`
       UPDATE projects
-      SET title = ?, slug = ?, category = ?, description = ?, scope = ?,
-          image_url = ?, gallery = ?, is_featured = ?, sort_order = ?,
+      SET title = ?, slug = ?, category = ?, client_name = ?, location = ?, area_sqft = ?,
+          description = ?, scope = ?, image_url = ?, gallery = ?, is_featured = ?, sort_order = ?,
           is_published = ?, updated_at = datetime('now')
       WHERE id = ?
     `).run(
       title ? stripHtml(title) : existing.title,
       slug ? slug.toLowerCase() : existing.slug,
       category || existing.category,
+      client_name !== undefined ? stripHtml(client_name) : (existing.client_name || ''),
+      location !== undefined ? stripHtml(location) : (existing.location || ''),
+      area_sqft !== undefined ? Number(area_sqft) : (existing.area_sqft || 0),
       description || existing.description,
       scopeJson,
       image_url || existing.image_url,

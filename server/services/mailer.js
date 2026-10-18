@@ -69,7 +69,7 @@ export async function sendEnquiryEmails(enquiry) {
   const mailer = getTransporter();
 
   const recipients = env.NOTIFY_EMAILS.split(',').map((e) => e.trim());
-  const fromAddress = env.SMTP_USER ? `"MS Fusion Portal" <${env.SMTP_USER}>` : '"MS Fusion Portal" <no-reply@msfusion.com>';
+  const fromAddress = env.SMTP_USER ? `"Besim Design Portal" <${env.SMTP_USER}>` : '"Besim Design Portal" <no-reply@besimdesign.com>';
 
   // 1. Internal Notification Email
   const internalHtml = `
@@ -117,7 +117,7 @@ export async function sendEnquiryEmails(enquiry) {
           ` : ''}
         </div>
         <div class="footer">
-          Submitted on ${new Date().toLocaleString()} (IST) • MS Fusion Architects CRM System
+          Submitted on ${new Date().toLocaleString()} (IST) • Besim Design CRM System
         </div>
       </div>
     </body>
@@ -158,7 +158,7 @@ Timestamp: ${new Date().toISOString()}
     <body>
       <div class="card">
         <div class="header">
-          <div class="brand">MS Fusion Architects</div>
+          <div class="brand">Besim Design</div>
           <div class="tagline">Commercial • Hospitality • Industrial Architecture</div>
         </div>
         <div class="content">
@@ -166,19 +166,19 @@ Timestamp: ${new Date().toISOString()}
           <p>We have successfully received your project enquiry regarding your <strong>${enquiry.business_type}</strong> development.</p>
           
           <div class="lead-summary">
-            <div><strong>Enquiry Reference:</strong> #MSF-${enquiry.id.toString().padStart(4, '0')}</div>
+            <div><strong>Enquiry Reference:</strong> #BD-${enquiry.id.toString().padStart(4, '0')}</div>
             <div><strong>Location:</strong> ${enquiry.project_location || 'To be finalized'}</div>
             <div><strong>Estimated Area:</strong> ${enquiry.area_sqft ? enquiry.area_sqft.toLocaleString() + ' sq.ft' : 'Under assessment'}</div>
           </div>
 
           <p>Our principal architectural and MEP engineering team is currently reviewing your brief. We will contact you within <strong>1 business day</strong> to discuss space planning, preliminary feasibility, and project delivery timelines.</p>
           
-          <p>If you have immediate site drawings, municipal approval documents, or floor plans to share, you can reply directly to this email or reach us at <a href="mailto:msfusionarchitects@gmail.com">msfusionarchitects@gmail.com</a>.</p>
+          <p>If you have immediate site drawings, municipal approval documents, or floor plans to share, you can reply directly to this email or reach us at <a href="mailto:besimdesigne@gmail.com">besimdesigne@gmail.com</a>.</p>
           
-          <p style="margin-top: 28px;">Warm regards,<br><strong>Principal Architectural Team</strong><br>MS Fusion Architects</p>
+          <p style="margin-top: 28px;">Warm regards,<br><strong>Principal Architectural Team</strong><br>Besim Design</p>
         </div>
         <div class="footer">
-          MS Fusion Architects • Delhi NCR | Bengaluru | Mumbai | Goa<br>
+          Besim Design • Delhi NCR | Bengaluru | Mumbai | Goa<br>
           This is an automated confirmation sent in response to your enquiry.
         </div>
       </div>
@@ -189,15 +189,15 @@ Timestamp: ${new Date().toISOString()}
   const clientText = `
 Dear ${enquiry.name},
 
-Thank you for contacting MS Fusion Architects regarding your ${enquiry.business_type} project.
-We have received your enquiry (#MSF-${enquiry.id.toString().padStart(4, '0')}).
+Thank you for contacting Besim Design regarding your ${enquiry.business_type} project.
+We have received your enquiry (#BD-${enquiry.id.toString().padStart(4, '0')}).
 
 Our principal architectural team is reviewing your requirements and will reach out to you within 1 business day.
 You can reply directly to this email if you have preliminary architectural drawings or floor plans.
 
 Warm regards,
 Principal Architectural Team
-MS Fusion Architects
+Besim Design
   `.trim();
 
   // Execute mail dispatches in background without blocking lead persistence
@@ -218,7 +218,7 @@ MS Fusion Architects
       await mailer.sendMail({
         from: fromAddress,
         to: enquiry.email,
-        subject: `We have received your project enquiry — MS Fusion Architects`,
+        subject: `We have received your project enquiry — Besim Design`,
         text: clientText,
         html: clientHtml,
       });

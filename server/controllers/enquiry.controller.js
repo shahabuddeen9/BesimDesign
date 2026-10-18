@@ -334,7 +334,7 @@ export function exportEnquiriesCsv(req, res, next) {
     const records = db.prepare(`SELECT * FROM enquiries ${whereClause} ORDER BY created_at DESC`).all(...params);
 
     const csvData = generateEnquiriesCsv(records);
-    const filename = `ms-fusion-enquiries-${new Date().toISOString().slice(0, 10)}.csv`;
+    const filename = `besim-design-enquiries-${new Date().toISOString().slice(0, 10)}.csv`;
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

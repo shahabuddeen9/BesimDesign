@@ -34,7 +34,10 @@ CREATE TABLE IF NOT EXISTS projects (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   title TEXT NOT NULL,
   slug TEXT UNIQUE NOT NULL,
-  category TEXT NOT NULL CHECK (category IN ('restaurant', 'hotel', 'industrial', 'bar')),
+  category TEXT NOT NULL,
+  client_name TEXT DEFAULT '',
+  location TEXT DEFAULT '',
+  area_sqft INTEGER DEFAULT 0,
   description TEXT NOT NULL,
   scope TEXT NOT NULL DEFAULT '[]',
   image_url TEXT NOT NULL,
@@ -49,6 +52,22 @@ CREATE TABLE IF NOT EXISTS projects (
 CREATE INDEX IF NOT EXISTS idx_projects_slug ON projects(slug);
 CREATE INDEX IF NOT EXISTS idx_projects_category ON projects(category);
 CREATE INDEX IF NOT EXISTS idx_projects_published ON projects(is_published, sort_order);
+
+-- 2.5 CLIENTS TABLE
+CREATE TABLE IF NOT EXISTS clients (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  category TEXT DEFAULT '',
+  logo_url TEXT DEFAULT '',
+  website_url TEXT DEFAULT '',
+  description TEXT DEFAULT '',
+  is_featured INTEGER NOT NULL DEFAULT 1,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_clients_featured ON clients(is_featured, sort_order);
 
 -- 3. TESTIMONIALS TABLE
 CREATE TABLE IF NOT EXISTS testimonials (

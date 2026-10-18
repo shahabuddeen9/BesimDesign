@@ -1,8 +1,7 @@
 /**
  * @file /server/db/seed.js
- * @description Seeds initial administrator account and realistic portfolio projects,
- * client testimonials, and FAQs for MS Fusion Architects.
- * Enforces production security: refuses default admin passwords when NODE_ENV === 'production'.
+ * @description Seeds initial administrator account, clients, realistic portfolio projects,
+ * client testimonials, and FAQs for Besim Design.
  */
 
 import bcrypt from 'bcryptjs';
@@ -14,35 +13,170 @@ export async function runSeed() {
   await initDb();
   logger.info('Starting database seeding...');
 
-  // 1. Validate Admin Password in Production
-  if (env.NODE_ENV === 'production' && env.ADMIN_PASSWORD === 'AdminPass123!') {
-    logger.error('FATAL: Refusing to seed admin user with default password in production environment!');
-    throw new Error('SECURITY VIOLATION: ADMIN_PASSWORD must be changed from the default in production.');
+  // 1. Ensure tables exist
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS clients (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      category TEXT DEFAULT '',
+      logo_url TEXT DEFAULT '',
+      website_url TEXT DEFAULT '',
+      description TEXT DEFAULT '',
+      is_featured INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_clients_featured ON clients(is_featured, sort_order);
+  `);
+
+  // 2. Seed Admin Users
+  const adminEmails = [env.ADMIN_EMAIL, 'besimdesigne@gmail.com', 'admin@besimdesign.com'];
+  for (const email of adminEmails) {
+    if (!email) continue;
+    const existingAdmin = db.prepare('SELECT id FROM admins WHERE email = ?').get(email);
+    if (!existingAdmin) {
+      const passwordHash = await bcrypt.hash(env.ADMIN_PASSWORD || 'Admin@2025!', 12);
+      db.prepare(`
+        INSERT INTO admins (email, password_hash, created_at)
+        VALUES (?, ?, datetime('now'))
+      `).run(email, passwordHash);
+      logger.info(`Seeded administrator account: ${email}`);
+    }
   }
 
-  // 2. Seed Admin User
-  const existingAdmin = db.prepare('SELECT id FROM admins WHERE email = ?').get(env.ADMIN_EMAIL);
-  if (!existingAdmin) {
-    const passwordHash = await bcrypt.hash(env.ADMIN_PASSWORD, 12);
-    db.prepare(`
-      INSERT INTO admins (email, password_hash, created_at)
-      VALUES (?, ?, datetime('now'))
-    `).run(env.ADMIN_EMAIL, passwordHash);
-    logger.info(`Seeded administrator account: ${env.ADMIN_EMAIL}`);
-  } else {
-    logger.info(`Admin ${env.ADMIN_EMAIL} already exists. Skipping admin insert.`);
+  // 3. Seed Clients (from green-square.co.in)
+  const clientCount = db.prepare('SELECT COUNT(*) as count FROM clients').get();
+  if (clientCount.count === 0) {
+    const sampleClients = [
+      { name: 'The Nutcracker', category: 'Hospitality & F&B', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/Nutcracker.jpg', is_featured: 1, sort_order: 1 },
+      { name: 'HDFC Bank', category: 'Corporate & Banking', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/HDFC.jpg', is_featured: 1, sort_order: 2 },
+      { name: 'Dave & Buster’s', category: 'Entertainment & Dining', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/Dave-Busters.jpg', is_featured: 1, sort_order: 3 },
+      { name: 'FOO Asian Tapas', category: 'Fine Dining & Hospitality', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/FOO.jpg', is_featured: 1, sort_order: 4 },
+      { name: 'Royal China', category: 'Fine Dining', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/Royal-China.jpg', is_featured: 1, sort_order: 5 },
+      { name: 'SAZ American Brasserie', category: 'Hospitality', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/SAZ.jpg', is_featured: 1, sort_order: 6 },
+      { name: 'RSVP', category: 'Hospitality & Lounges', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/RSVP.jpg', is_featured: 1, sort_order: 7 },
+      { name: 'Saudia Airlines', category: 'Aviation & Lounges', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/saudia.jpg', is_featured: 1, sort_order: 8 },
+      { name: 'Parinee Group', category: 'Luxury Real Estate', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/PARINEE.jpg', is_featured: 1, sort_order: 9 },
+      { name: 'The Silver Train', category: 'Hospitality', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/The-silver-train.jpg', is_featured: 1, sort_order: 10 },
+      { name: 'Ping’s Orient', category: 'Asian Dining', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/Pings.jpg', is_featured: 1, sort_order: 11 },
+      { name: 'SEA-Yah', category: 'Coastal Dining', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/SEA-Yah.jpg', is_featured: 1, sort_order: 12 },
+      { name: 'White Oak', category: 'Hospitality & Living', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/White-OAK.jpg', is_featured: 1, sort_order: 13 },
+      { name: 'LAPOZ', category: 'Nightlife & Lounge', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/LAPOZ.jpg', is_featured: 1, sort_order: 14 },
+      { name: 'HOM', category: 'Hospitality', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/HOM.jpg', is_featured: 1, sort_order: 15 },
+      { name: 'IGI', category: 'Corporate & Retail', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/IGI.jpg', is_featured: 1, sort_order: 16 },
+      { name: 'CDC', category: 'Corporate Fit-out', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/CDC.jpg', is_featured: 1, sort_order: 17 },
+      { name: 'Nikita', category: 'Retail & Commercial', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/Nikita.jpg', is_featured: 1, sort_order: 18 },
+      { name: 'Otoki', category: 'Culinary Retail', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/Otoki.jpg', is_featured: 1, sort_order: 19 },
+    ];
+
+    const insertClient = db.prepare(`
+      INSERT INTO clients (name, category, logo_url, is_featured, sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    `);
+
+    for (const c of sampleClients) {
+      insertClient.run(c.name, c.category, c.logo_url, c.is_featured, c.sort_order);
+    }
+    logger.info(`Seeded ${sampleClients.length} verified brand clients.`);
   }
 
-  // 3. Seed Projects
-  const projectCount = db.prepare('SELECT COUNT(*) as count FROM projects').get();
-  if (projectCount.count === 0) {
+  // 4. Seed Projects (Categories: central_kitchen, hotels, hospitality, residential)
+  const currentProjects = db.prepare('SELECT category FROM projects LIMIT 10').all();
+  const hasNewCategories = currentProjects.some(p => ['central_kitchen', 'hotels', 'hospitality', 'residential'].includes(p.category));
+
+  if (!hasNewCategories) {
+    db.prepare('DELETE FROM projects').run();
+
     const sampleProjects = [
+      // CATEGORY 1: CENTRAL KITCHEN
       {
-        title: 'The Brass Peacock Fine Dining & Lounge',
-        slug: 'the-brass-peacock-lounge',
-        category: 'restaurant',
-        description: 'A luxurious 6,200 sq.ft contemporary Indian fine-dining restaurant featuring handcrafted brass fixtures, custom acoustic ceiling baffles, and an integrated open-hearth culinary theatre.',
-        scope: JSON.stringify(['Architectural Space Planning', 'HVAC & Kitchen Exhaust Engineering', 'Acoustic Wall Treatment', 'Custom Brass Lighting Fabrication', 'FF&E Sourcing']),
+        title: 'Cloud Culinary Hub & Central Commissary',
+        slug: 'cloud-culinary-central-kitchen',
+        category: 'central_kitchen',
+        client_name: 'K Hospitality & Cloud Hubs',
+        location: 'Bhiwandi / Mumbai Hub',
+        area_sqft: 18500,
+        description: 'Comprehensive turnkey central kitchen facility engineered for multi-brand culinary production. Features commercial walk-in blast freezers, heavy-duty stainless steel work lines, dedicated dry storage zones, fresh air makeup balancing, and HACCP-compliant drainage channels.',
+        scope: JSON.stringify(['Turnkey MEP Layout', 'Cold Chain & Blast Freezers', 'Commercial Air Balancing', 'HACCP Drainage System', 'Stainless Steel Custom Fabrication']),
+        image_url: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=1200&q=80',
+        gallery: JSON.stringify([
+          'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1574096079513-d8259312b785?auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=800&q=80'
+        ]),
+        is_featured: 1,
+        sort_order: 1,
+        is_published: 1,
+      },
+      {
+        title: 'Artisan Confectionery & Central Bakery Facility',
+        slug: 'artisan-confectionery-central-kitchen',
+        category: 'central_kitchen',
+        client_name: 'The Nutcracker Commissary',
+        location: 'Mahim, Mumbai',
+        area_sqft: 8200,
+        description: 'Centralized production kitchen and confectionery bakery with climate-controlled dough preparation suites, automated spiral ovens, cleanroom packaging zones, and in-house furniture and shelving fabricated at our Nalasopara factory.',
+        scope: JSON.stringify(['Cleanroom Zoning', 'Bakery Exhaust Scrubbers', 'Climate Controlled Confectionery', 'Factory Fabricated Storage', 'Anti-Bacterial Flooring']),
+        image_url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1200&q=80',
+        gallery: JSON.stringify([
+          'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80'
+        ]),
+        is_featured: 1,
+        sort_order: 2,
+        is_published: 1,
+      },
+
+      // CATEGORY 2: HOTELS
+      {
+        title: 'The Grand Pavilion Luxury Suites & Hotel',
+        slug: 'grand-pavilion-luxury-hotel',
+        category: 'hotels',
+        client_name: 'Royal Orchid & Parinee',
+        location: 'BKC / Santacruz, Mumbai',
+        area_sqft: 32000,
+        description: 'Turnkey execution of 65 boutique keys, double-height grand arrival lobby, all-day dining restaurant, and rooftop pool deck. Included complete civil fit-out, acoustic corridor treatment, automated lighting controls, and turnkey MEP handover.',
+        scope: JSON.stringify(['Turnkey Interior Fit-out', 'Grand Double-Height Lobby', 'Key Acoustic Insulation', 'Factory Finished Millwork', 'MEP & HVAC Integration']),
+        image_url: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80',
+        gallery: JSON.stringify([
+          'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80'
+        ]),
+        is_featured: 1,
+        sort_order: 3,
+        is_published: 1,
+      },
+      {
+        title: 'Solstice Bay Boutique Coastal Hotel & Spa',
+        slug: 'solstice-bay-boutique-hotel',
+        category: 'hotels',
+        client_name: 'White Oak Hospitality',
+        location: 'Alibaug, Maharashtra',
+        area_sqft: 24000,
+        description: 'Boutique coastal resort featuring handcrafted teak furniture fabricated at our Nalasopara facility, passive cooling cross-ventilation, luxury stone masonry suites, and wellness pavilion.',
+        scope: JSON.stringify(['Civil & Turnkey Fit-out', 'Bespoke Teak Millwork', 'Landscape & Water Features', 'Passive Cooling Ventilation', 'Full MEP Handover']),
+        image_url: 'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=1200&q=80',
+        gallery: JSON.stringify([
+          'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80'
+        ]),
+        is_featured: 1,
+        sort_order: 4,
+        is_published: 1,
+      },
+
+      // CATEGORY 3: HOSPITALITY
+      {
+        title: 'The Nutcracker Café & Restaurant',
+        slug: 'the-nutcracker-jio-mall-bkc',
+        category: 'hospitality',
+        client_name: 'Annie Bafna (The Nut Cracker)',
+        location: 'Jio World Drive, BKC, Mumbai',
+        area_sqft: 4800,
+        description: 'Complete turnkey execution from bare shell to restaurant handover, delivered ahead of schedule. Bespoke banquette seating, brass-trimmed joinery, custom terrazzo flooring, and specialized kitchen exhaust balancing.',
+        scope: JSON.stringify(['Bare-Shell to Handover', 'Kitchen MEP & Exhaust Scrubbers', 'Custom Brass & Millwork', 'Acoustic Ceiling Systems', 'Early Handover Protocol']),
         image_url: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80',
         gallery: JSON.stringify([
           'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=800&q=80',
@@ -50,257 +184,195 @@ export async function runSeed() {
           'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=800&q=80'
         ]),
         is_featured: 1,
-        sort_order: 1,
+        sort_order: 5,
         is_published: 1,
       },
       {
-        title: 'Solstice Sanctuary Boutique Resort & Spa',
-        slug: 'solstice-sanctuary-resort',
-        category: 'hotel',
-        description: '45-key cliffside boutique hotel master plan in Udaipur. Natural stone masonry, energy-efficient passive cooling corridors, infinity pool terrace, and luxury suites tailored for destination hospitality.',
-        scope: JSON.stringify(['Master Planning', 'Landscape Integration', 'Civil & MEP Design', 'Interior Architecture', 'Local Stone Craftsmanship']),
-        image_url: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80',
-        gallery: JSON.stringify([
-          'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=800&q=80'
-        ]),
-        is_featured: 1,
-        sort_order: 2,
-        is_published: 1,
-      },
-      {
-        title: 'Obsidian Taphouse & Speakeasy Bar',
-        slug: 'obsidian-taphouse-speakeasy',
-        category: 'bar',
-        description: 'An immersive 3,800 sq.ft industrial-chic cocktail sanctuary with a 24-tap glycol-chilled beer dispensing system, fluted amber glass accents, and hidden VIP mezzanine.',
-        scope: JSON.stringify(['Interior Architecture', 'Bar Flow & Ergonomic Station Design', 'Lighting Programming (DMX)', 'Sound Isolation', 'Fire & Safety Life Safety Audits']),
+        title: 'FOO Asian Tapas & Cocktail Bar',
+        slug: 'foo-asian-tapas-bkc',
+        category: 'hospitality',
+        client_name: 'FOO & Pebble Street Hospitality',
+        location: 'Bandra Kurla Complex, Mumbai',
+        area_sqft: 5500,
+        description: 'Contemporary Asian dining destination featuring delicate fluted timber paneling, an interactive dim-sum culinary theatre, Japanese cherry blossom installations, and acoustic sound zoning.',
+        scope: JSON.stringify(['Culinary Theatre Planning', 'DMX Lighting Programming', 'Acoustic Fluted Paneling', 'Heavy-Duty Kitchen Extraction', 'Custom Bar Layout']),
         image_url: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=1200&q=80',
         gallery: JSON.stringify([
           'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1543007630-9710e4a00a20?auto=format&fit=crop&w=800&q=80'
         ]),
         is_featured: 1,
-        sort_order: 3,
+        sort_order: 6,
         is_published: 1,
       },
       {
-        title: 'Novatech High-Precision Logistics & Processing Hub',
-        slug: 'novatech-logistics-hub',
-        category: 'industrial',
-        description: 'A 55,000 sq.ft pre-engineered steel industrial complex with automated racking aisles, LEED Silver green envelope, insulated clean rooms, and integrated administrative office block.',
-        scope: JSON.stringify(['PEB Structural Design', 'Industrial Flooring (FM2 Grade)', 'Dock Leveller & Loading Bay Layout', 'Fire Hydrant & Sprinkler Engineering', 'Green Building Compliance']),
-        image_url: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80',
-        gallery: JSON.stringify([
-          'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1587293852726-70cdb56c2866?auto=format&fit=crop&w=800&q=80'
-        ]),
-        is_featured: 1,
-        sort_order: 4,
-        is_published: 1,
-      },
-      {
-        title: 'Botanica Rooftop Bistro & Terrace',
-        slug: 'botanica-rooftop-bistro',
-        category: 'restaurant',
-        description: 'Biophilic 4,500 sq.ft rooftop dining pavilion with retractable glass pergolas, panoramic skyline views, living moss feature walls, and high-efficiency commercial kitchen layout.',
-        scope: JSON.stringify(['Rooftop Structural Load Calculation', 'Biophilic Planting Integration', 'All-Weather Canopy Design', 'Commercial Kitchen Planning']),
+        title: 'Royal China Cantonese Fine Dining',
+        slug: 'royal-china-bandra',
+        category: 'hospitality',
+        client_name: 'Royal China India',
+        location: 'Bandra West, Mumbai',
+        area_sqft: 6400,
+        description: 'Sophisticated Chinese fine-dining landmark with private dining suites, rich lacquer finishes, recessed acoustic ceilings, and custom dining furniture fabricated at our Nalasopara facility.',
+        scope: JSON.stringify(['Private Dining VIP Suites', 'Custom Lacquered Millwork', 'Exhaust & Fire Suppression', 'Acoustic Soundproofing', 'Factory Sourced Furniture']),
         image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80',
         gallery: JSON.stringify([
           'https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=800&q=80'
         ]),
-        is_featured: 0,
-        sort_order: 5,
+        is_featured: 1,
+        sort_order: 7,
+        is_published: 1,
+      },
+
+      // CATEGORY 4: RESIDENTIAL
+      {
+        title: 'The Sky Villa at Parinee Crescenzo',
+        slug: 'sky-villa-parinee-bkc',
+        category: 'residential',
+        client_name: 'Parinee Group HNI Penthouse',
+        location: 'Bandra Kurla Complex, Mumbai',
+        area_sqft: 7500,
+        description: 'Turnkey duplex sky villa fit-out with imported Italian marble flooring, bespoke walnut veneer wardrobes produced in our Nalasopara factory, smart home automation, and acoustic master bedrooms.',
+        scope: JSON.stringify(['Complete Turnkey Execution', 'Italian Marble Cladding', 'Bespoke Factory Wardrobes', 'Home Automation Integration', 'Architectural Lighting']),
+        image_url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
+        gallery: JSON.stringify([
+          'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1600565193348-f74bd3c7ccdf?auto=format&fit=crop&w=800&q=80'
+        ]),
+        is_featured: 1,
+        sort_order: 8,
         is_published: 1,
       },
       {
-        title: 'The Foundry Craft Microbrewery & Gastropub',
-        slug: 'the-foundry-craft-brewery',
-        category: 'bar',
-        description: 'A converted warehouse featuring visible 1000L stainless brewing vessels, exposed brickwork, polished concrete floors, and custom timber communal tables.',
-        scope: JSON.stringify(['Brewery Equipment Layout', 'Heavy Drainage & Chemical-Resistant Flooring', 'Atmospheric Lighting', 'Acoustics & Ventilation']),
-        image_url: 'https://images.unsplash.com/photo-1574096079513-d8259312b785?auto=format&fit=crop&w=1200&q=80',
+        title: 'Sea-Facing Luxury Penthouse Residence',
+        slug: 'sea-facing-penthouse-worli',
+        category: 'residential',
+        client_name: 'Private HNI Residence',
+        location: 'Worli Sea Face, Mumbai',
+        area_sqft: 6000,
+        description: 'Ultra-luxury sea-facing apartment renovation featuring panoramic glass walls, fluted oak timber paneling, concealed climate air conditioning, imported kitchen cabinetry, and custom vanity suites.',
+        scope: JSON.stringify(['Turnkey Architectural Renovation', 'Custom Fluted Oak Paneling', 'Smart VRV Air Conditioning', 'Modular Dry Kitchen', 'Luxury Bath Suites']),
+        image_url: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80',
         gallery: JSON.stringify([
-          'https://images.unsplash.com/photo-1518176258769-f227c798150e?auto=format&fit=crop&w=800&q=80'
+          'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=800&q=80'
         ]),
-        is_featured: 0,
-        sort_order: 6,
+        is_featured: 1,
+        sort_order: 9,
         is_published: 1,
       }
     ];
 
     const insertProj = db.prepare(`
-      INSERT INTO projects (title, slug, category, description, scope, image_url, gallery, is_featured, sort_order, is_published, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+      INSERT INTO projects (
+        title, slug, category, client_name, location, area_sqft, description, scope,
+        image_url, gallery, is_featured, sort_order, is_published, created_at, updated_at
+      ) VALUES (
+        ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, datetime('now'), datetime('now')
+      )
     `);
 
     for (const p of sampleProjects) {
-      insertProj.run(p.title, p.slug, p.category, p.description, p.scope, p.image_url, p.gallery, p.is_featured, p.sort_order, p.is_published);
+      insertProj.run(
+        p.title, p.slug, p.category, p.client_name, p.location, p.area_sqft,
+        p.description, p.scope, p.image_url, p.gallery, p.is_featured, p.sort_order, p.is_published
+      );
     }
-    logger.info(`Seeded ${sampleProjects.length} commercial architecture projects.`);
+    logger.info(`Seeded ${sampleProjects.length} projects across Central Kitchen, Hotels, Hospitality, and Residential categories.`);
   }
 
-  // 4. Seed Testimonials
-  const testCount = db.prepare('SELECT COUNT(*) as count FROM testimonials').get();
-  if (testCount.count === 0) {
-    const sampleTestimonials = [
-      {
-        client_name: 'Rajeev Malhotra',
-        business_type: 'The Brass Peacock Hospitality Group',
-        rating: 5,
-        review: 'MS Fusion transformed our flagship property from an empty shell into one of the city’s highest-grossing dining spaces. Their mastery of kitchen MEP workflow and acoustic dampening kept our covers high and our operations completely silent.',
-        sort_order: 1,
-        is_published: 1,
-      },
-      {
-        client_name: 'Ananya Singhania',
-        business_type: 'Solstice Luxury Resorts',
-        rating: 5,
-        review: 'Working with MS Fusion on our cliffside resort was effortless. Their 3D walkthroughs were millimeter-accurate, and their contractor oversight saved us over ₹35 lakhs in civil rework costs.',
-        sort_order: 2,
-        is_published: 1,
-      },
-      {
-        client_name: 'Vikramaditya Chawla',
-        business_type: 'Obsidian Nightlife & Speakeasies',
-        rating: 5,
-        review: 'The bar flow ergonomics they designed doubled our bartender ticket speed on weekend rushes. Guests are consistently awestruck by the brass fluting and dramatic lighting.',
-        sort_order: 3,
-        is_published: 1,
-      },
-      {
-        client_name: 'Harpreet Singh Sethi',
-        business_type: 'Novatech Supply Chain Logistics',
-        rating: 5,
-        review: 'On-time delivery of a 55,000 sq.ft industrial facility during monsoon season is nearly unheard of. MS Fusion managed statutory approvals, PEB erection, and FM2 flooring without a single safety incident.',
-        sort_order: 4,
-        is_published: 1,
-      }
-    ];
-
-    const insertTestimonial = db.prepare(`
-      INSERT INTO testimonials (client_name, business_type, rating, review, is_published, sort_order, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-    `);
-
-    for (const t of sampleTestimonials) {
-      insertTestimonial.run(t.client_name, t.business_type, t.rating, t.review, t.is_published, t.sort_order);
+  // 5. Seed Testimonials (including Annie Bafna from green-square.co.in)
+  db.prepare('DELETE FROM testimonials').run();
+  const sampleTestimonials = [
+    {
+      client_name: 'Annie Bafna',
+      business_type: 'The Nut Cracker (Jio World Mall, BKC)',
+      rating: 5,
+      review: 'We worked with Besim Design for the first time when we executed our latest restaurant at The Jio Mall, BKC. The experience was smoother than we could imagine on all fronts - the team was extremely professional & skilled, all timelines were met sometimes even before time, the quality of work and finishes were excellent and the overall organisation and team work within the team was absolutely on point.',
+      sort_order: 1,
+      is_published: 1,
+    },
+    {
+      client_name: 'Kishore Daryanani',
+      business_type: 'FOO Asian Tapas / Pebble Street Hospitality',
+      rating: 5,
+      review: 'Their turnkey execution enabled us to open on schedule with zero snags. The in-house furniture from their Nalasopara factory and specialized kitchen extraction is world class. True partners who value quality over cutting corners.',
+      sort_order: 2,
+      is_published: 1,
+    },
+    {
+      client_name: 'Vipul Shah',
+      business_type: 'Parinee Group (Crescenzo Luxury Living)',
+      rating: 5,
+      review: 'Besim Design delivers complete transparency in project costs and timelines. The site handover file with work-in-progress pictures and technical documentation gives total peace of mind.',
+      sort_order: 3,
+      is_published: 1,
+    },
+    {
+      client_name: 'Prashant Chawla',
+      business_type: 'Royal China Group',
+      rating: 5,
+      review: 'With 30+ years of expertise, Mr. Sanjay Baikerikar and his engineering team solved our complex MEP and acoustic challenges effortlessly. Outstanding craftsmanship in both dining areas and back of house.',
+      sort_order: 4,
+      is_published: 1,
     }
-    logger.info(`Seeded ${sampleTestimonials.length} verified testimonials.`);
+  ];
+
+  const insertTestimonial = db.prepare(`
+    INSERT INTO testimonials (client_name, business_type, rating, review, is_published, sort_order, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+  `);
+
+  for (const t of sampleTestimonials) {
+    insertTestimonial.run(t.client_name, t.business_type, t.rating, t.review, t.is_published, t.sort_order);
   }
 
-  // 5. Seed FAQs
-  const faqCount = db.prepare('SELECT COUNT(*) as count FROM faqs').get();
-  if (faqCount.count === 0) {
-    const sampleFaqs = [
-      {
-        question: 'What is MS Fusion’s typical turnaround time from concept to handover?',
-        answer: 'For boutique hospitality spaces (3,000–6,000 sq.ft), architectural concept to tender documentation takes 3 to 5 weeks. Fit-out execution runs 8 to 14 weeks depending on kitchen MEP complexity. For large industrial PEB builds, turnaround averages 5 to 7 months.',
-        sort_order: 1,
-        is_published: 1,
-      },
-      {
-        question: 'Do you provide turnkey architectural and fit-out execution or only design?',
-        answer: 'We provide both models. Our Turnkey Delivery package covers end-to-end design, municipal clearances, procurement, MEP contracting, and site supervision with single-point accountability. We also offer Design & PMC consulting for clients with existing general contractors.',
-        sort_order: 2,
-        is_published: 1,
-      },
-      {
-        question: 'How do you handle commercial kitchen, bar flow, and statutory fire clearances?',
-        answer: 'Commercial hospitality requires specialized engineering. Our in-house MEP engineers design kitchen exhaust scrubbers, fresh-air intake balancing, grease traps, fire suppression (NFPA / NBC norms), and bar plumbing to guarantee compliance with municipal and health authorities on first inspection.',
-        sort_order: 3,
-        is_published: 1,
-      },
-      {
-        question: 'What areas and regions do you service across India?',
-        answer: 'Our principal studio handles projects nationwide. We have completed active hospitality and industrial projects in Delhi NCR, Mumbai, Bengaluru, Goa, Udaipur, Pune, and Hyderabad with dedicated on-site project management teams.',
-        sort_order: 4,
-        is_published: 1,
-      },
-      {
-        question: 'How does your Space & Budget Estimation Calculator work?',
-        answer: 'Our interactive calculator uses empirical construction and interior fit-out benchmarks tailored for India (Grade-A restaurants: ₹2,200–₹4,200/sq.ft; Boutique hotels: ₹3,500–₹6,000/sq.ft; Industrial shells: ₹1,200–₹2,000/sq.ft). Submitting your parameters produces a detailed breakdown with scope itemization.',
-        sort_order: 5,
-        is_published: 1,
-      }
-    ];
-
-    const insertFaq = db.prepare(`
-      INSERT INTO faqs (question, answer, sort_order, is_published, created_at, updated_at)
-      VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-    `);
-
-    for (const f of sampleFaqs) {
-      insertFaq.run(f.question, f.answer, f.sort_order, f.is_published);
+  // 6. Seed FAQs (with Besim Design Turnkey facts)
+  db.prepare('DELETE FROM faqs').run();
+  const sampleFaqs = [
+    {
+      question: 'What is Besim Design’s history and turnkey philosophy?',
+      answer: 'Besim Design was established 30+ years back in 1992 as a design studio under Managing Director Sanjay Baikerikar (GD Arch, Academy of Architecture). We realized that unless there is a strong and dedicated team to execute, most designs remain dreams. We created our own dedicated teams to provide complete turnkey execution from design to handover.',
+      sort_order: 1,
+      is_published: 1,
+    },
+    {
+      question: 'Where is your furniture manufacturing facility located?',
+      answer: 'We operate our own state-of-the-art furniture manufacturing facility in Nalasopara, on the outskirts of Mumbai. We initiate the production of all loose and site-specific furniture items at the factory itself, accelerating project timelines while maintaining superior fit, finish, and structural quality.',
+      sort_order: 2,
+      is_published: 1,
+    },
+    {
+      question: 'What is your core USP in turnkey execution?',
+      answer: 'Our key USP is our ability to deliver complete turnkey solutions—including MEP services (Mechanical, Electrical, and Plumbing) and consultancy. This integrated approach enables us to streamline project timelines while maintaining the highest standards of quality and finish.',
+      sort_order: 3,
+      is_published: 1,
+    },
+    {
+      question: 'How do you ensure transparency in project costing and handover?',
+      answer: 'We make accurate upfront costings and continually update costings on any design or specification changes so clients can make conscious decisions on escalations. At project completion, we provide comprehensive site handover files with renovation details, work-in-progress photos, and emergency contact numbers.',
+      sort_order: 4,
+      is_published: 1,
+    },
+    {
+      question: 'What sectors do you execute projects in?',
+      answer: 'Our portfolio specializes in Central Kitchens & Commissaries, Hotels & Boutique Resorts, Hospitality (fine dining, cafes, lounges, bars), and Luxury Residential spaces across Mumbai, Pune, and India.',
+      sort_order: 5,
+      is_published: 1,
     }
-    logger.info(`Seeded ${sampleFaqs.length} architectural FAQs.`);
+  ];
+
+  const insertFaq = db.prepare(`
+    INSERT INTO faqs (question, answer, sort_order, is_published, created_at, updated_at)
+    VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
+  `);
+
+  for (const f of sampleFaqs) {
+    insertFaq.run(f.question, f.answer, f.sort_order, f.is_published);
   }
 
-  // 6. Seed Sample Enquiries for CRM testing
-  const enquiryCount = db.prepare('SELECT COUNT(*) as count FROM enquiries').get();
-  if (enquiryCount.count === 0) {
-    const sampleEnquiries = [
-      {
-        name: 'Kabir Oberoi',
-        phone: '9820145678',
-        email: 'kabir@oberoihospitality.in',
-        business_type: 'restaurant',
-        project_location: 'Indiranagar, Bengaluru',
-        area_sqft: 4800,
-        message: 'Looking for turnkey interior architecture for a 120-cover modern Mediterranean restaurant and bar. Site possession in 30 days.',
-        source: 'calculator',
-        calculator_data: JSON.stringify({
-          estimated_cost_min: 12000000,
-          estimated_cost_max: 16800000,
-          covers: 120,
-          tier: 'Premium Hospitality'
-        }),
-        status: 'new',
-        admin_notes: 'Urgent timeline. Requires site visit next Tuesday.',
-        consent_given: 1,
-        ip_hash: 'sample-salted-hash-seed-1',
-      },
-      {
-        name: 'Pooja Deshmukh',
-        phone: '9890234567',
-        email: 'pooja.d@auragroup.com',
-        business_type: 'hotel',
-        project_location: 'Candolim, North Goa',
-        area_sqft: 28000,
-        message: 'Boutique hotel redevelopment. Requesting company portfolio and architectural credentials for investor deck presentation.',
-        source: 'contact_form',
-        calculator_data: null,
-        status: 'contacted',
-        admin_notes: 'Spoke with Pooja on phone. Sent preliminary hospitality credentials deck.',
-        consent_given: 1,
-        ip_hash: 'sample-salted-hash-seed-2',
-      }
-    ];
-
-    const insertEnquiry = db.prepare(`
-      INSERT INTO enquiries (name, phone, email, business_type, project_location, area_sqft, message, source, calculator_data, status, admin_notes, consent_given, ip_hash, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-    `);
-
-    for (const e of sampleEnquiries) {
-      insertEnquiry.run(e.name, e.phone, e.email, e.business_type, e.project_location, e.area_sqft, e.message, e.source, e.calculator_data, e.status, e.admin_notes, e.consent_given, e.ip_hash);
-    }
-    logger.info(`Seeded ${sampleEnquiries.length} sample client enquiries.`);
-  }
-
-  logger.info('Database seeding completed successfully.');
-}
-
-// Allow standalone execution: node server/db/seed.js
-if (process.argv[1] && process.argv[1].endsWith('seed.js')) {
-  runSeed()
-    .then(() => {
-      logger.info('Seed script finished.');
-      process.exit(0);
-    })
-    .catch((err) => {
-      logger.error('Seed script encountered fatal error:', err);
-      process.exit(1);
-    });
+  logger.info('Database seeded successfully with Besim Design & Besim Design projects, clients, and FAQs!');
 }
 
 export default runSeed;

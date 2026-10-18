@@ -28,21 +28,24 @@ app.set('trust proxy', 1);
 app.use(
   helmet({
     frameguard: false, // Critical: disables X-Frame-Options so preview iframe can load
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: false, // Critical: prevents blank/white page when loaded in iframe
+    crossOriginResourcePolicy: false, // Critical: prevents blocking assets in cross-origin preview
+    originAgentCluster: false,
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-        imgSrc: ["'self'", 'data:', 'blob:', 'https://images.unsplash.com'],
-        connectSrc: ["'self'", 'ws:', 'wss:'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://images.unsplash.com', '*'],
+        connectSrc: ["'self'", 'ws:', 'wss:', '*'],
         objectSrc: ["'none'"],
         mediaSrc: ["'self'"],
         frameSrc: ["'self'", '*'],
         frameAncestors: ['*'], // Critical: allows embedding in AI Studio iFrame
       },
     },
-    crossOriginEmbedderPolicy: false,
   })
 );
 

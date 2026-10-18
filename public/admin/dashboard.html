@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
-  <title>Admin Dashboard | MS Fusion Architects CRM</title>
+  <title>Admin Dashboard | Besim Design CRM</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -16,9 +16,9 @@
     <!-- Sidebar Navigation -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
-        <div class="sidebar-logo-mark">MS</div>
+        <div class="sidebar-logo-mark">BD</div>
         <div>
-          <div class="sidebar-brand-name">MS FUSION</div>
+          <div class="sidebar-brand-name">BESIM DESIGN</div>
           <div class="sidebar-brand-sub">Admin Portal</div>
         </div>
       </div>
@@ -35,6 +35,11 @@
           </button>
         </li>
         <li class="nav-item">
+          <button class="nav-btn" data-tab="clients">
+            🤝 Clients & Brands
+          </button>
+        </li>
+        <li class="nav-item">
           <button class="nav-btn" data-tab="testimonials">
             ⭐ Client Reviews
           </button>
@@ -48,7 +53,7 @@
 
       <div class="sidebar-footer">
         <div class="admin-profile-pill">
-          <span class="admin-email-text" id="loggedAdminEmail">admin@msfusion.com</span>
+          <span class="admin-email-text" id="loggedAdminEmail">admin@besimdesign.com</span>
         </div>
         <div style="display: flex; gap: 8px;">
           <a href="/" target="_blank" class="btn btn-outline btn-sm" style="flex: 1; justify-content: center;">
@@ -193,6 +198,43 @@
               <tr>
                 <td colspan="7" style="text-align: center; padding: 32px; color: var(--text-dim);">
                   Loading projects...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- TAB 2.5: CLIENTS & BRANDS -->
+      <!-- ============================================================== -->
+      <div class="tab-pane" id="pane-clients" style="display: none;">
+        <div class="filter-bar">
+          <div>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Manage corporate clients, brand partners, and logos featured on the website.</p>
+          </div>
+          <button id="btnNewClient" class="btn btn-gold">
+            + Add New Client
+          </button>
+        </div>
+
+        <div class="table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th style="width: 80px;">Logo</th>
+                <th>Client / Brand Name</th>
+                <th>Category / Sector</th>
+                <th>Website URL</th>
+                <th>Featured</th>
+                <th>Sort Order</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="clientsTableBody">
+              <tr>
+                <td colspan="7" style="text-align: center; padding: 32px; color: var(--text-dim);">
+                  Loading clients...
                 </td>
               </tr>
             </tbody>
@@ -351,13 +393,30 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="projCategory">Category Typology *</label>
+          <label class="form-label" for="projCategory">Project Category *</label>
           <select id="projCategory" class="form-control" required>
-            <option value="restaurant">Restaurant / Bistro</option>
-            <option value="hotel">Boutique Hotel & Resort</option>
-            <option value="bar">Bar, Taproom & Speakeasy</option>
-            <option value="industrial">Industrial PEB / Logistics Hub</option>
+            <option value="central_kitchen">Central Kitchen</option>
+            <option value="hotels">Hotels</option>
+            <option value="hospitality">Hospitality</option>
+            <option value="residential">Residential</option>
+            <option value="commercial">Commercial / Office</option>
           </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label class="form-label" for="projClientName">Client / Brand Name</label>
+            <input type="text" id="projClientName" class="form-control" placeholder="e.g. The Nutcracker / Parinee">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="projLocation">Project Location</label>
+            <input type="text" id="projLocation" class="form-control" placeholder="e.g. Jio World Drive, BKC, Mumbai">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="projAreaSqft">Built-Up Area (sq. ft.)</label>
+          <input type="number" id="projAreaSqft" class="form-control" placeholder="e.g. 5000">
         </div>
 
         <div class="form-group">
@@ -473,7 +532,7 @@
 
         <div class="form-group">
           <label class="form-label" for="faqQuestion">Question *</label>
-          <input type="text" id="faqQuestion" class="form-control" placeholder="e.g. What is MS Fusion’s typical turnaround time?" required>
+          <input type="text" id="faqQuestion" class="form-control" placeholder="e.g. What is Besim Design’s typical turnaround time?" required>
         </div>
 
         <div class="form-group">
@@ -489,6 +548,71 @@
         <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
           <button type="button" class="btn btn-outline" data-close="modalFaq">Cancel</button>
           <button type="submit" class="btn btn-gold">Save FAQ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL: ADD / EDIT CLIENT -->
+  <!-- ============================================================== -->
+  <div class="admin-modal-overlay" id="modalClient">
+    <div class="admin-modal">
+      <button class="admin-modal-close" data-close="modalClient">&times;</button>
+      <h3 style="font-family: var(--font-serif); margin-bottom: 20px; font-size: 1.4rem;" id="modalClientTitle">Add Brand Client</h3>
+
+      <form id="formClient" novalidate>
+        <input type="hidden" id="editClientId">
+
+        <div class="form-group">
+          <label class="form-label" for="clientName">Client / Brand Name *</label>
+          <input type="text" id="clientName" class="form-control" placeholder="e.g. The Nutcracker / HDFC Bank" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="clientCategory">Industry / Sector</label>
+          <input type="text" id="clientCategory" class="form-control" placeholder="e.g. Hospitality & F&B / Corporate & Banking">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Client Logo (URL or Upload Image) *</label>
+          <div style="display: flex; gap: 10px; margin-bottom: 8px;">
+            <input type="url" id="clientLogoUrl" class="form-control" placeholder="https://... logo URL or upload below" required>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <input type="file" id="clientLogoFile" accept="image/jpeg,image/png,image/webp,image/svg+xml" style="font-size: 0.85rem; color: var(--text-muted);">
+            <button type="button" id="btnUploadClientLogo" class="btn btn-outline btn-sm">Upload Logo</button>
+          </div>
+          <span id="clientUploadStatus" style="font-size: 0.8rem; color: var(--gold); margin-top: 4px; display: block;"></span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="clientWebsite">Website URL (Optional)</label>
+          <input type="url" id="clientWebsite" class="form-control" placeholder="https://example.com">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="clientDesc">Description / Project Scope Notes</label>
+          <textarea id="clientDesc" class="form-control" placeholder="Optional notes about the client relationship or venues executed..."></textarea>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label class="form-label" for="clientSort">Sort Order</label>
+            <input type="number" id="clientSort" class="form-control" value="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="clientFeatured">Show in Website Showcase?</label>
+            <select id="clientFeatured" class="form-control">
+              <option value="1">Featured in Showcase ★</option>
+              <option value="0">Hidden</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+          <button type="button" class="btn btn-outline" data-close="modalClient">Cancel</button>
+          <button type="submit" class="btn btn-gold" id="btnSaveClient">Save Client</button>
         </div>
       </form>
     </div>

@@ -1,6 +1,6 @@
 /**
  * @file /public/js/main.js
- * @description Client-side controller for MS Fusion Architects.
+ * @description Client-side controller for Besim Design.
  * Handles API data fetching with static HTML fallbacks, interactive space & budget calculator,
  * modal dialogs, FAQ accordions, toast alerts, and lead submission to /api/enquiries.
  */
@@ -212,7 +212,7 @@ function renderProjects(projectsList) {
 
   const filtered = state.activeCategory === 'all'
     ? projectsList
-    : projectsList.filter((p) => p.category === state.activeCategory);
+    : projectsList.filter((p) => p.category === state.activeCategory || (state.activeCategory === 'hotels' && p.category === 'hotel') || (state.activeCategory === 'hospitality' && (p.category === 'hospitality' || p.category === 'restaurant' || p.category === 'bar')));
 
   if (filtered.length === 0) {
     grid.innerHTML = `
@@ -225,14 +225,20 @@ function renderProjects(projectsList) {
 
   grid.innerHTML = filtered.map((p) => {
     const scopes = Array.isArray(p.scope) ? p.scope : [];
+    const formattedCat = p.category ? p.category.replace('_', ' ').toUpperCase() : 'ARCHITECTURE';
     return `
       <div class="project-card" data-category="${p.category}">
         <div class="project-img-wrap">
           <img src="${p.image_url}" alt="${p.title}" loading="lazy">
-          <span class="project-cat-badge">${p.category}</span>
+          <span class="project-cat-badge">${formattedCat}</span>
         </div>
         <div class="project-body">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+            <span style="font-size: 0.75rem; color: var(--accent-gold); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;">${p.client_name ? `Client: ${p.client_name}` : formattedCat}</span>
+            ${p.area_sqft ? `<span style="font-size: 0.75rem; color: var(--text-dim);">${p.area_sqft.toLocaleString()} sq.ft</span>` : ''}
+          </div>
           <h3 class="project-title">${p.title}</h3>
+          ${p.location ? `<div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px;">📍 ${p.location}</div>` : ''}
           <p class="project-desc">${p.description}</p>
           <div class="project-scope-list">
             ${scopes.slice(0, 4).map((s) => `<span class="project-scope-item">${s}</span>`).join('')}
@@ -248,6 +254,29 @@ function renderProjects(projectsList) {
   }).join('');
 
   attachProjectModalTriggers();
+}
+
+async function loadClients() {
+  const container = document.getElementById('clientsGrid');
+  if (!container) return;
+
+  try {
+    const res = await fetch(`${CONFIG.API_BASE_URL}/api/clients`);
+    if (!res.ok) throw new Error('Clients API offline');
+    const json = await res.json();
+
+    if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+      container.innerHTML = json.data.map((c) => `
+        <div class="client-logo-card">
+          ${c.logo_url ? `<img src="${c.logo_url}" alt="${c.name}" class="client-logo-img" loading="lazy" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'client-logo-text\\'>${c.name}</span>';">` : `<span class="client-logo-text">${c.name}</span>`}
+          <span class="client-name-label">${c.name}</span>
+          ${c.category ? `<span class="client-cat-label">${c.category}</span>` : ''}
+        </div>
+      `).join('');
+    }
+  } catch (err) {
+    console.warn('Clients API unavailable; keeping static fallback.', err);
+  }
 }
 
 // Project Modal Trigger Listener
@@ -528,7 +557,7 @@ function initContactForm() {
       }
     } catch (err) {
       console.error('Lead submission request failed:', err);
-      const networkMsg = 'Network connectivity issue. Please check your connection or contact us directly at msfusionarchitects@gmail.com.';
+      const networkMsg = 'Network connectivity issue. Please check your connection or contact us directly at besimdesigne@gmail.com.';
       displayFormError(networkMsg);
       showToast(networkMsg, 'error');
     } finally {
@@ -624,6 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 5. Fetch dynamic API data
   loadProjects();
+  loadClients();
   loadTestimonials();
   loadFaqs();
 });

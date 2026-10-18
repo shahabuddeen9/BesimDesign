@@ -8,7 +8,7 @@ import { createServer as createViteServer } from 'vite';
 import app from './server/app.js';
 import env from './server/config/env.js';
 import { db, initDb } from './server/db/index.js';
-import runSeed from './server/db/seed.js';
+import { runSeed } from './server/db/seed.js';
 import logger from './server/utils/logger.js';
 
 async function bootstrap() {
@@ -39,7 +39,7 @@ async function bootstrap() {
       logger.info(`🛡️ Admin Portal at http://0.0.0.0:${env.PORT}/admin/login.html`);
     });
   } catch (error) {
-    logger.error('Failed to start full-stack server:', error);
+    logger.error('Failed to start full-stack server:', error instanceof Error ? error : new Error(String(error)));
     process.exit(1);
   }
 }

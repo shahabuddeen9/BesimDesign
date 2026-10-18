@@ -27,6 +27,12 @@ import {
 } from '../controllers/project.controller.js';
 import { getStats } from '../controllers/stats.controller.js';
 import {
+  createClient,
+  deleteClient,
+  getAllClients,
+  updateClient,
+} from '../controllers/client.controller.js';
+import {
   createTestimonial,
   deleteTestimonial,
   getAllTestimonials,
@@ -59,6 +65,14 @@ adminRouter.post('/projects', createProject);
 adminRouter.post('/projects/reorder', reorderProjects);
 adminRouter.patch('/projects/:id', updateProject);
 adminRouter.delete('/projects/:id', deleteProject);
+
+// ==========================================
+// 2.5 CLIENTS & BRANDS CRUD
+// ==========================================
+adminRouter.get('/clients', getAllClients);
+adminRouter.post('/clients', createClient);
+adminRouter.patch('/clients/:id', updateClient);
+adminRouter.delete('/clients/:id', deleteClient);
 
 // ==========================================
 // 3. TESTIMONIALS CRUD
