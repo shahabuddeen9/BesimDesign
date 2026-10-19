@@ -59,7 +59,9 @@
       .then(r => r.json())
       .then(d => {
         if (d.success) {
-          window.location.replace('/admin/dashboard.html');
+          const params = new URLSearchParams(window.location.search);
+          const tab = params.get('tab') || window.location.hash.replace('#', '');
+          window.location.replace(tab ? `/admin/dashboard.html?tab=${tab}` : '/admin/dashboard.html');
         }
       })
       .catch(() => {});
@@ -106,7 +108,9 @@
         const data = await res.json();
 
         if (res.ok && data.success) {
-          window.location.replace('/admin/dashboard.html');
+          const params = new URLSearchParams(window.location.search);
+          const tab = params.get('tab') || window.location.hash.replace('#', '');
+          window.location.replace(tab ? `/admin/dashboard.html?tab=${tab}` : '/admin/dashboard.html');
         } else {
           alertBox.textContent = data.message || 'Invalid credentials.';
           alertBox.style.display = 'block';

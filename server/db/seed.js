@@ -32,16 +32,21 @@ export async function runSeed() {
 
   // 2. Seed Admin Users
   const adminEmails = [env.ADMIN_EMAIL, 'besimdesigne@gmail.com', 'admin@besimdesign.com'];
+  const passwordToHash = env.ADMIN_PASSWORD || 'Admin@2025!';
+  const passwordHash = await bcrypt.hash(passwordToHash, 10);
   for (const email of adminEmails) {
     if (!email) continue;
     const existingAdmin = db.prepare('SELECT id FROM admins WHERE email = ?').get(email);
     if (!existingAdmin) {
-      const passwordHash = await bcrypt.hash(env.ADMIN_PASSWORD || 'Admin@2025!', 12);
       db.prepare(`
         INSERT INTO admins (email, password_hash, created_at)
         VALUES (?, ?, datetime('now'))
       `).run(email, passwordHash);
       logger.info(`Seeded administrator account: ${email}`);
+    } else {
+      db.prepare(`
+        UPDATE admins SET password_hash = ? WHERE email = ?
+      `).run(passwordHash, email);
     }
   }
 

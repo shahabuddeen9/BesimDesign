@@ -100,10 +100,10 @@ export function createClient(req, res, next) {
  */
 export function updateClient(req, res, next) {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (!id || isNaN(id)) throw new AppError('Invalid client ID', 400);
+    const rawId = req.params.id;
+    const numId = parseInt(rawId, 10) || 0;
 
-    const existing = db.prepare('SELECT * FROM clients WHERE id = ?').get(id);
+    const existing = db.prepare('SELECT * FROM clients WHERE id = ? OR id = ?').get(rawId, numId);
     if (!existing) throw new AppError('Client not found', 404);
 
     const partialSchema = clientSchema.partial();
@@ -120,10 +120,10 @@ export function updateClient(req, res, next) {
     db.prepare(`
       UPDATE clients
       SET name = ?, category = ?, logo_url = ?, website_url = ?, description = ?, is_featured = ?, sort_order = ?, updated_at = datetime('now')
-      WHERE id = ?
-    `).run(name, category, logo_url, website_url, description, is_featured, sort_order, id);
+      WHERE id = ? OR id = ?
+    `).run(name, category, logo_url, website_url, description, is_featured, sort_order, rawId, numId);
 
-    const updated = db.prepare('SELECT * FROM clients WHERE id = ?').get(id);
+    const updated = db.prepare('SELECT * FROM clients WHERE id = ? OR id = ?').get(rawId, numId);
 
     return res.status(200).json({
       success: true,
@@ -140,13 +140,13 @@ export function updateClient(req, res, next) {
  */
 export function deleteClient(req, res, next) {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (!id || isNaN(id)) throw new AppError('Invalid client ID', 400);
+    const rawId = req.params.id;
+    const numId = parseInt(rawId, 10) || 0;
 
-    const existing = db.prepare('SELECT id FROM clients WHERE id = ?').get(id);
+    const existing = db.prepare('SELECT id FROM clients WHERE id = ? OR id = ?').get(rawId, numId);
     if (!existing) throw new AppError('Client not found', 404);
 
-    db.prepare('DELETE FROM clients WHERE id = ?').run(id);
+    db.prepare('DELETE FROM clients WHERE id = ? OR id = ?').run(rawId, numId);
 
     return res.status(200).json({
       success: true,

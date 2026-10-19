@@ -74,13 +74,35 @@
           <h1 class="page-title" id="pageTitle">CRM Enquiries & Leads</h1>
           <p style="font-size: 0.85rem; color: var(--text-dim); margin-top: 4px;">Commercial studio pipeline, client briefs, and asset management.</p>
         </div>
-        <button class="mobile-menu-btn" id="mobileMenuToggle">☰ Menu</button>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <div class="quick-nav-pills" style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button class="btn btn-outline btn-sm quick-tab-btn" data-target="enquiries">📋 Leads</button>
+            <button class="btn btn-gold btn-sm quick-tab-btn" data-target="projects" style="font-weight: 600;">🏛️ Projects (Change / Delete)</button>
+            <button class="btn btn-gold btn-sm quick-tab-btn" data-target="clients" style="font-weight: 600;">🤝 Clients (Change / Delete)</button>
+          </div>
+          <button class="mobile-menu-btn" id="mobileMenuToggle">☰ Menu</button>
+        </div>
       </div>
 
       <!-- ============================================================== -->
       <!-- TAB 1: ENQUIRIES -->
       <!-- ============================================================== -->
       <div class="tab-pane active" id="pane-enquiries">
+        <!-- Direct Quick Access Banner to Manage Projects & Clients -->
+        <div style="background: rgba(197, 168, 128, 0.08); border: 1px solid var(--border-gold, rgba(197, 168, 128, 0.35)); border-radius: 8px; padding: 16px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+          <div>
+            <strong style="color: #fff; font-size: 1rem; display: flex; align-items: center; gap: 6px;">⚡ Direct Access: Manage Live Portfolio & Client Brands</strong>
+            <p style="color: var(--text-muted); font-size: 0.84rem; margin-top: 3px;">Easily edit details, change pictures, or delete architectural projects and client logos on the live website.</p>
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-gold btn-sm quick-tab-btn" data-target="projects" style="font-weight: 600;">
+              🏛️ Go to Projects (Edit / Delete) →
+            </button>
+            <button class="btn btn-gold btn-sm quick-tab-btn" data-target="clients" style="font-weight: 600;">
+              🤝 Go to Clients (Edit / Delete) →
+            </button>
+          </div>
+        </div>
         <!-- Stat Cards -->
         <div class="stats-grid">
           <div class="stat-card">

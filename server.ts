@@ -16,11 +16,8 @@ async function bootstrap() {
     // 1. Initialize SQLite Database & Migrations
     await initDb();
 
-    // 2. Run seed if empty
-    const adminCheck = db.prepare('SELECT COUNT(*) as count FROM admins').get();
-    if (!adminCheck || adminCheck.count === 0) {
-      await runSeed();
-    }
+    // 2. Ensure seed & admin credentials are in sync
+    await runSeed();
 
     // 3. Mount Vite middlewares in development mode
     if (env.NODE_ENV !== 'production') {

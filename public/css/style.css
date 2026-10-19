@@ -1225,12 +1225,27 @@ textarea.form-control {
   border-top: 1px solid var(--border-subtle);
   padding-top: 30px;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
+  text-align: center;
   flex-wrap: wrap;
   gap: 16px;
   font-size: 0.82rem;
   color: var(--text-dim);
+}
+
+.stealth-admin-link {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.stealth-admin-link:hover,
+.stealth-admin-link:focus {
+  color: var(--text-muted);
+  outline: none;
 }
 
 /* Modal */

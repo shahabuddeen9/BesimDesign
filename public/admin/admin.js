@@ -59,8 +59,43 @@ async function handleLogout() {
 }
 
 // =============================================================================
-// Modal Helpers
+// Modal Helpers & In-Dashboard Toasts
 // =============================================================================
+
+function showAdminToast(message, type = 'success') {
+  let toastContainer = document.getElementById('adminToastContainer');
+  if (!toastContainer) {
+    toastContainer = document.createElement('div');
+    toastContainer.id = 'adminToastContainer';
+    toastContainer.style.cssText = 'position: fixed; bottom: 24px; right: 24px; z-index: 99999; display: flex; flex-direction: column; gap: 10px;';
+    document.body.appendChild(toastContainer);
+  }
+
+  const toast = document.createElement('div');
+  const isErr = type === 'error';
+  toast.style.cssText = `
+    padding: 14px 20px;
+    background: ${isErr ? 'rgba(239, 68, 68, 0.95)' : 'rgba(21, 27, 43, 0.95)'};
+    color: #fff;
+    border: 1px solid ${isErr ? '#ef4444' : 'var(--gold, #c5a880)'};
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    font-size: 0.88rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+  `;
+  toast.innerHTML = `<span>${isErr ? '⚠️' : '✓'}</span><span>${message}</span>`;
+  toastContainer.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(10px)';
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
 
 function openModal(id) {
   const modal = document.getElementById(id);
@@ -73,49 +108,76 @@ function closeModal(id) {
 }
 
 // =============================================================================
-// Tab Switching
+// Tab Switching & Deep Linking
 // =============================================================================
 
-function initTabs() {
+function switchTab(tabName) {
   const navBtns = document.querySelectorAll('.nav-btn');
   const panes = document.querySelectorAll('.tab-pane');
   const pageTitle = document.getElementById('pageTitle');
 
-  navBtns.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const tabName = btn.dataset.tab;
-      navBtns.forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-
-      panes.forEach((p) => {
-        p.style.display = p.id === `pane-${tabName}` ? 'block' : 'none';
-      });
-
-      state.activeTab = tabName;
-
-      if (tabName === 'enquiries') {
-        pageTitle.textContent = 'CRM Enquiries & Leads';
-        loadEnquiries();
-        loadStats();
-      } else if (tabName === 'projects') {
-        pageTitle.textContent = 'Projects Portfolio Management';
-        loadAdminProjects();
-      } else if (tabName === 'clients') {
-        pageTitle.textContent = 'Client Brands & Partnerships';
-        loadAdminClients();
-      } else if (tabName === 'testimonials') {
-        pageTitle.textContent = 'Client Reviews & Testimonials';
-        loadAdminTestimonials();
-      } else if (tabName === 'faqs') {
-        pageTitle.textContent = 'Architectural FAQs';
-        loadAdminFaqs();
-      }
-
-      // Close mobile sidebar if open
-      const sidebar = document.getElementById('sidebar');
-      if (sidebar) sidebar.classList.remove('open');
-    });
+  navBtns.forEach((b) => {
+    if (b.dataset.tab === tabName) {
+      b.classList.add('active');
+    } else {
+      b.classList.remove('active');
+    }
   });
+
+  panes.forEach((p) => {
+    p.style.display = p.id === `pane-${tabName}` ? 'block' : 'none';
+  });
+
+  state.activeTab = tabName;
+
+  if (tabName === 'enquiries') {
+    if (pageTitle) pageTitle.textContent = 'CRM Enquiries & Leads';
+    loadEnquiries();
+    loadStats();
+  } else if (tabName === 'projects') {
+    if (pageTitle) pageTitle.textContent = 'Projects Portfolio Management (Change & Delete)';
+    loadAdminProjects();
+  } else if (tabName === 'clients') {
+    if (pageTitle) pageTitle.textContent = 'Client Brands & Partnerships (Change & Delete)';
+    loadAdminClients();
+  } else if (tabName === 'testimonials') {
+    if (pageTitle) pageTitle.textContent = 'Client Reviews & Testimonials';
+    loadAdminTestimonials();
+  } else if (tabName === 'faqs') {
+    if (pageTitle) pageTitle.textContent = 'Architectural FAQs';
+    loadAdminFaqs();
+  }
+
+  // Sync hash in browser without page jump
+  try {
+    history.replaceState(null, '', `#${tabName}`);
+  } catch (_) {}
+
+  // Close mobile sidebar if open
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar) sidebar.classList.remove('open');
+}
+
+function initTabs() {
+  const navBtns = document.querySelectorAll('.nav-btn');
+  navBtns.forEach((btn) => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  // Attach quick navigation buttons
+  document.querySelectorAll('.quick-tab-btn').forEach((btn) => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.target));
+  });
+
+  // Support direct URL query or hash navigation: e.g. ?tab=projects or #projects
+  const params = new URLSearchParams(window.location.search);
+  const targetTab = params.get('tab') || window.location.hash.replace('#', '');
+  if (['projects', 'clients', 'enquiries', 'testimonials', 'faqs'].includes(targetTab)) {
+    switchTab(targetTab);
+  } else {
+    loadEnquiries();
+    loadStats();
+  }
 }
 
 // =============================================================================
@@ -403,13 +465,14 @@ function renderAdminProjectsTable(projects) {
   tbody.innerHTML = projects.map((p) => `
     <tr>
       <td style="width: 80px;">
-        <img src="${p.image_url}" alt="${p.title}" style="width: 64px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid var(--admin-border);">
+        <img src="${p.image_url}" alt="${p.title}" style="width: 64px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid var(--admin-border);" onerror="this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80'">
       </td>
       <td>
-        <strong>${p.title}</strong>
-        <div style="font-size: 0.78rem; color: var(--text-dim);">slug: ${p.slug}</div>
+        <strong style="color: #fff; font-size: 0.95rem;">${p.title}</strong>
+        ${p.client_name ? `<div style="font-size: 0.78rem; color: var(--gold);">Client: ${p.client_name}</div>` : ''}
+        <div style="font-size: 0.75rem; color: var(--text-dim);">slug: ${p.slug} • ${p.location || 'Mumbai'}</div>
       </td>
-      <td style="text-transform: uppercase; font-size: 0.8rem; color: var(--gold);">${p.category}</td>
+      <td style="text-transform: uppercase; font-size: 0.8rem; color: var(--gold); font-weight: 600;">${p.category}</td>
       <td style="font-size: 0.8rem; color: var(--text-muted); max-width: 250px;">
         ${(Array.isArray(p.scope) ? p.scope : []).slice(0, 3).join(', ')}
       </td>
@@ -421,9 +484,13 @@ function renderAdminProjectsTable(projects) {
         ${p.is_featured ? '<span style="color: var(--gold); margin-left: 6px;">★</span>' : ''}
       </td>
       <td>
-        <div style="display: flex; gap: 6px;">
-          <button class="btn btn-outline btn-sm btn-edit-proj" data-id="${p.id}">Edit</button>
-          <button class="btn btn-danger btn-sm btn-del-proj" data-id="${p.id}">✕</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-outline btn-sm btn-edit-proj" data-id="${p.id}" style="padding: 5px 12px; font-weight: 500;">
+            ✏️ Change
+          </button>
+          <button class="btn btn-danger btn-sm btn-del-proj" data-id="${p.id}" style="padding: 5px 12px; font-weight: 500;">
+            🗑️ Delete
+          </button>
         </div>
       </td>
     </tr>
@@ -441,35 +508,64 @@ function editProject(id) {
   const p = state.projects.find((item) => item.id.toString() === id.toString());
   if (!p) return;
 
-  document.getElementById('modalProjectTitle').textContent = `Edit Project: ${p.title}`;
+  document.getElementById('modalProjectTitle').textContent = `Change / Edit Project: ${p.title}`;
   document.getElementById('editProjectId').value = p.id;
   document.getElementById('projTitle').value = p.title;
   document.getElementById('projSlug').value = p.slug;
-  document.getElementById('projCategory').value = p.category;
+
+  const categorySelect = document.getElementById('projCategory');
+  if (categorySelect) {
+    categorySelect.value = p.category;
+    if (categorySelect.value !== p.category) {
+      const opt = document.createElement('option');
+      opt.value = p.category;
+      opt.textContent = p.category.replace('_', ' ').toUpperCase();
+      categorySelect.appendChild(opt);
+      categorySelect.value = p.category;
+    }
+  }
+
   const clientInput = document.getElementById('projClientName');
   if (clientInput) clientInput.value = p.client_name || '';
   const locInput = document.getElementById('projLocation');
   if (locInput) locInput.value = p.location || '';
   const areaInput = document.getElementById('projAreaSqft');
   if (areaInput) areaInput.value = p.area_sqft || 0;
-  document.getElementById('projDesc').value = p.description;
-  document.getElementById('projImageUrl').value = p.image_url;
-  document.getElementById('projScope').value = Array.isArray(p.scope) ? p.scope.join(', ') : p.scope;
-  document.getElementById('projGallery').value = Array.isArray(p.gallery) ? p.gallery.join(', ') : p.gallery;
-  document.getElementById('projSort').value = p.sort_order;
-  document.getElementById('projFeatured').value = p.is_featured;
-  document.getElementById('projPublished').value = p.is_published;
+  document.getElementById('projDesc').value = p.description || '';
+  document.getElementById('projImageUrl').value = p.image_url || '';
+  document.getElementById('projScope').value = Array.isArray(p.scope) ? p.scope.join(', ') : (p.scope || '');
+  document.getElementById('projGallery').value = Array.isArray(p.gallery) ? p.gallery.join(', ') : (p.gallery || '');
+  document.getElementById('projSort').value = p.sort_order ?? 0;
+  document.getElementById('projFeatured').value = p.is_featured ?? 0;
+  document.getElementById('projPublished').value = p.is_published ?? 1;
+
+  const uploadStatus = document.getElementById('uploadStatusText');
+  if (uploadStatus) uploadStatus.textContent = '';
 
   openModal('modalProject');
 }
 
 async function deleteProject(id) {
-  if (!confirm('Are you sure you want to permanently delete this architectural project?')) return;
+  const p = state.projects.find((item) => item.id.toString() === id.toString());
+  const title = p ? `"${p.title}"` : `Project #${id}`;
+
+  if (!confirm(`Are you sure you want to permanently delete ${title}?\n\nThis will remove it from the live website immediately.`)) {
+    return;
+  }
+
   try {
     const res = await fetch(`/api/admin/projects/${id}`, { method: 'DELETE' });
-    if (res.ok) loadAdminProjects();
+    const json = await res.json().catch(() => ({}));
+
+    if (res.ok && json.success) {
+      showAdminToast(`Project ${title} deleted successfully.`);
+      loadAdminProjects();
+    } else {
+      showAdminToast(json.message || 'Failed to delete project.', 'error');
+    }
   } catch (err) {
     console.error('Failed to delete project:', err);
+    showAdminToast('Network error while deleting project.', 'error');
   }
 }
 
@@ -509,13 +605,13 @@ function renderAdminClientsTable(clients) {
   tbody.innerHTML = clients.map((c) => `
     <tr>
       <td style="width: 80px;">
-        ${c.logo_url ? `<img src="${c.logo_url}" alt="${c.name}" style="width: 60px; height: 40px; object-fit: contain; background: #fff; padding: 4px; border-radius: 4px; border: 1px solid var(--admin-border);">` : '<div style="width: 60px; height: 40px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--text-dim);">No logo</div>'}
+        ${c.logo_url ? `<img src="${c.logo_url}" alt="${c.name}" style="width: 60px; height: 40px; object-fit: contain; background: #fff; padding: 4px; border-radius: 4px; border: 1px solid var(--admin-border);" onerror="this.onerror=null;this.parentElement.innerHTML='<span style=\\'font-size:0.7rem;color:var(--gold);\\'>LOGO</span>';">` : '<div style="width: 60px; height: 40px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--text-dim);">No logo</div>'}
       </td>
       <td>
-        <strong>${c.name}</strong>
+        <strong style="color: #fff; font-size: 0.95rem;">${c.name}</strong>
         ${c.description ? `<div style="font-size: 0.78rem; color: var(--text-dim); max-width: 250px;">${c.description}</div>` : ''}
       </td>
-      <td style="font-size: 0.82rem; color: var(--gold);">${c.category || 'General'}</td>
+      <td style="font-size: 0.82rem; color: var(--gold); font-weight: 600;">${c.category || 'General'}</td>
       <td style="font-size: 0.8rem;">
         ${c.website_url ? `<a href="${c.website_url}" target="_blank" style="color: var(--gold); text-decoration: underline;">${c.website_url.replace(/^https?:\/\//, '')}</a>` : '<span style="color: var(--text-dim);">—</span>'}
       </td>
@@ -526,9 +622,13 @@ function renderAdminClientsTable(clients) {
       </td>
       <td>${c.sort_order}</td>
       <td>
-        <div style="display: flex; gap: 6px;">
-          <button class="btn btn-outline btn-sm btn-edit-client" data-id="${c.id}">Edit</button>
-          <button class="btn btn-danger btn-sm btn-del-client" data-id="${c.id}">✕</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-outline btn-sm btn-edit-client" data-id="${c.id}" style="padding: 5px 12px; font-weight: 500;">
+            ✏️ Change
+          </button>
+          <button class="btn btn-danger btn-sm btn-del-client" data-id="${c.id}" style="padding: 5px 12px; font-weight: 500;">
+            🗑️ Delete
+          </button>
         </div>
       </td>
     </tr>
@@ -546,7 +646,7 @@ function editClient(id) {
   const c = state.clients.find((item) => item.id.toString() === id.toString());
   if (!c) return;
 
-  document.getElementById('modalClientTitle').textContent = `Edit Client: ${c.name}`;
+  document.getElementById('modalClientTitle').textContent = `Change / Edit Client: ${c.name}`;
   document.getElementById('editClientId').value = c.id;
   document.getElementById('clientName').value = c.name;
   document.getElementById('clientCategory').value = c.category || '';
@@ -562,12 +662,26 @@ function editClient(id) {
 }
 
 async function deleteClient(id) {
-  if (!confirm('Are you sure you want to permanently delete this client?')) return;
+  const c = state.clients.find((item) => item.id.toString() === id.toString());
+  const name = c ? `"${c.name}"` : `Client #${id}`;
+
+  if (!confirm(`Are you sure you want to permanently delete client ${name}?\n\nThis will remove it from the website client showcase.`)) {
+    return;
+  }
+
   try {
     const res = await fetch(`/api/admin/clients/${id}`, { method: 'DELETE' });
-    if (res.ok) loadAdminClients();
+    const json = await res.json().catch(() => ({}));
+
+    if (res.ok && json.success) {
+      showAdminToast(`Client ${name} deleted successfully.`);
+      loadAdminClients();
+    } else {
+      showAdminToast(json.message || 'Failed to delete client.', 'error');
+    }
   } catch (err) {
     console.error('Failed to delete client:', err);
+    showAdminToast('Network error while deleting client.', 'error');
   }
 }
 
@@ -921,12 +1035,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const json = await res.json();
         if (res.ok && json.success) {
           closeModal('modalProject');
+          showAdminToast(id ? 'Project updated successfully.' : 'New architecture project created successfully.');
           loadAdminProjects();
         } else {
-          alert(json.message || 'Failed to save project.');
+          showAdminToast(json.message || 'Failed to save project.', 'error');
+          alert(json.message || 'Failed to save project. Please check required fields.');
         }
       } catch (err) {
         console.error('Project save error:', err);
+        showAdminToast('Network error while saving project.', 'error');
       }
     });
   }
@@ -1021,12 +1138,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const json = await res.json();
         if (res.ok && json.success) {
           closeModal('modalClient');
+          showAdminToast(id ? 'Client updated successfully.' : 'New brand client added successfully.');
           loadAdminClients();
         } else {
-          alert(json.message || 'Failed to save client.');
+          showAdminToast(json.message || 'Failed to save client.', 'error');
+          alert(json.message || 'Failed to save client. Please check required fields.');
         }
       } catch (err) {
         console.error('Client save error:', err);
+        showAdminToast('Network error while saving client.', 'error');
       }
     });
   }

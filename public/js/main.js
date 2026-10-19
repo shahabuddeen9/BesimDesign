@@ -197,7 +197,7 @@ async function loadProjects() {
     if (!res.ok) throw new Error('Failed to fetch projects');
     const json = await res.json();
 
-    if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+    if (json.success && Array.isArray(json.data)) {
       state.projects = json.data;
       renderProjects(state.projects);
     }
@@ -229,7 +229,7 @@ function renderProjects(projectsList) {
     return `
       <div class="project-card" data-category="${p.category}">
         <div class="project-img-wrap">
-          <img src="${p.image_url}" alt="${p.title}" loading="lazy">
+          <img src="${p.image_url}" alt="${p.title}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80'">
           <span class="project-cat-badge">${formattedCat}</span>
         </div>
         <div class="project-body">
@@ -265,14 +265,22 @@ async function loadClients() {
     if (!res.ok) throw new Error('Clients API offline');
     const json = await res.json();
 
-    if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-      container.innerHTML = json.data.map((c) => `
-        <div class="client-logo-card">
-          ${c.logo_url ? `<img src="${c.logo_url}" alt="${c.name}" class="client-logo-img" loading="lazy" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'client-logo-text\\'>${c.name}</span>';">` : `<span class="client-logo-text">${c.name}</span>`}
-          <span class="client-name-label">${c.name}</span>
-          ${c.category ? `<span class="client-cat-label">${c.category}</span>` : ''}
-        </div>
-      `).join('');
+    if (json.success && Array.isArray(json.data)) {
+      if (json.data.length === 0) {
+        container.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center; padding: 32px; color: var(--text-muted);">
+            <p>No client logos currently listed.</p>
+          </div>
+        `;
+      } else {
+        container.innerHTML = json.data.map((c) => `
+          <div class="client-logo-card">
+            ${c.logo_url ? `<img src="${c.logo_url}" alt="${c.name}" class="client-logo-img" loading="lazy" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'client-logo-text\\'>${c.name}</span>';">` : `<span class="client-logo-text">${c.name}</span>`}
+            <span class="client-name-label">${c.name}</span>
+            ${c.category ? `<span class="client-cat-label">${c.category}</span>` : ''}
+          </div>
+        `).join('');
+      }
     }
   } catch (err) {
     console.warn('Clients API unavailable; keeping static fallback.', err);
@@ -656,4 +664,13 @@ document.addEventListener('DOMContentLoaded', () => {
   loadClients();
   loadTestimonials();
   loadFaqs();
+
+  // 6. Stealth Admin Portal keyboard shortcut (Alt+A or Ctrl+Shift+A)
+  window.addEventListener('keydown', (e) => {
+    if ((e.altKey && e.key.toLowerCase() === 'a') || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a')) {
+      e.preventDefault();
+      window.location.href = '/admin/login.html';
+    }
+  });
 });
+

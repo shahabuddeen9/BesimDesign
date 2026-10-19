@@ -17,12 +17,8 @@ async function startServer() {
     // 1. Initialize SQLite Database and schema migrations
     await initDb();
 
-    // 2. Run initial seed if database is unpopulated
-    const adminCheck = db.prepare('SELECT COUNT(*) as count FROM admins').get();
-    if (!adminCheck || adminCheck.count === 0) {
-      logger.info('Database empty. Running seed...');
-      await runSeed();
-    }
+    // 2. Ensure seed & admin credentials are in sync
+    await runSeed();
 
     // 4. Start HTTP listener
     const server = app.listen(env.PORT, () => {

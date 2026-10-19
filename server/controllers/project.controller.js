@@ -17,9 +17,9 @@ export const projectSchema = z.object({
   client_name: z.string().max(100).default(''),
   location: z.string().max(100).default(''),
   area_sqft: z.coerce.number().default(0),
-  description: z.string().min(10, 'Description must be at least 10 characters'),
+  description: z.string().min(2, 'Description must be at least 2 characters'),
   scope: z.union([z.array(z.string()), z.string()]).default([]),
-  image_url: z.string().url('Cover image must be a valid URL'),
+  image_url: z.string().min(1, 'Cover image URL or upload path is required'),
   gallery: z.union([z.array(z.string()), z.string()]).default([]),
   is_featured: z.coerce.number().min(0).max(1).default(0),
   sort_order: z.coerce.number().default(0),
@@ -172,7 +172,8 @@ export function createProject(req, res, next) {
 export function updateProject(req, res, next) {
   try {
     const { id } = req.params;
-    const existing = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+    const numId = parseInt(id, 10) || 0;
+    const existing = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
     if (!existing) {
       throw new AppError(`Project #${id} not found`, 404);
     }
@@ -194,7 +195,7 @@ export function updateProject(req, res, next) {
     } = req.body;
 
     if (slug && slug !== existing.slug) {
-      const slugCheck = db.prepare('SELECT id FROM projects WHERE slug = ? AND id != ?').get(slug, id);
+      const slugCheck = db.prepare('SELECT id FROM projects WHERE slug = ? AND id != ? AND id != ?').get(slug, id, numId);
       if (slugCheck) {
         throw new AppError(`A project with the slug "${slug}" already exists.`, 400);
       }
@@ -208,7 +209,7 @@ export function updateProject(req, res, next) {
       SET title = ?, slug = ?, category = ?, client_name = ?, location = ?, area_sqft = ?,
           description = ?, scope = ?, image_url = ?, gallery = ?, is_featured = ?, sort_order = ?,
           is_published = ?, updated_at = datetime('now')
-      WHERE id = ?
+      WHERE id = ? OR id = ?
     `).run(
       title ? stripHtml(title) : existing.title,
       slug ? slug.toLowerCase() : existing.slug,
@@ -223,10 +224,11 @@ export function updateProject(req, res, next) {
       is_featured !== undefined ? is_featured : existing.is_featured,
       sort_order !== undefined ? sort_order : existing.sort_order,
       is_published !== undefined ? is_published : existing.is_published,
-      id
+      id,
+      numId
     );
 
-    const updated = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+    const updated = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
 
     return res.status(200).json({
       success: true,
@@ -244,12 +246,13 @@ export function updateProject(req, res, next) {
 export function deleteProject(req, res, next) {
   try {
     const { id } = req.params;
-    const existing = db.prepare('SELECT id FROM projects WHERE id = ?').get(id);
+    const numId = parseInt(id, 10) || 0;
+    const existing = db.prepare('SELECT id FROM projects WHERE id = ? OR id = ?').get(id, numId);
     if (!existing) {
       throw new AppError(`Project #${id} not found`, 404);
     }
 
-    db.prepare('DELETE FROM projects WHERE id = ?').run(id);
+    db.prepare('DELETE FROM projects WHERE id = ? OR id = ?').run(id, numId);
 
     return res.status(200).json({
       success: true,
