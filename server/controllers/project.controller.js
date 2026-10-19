@@ -9,6 +9,23 @@ import { db } from '../db/index.js';
 import AppError from '../utils/AppError.js';
 import { stripHtml } from '../utils/sanitize.js';
 
+/**
+ * Safely parses JSON strings into arrays, falling back to comma-split or default array.
+ */
+function safeJsonParse(val, fallback = []) {
+  if (Array.isArray(val)) return val;
+  if (!val || typeof val !== 'string') return fallback;
+  try {
+    const parsed = JSON.parse(val);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch (_) {
+    if (val.includes(',')) {
+      return val.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+    return val.trim() ? [val.trim()] : fallback;
+  }
+}
+
 // Project Zod Schema
 export const projectSchema = z.object({
   title: z.string().min(2, 'Title must be at least 2 characters').max(150),
@@ -48,8 +65,8 @@ export function getPublishedProjects(req, res, next) {
 
     const projects = db.prepare(sql).all(...params).map((p) => ({
       ...p,
-      scope: typeof p.scope === 'string' ? JSON.parse(p.scope || '[]') : p.scope,
-      gallery: typeof p.gallery === 'string' ? JSON.parse(p.gallery || '[]') : p.gallery,
+      scope: safeJsonParse(p.scope),
+      gallery: safeJsonParse(p.gallery),
     }));
 
     return res.status(200).json({
@@ -77,8 +94,8 @@ export function getProjectBySlug(req, res, next) {
       throw new AppError(`Project with slug "${slug}" not found`, 404);
     }
 
-    project.scope = typeof project.scope === 'string' ? JSON.parse(project.scope || '[]') : project.scope;
-    project.gallery = typeof project.gallery === 'string' ? JSON.parse(project.gallery || '[]') : project.gallery;
+    project.scope = safeJsonParse(project.scope);
+    project.gallery = safeJsonParse(project.gallery);
 
     return res.status(200).json({
       success: true,
@@ -99,8 +116,8 @@ export function getAllProjects(req, res, next) {
       ORDER BY sort_order ASC, created_at DESC
     `).all().map((p) => ({
       ...p,
-      scope: typeof p.scope === 'string' ? JSON.parse(p.scope || '[]') : p.scope,
-      gallery: typeof p.gallery === 'string' ? JSON.parse(p.gallery || '[]') : p.gallery,
+      scope: safeJsonParse(p.scope),
+      gallery: safeJsonParse(p.gallery),
     }));
 
     return res.status(200).json({
@@ -178,6 +195,8 @@ export function updateProject(req, res, next) {
       throw new AppError(`Project #${id} not found`, 404);
     }
 
+    const validated = projectSchema.partial().parse(req.body);
+
     const {
       title,
       slug,
@@ -192,7 +211,7 @@ export function updateProject(req, res, next) {
       is_featured,
       sort_order,
       is_published,
-    } = req.body;
+    } = validated;
 
     if (slug && slug !== existing.slug) {
       const slugCheck = db.prepare('SELECT id FROM projects WHERE slug = ? AND id != ? AND id != ?').get(slug, id, numId);
@@ -201,8 +220,8 @@ export function updateProject(req, res, next) {
       }
     }
 
-    const scopeJson = scope ? (Array.isArray(scope) ? JSON.stringify(scope) : scope) : existing.scope;
-    const galleryJson = gallery ? (Array.isArray(gallery) ? JSON.stringify(gallery) : gallery) : existing.gallery;
+    const scopeJson = scope !== undefined ? (Array.isArray(scope) ? JSON.stringify(scope) : scope) : existing.scope;
+    const galleryJson = gallery !== undefined ? (Array.isArray(gallery) ? JSON.stringify(gallery) : gallery) : existing.gallery;
 
     db.prepare(`
       UPDATE projects
@@ -229,6 +248,10 @@ export function updateProject(req, res, next) {
     );
 
     const updated = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
+    if (updated) {
+      updated.scope = safeJsonParse(updated.scope);
+      updated.gallery = safeJsonParse(updated.gallery);
+    }
 
     return res.status(200).json({
       success: true,
@@ -273,10 +296,14 @@ export function reorderProjects(req, res, next) {
       throw new AppError('Expected an array of { id, sort_order }', 400);
     }
 
-    const stmt = db.prepare('UPDATE projects SET sort_order = ?, updated_at = datetime(\'now\') WHERE id = ?');
-    for (const item of orders) {
-      stmt.run(item.sort_order, item.id);
-    }
+    const reorderTx = db.transaction((items) => {
+      const stmt = db.prepare('UPDATE projects SET sort_order = ?, updated_at = datetime(\'now\') WHERE id = ?');
+      for (const item of items) {
+        stmt.run(item.sort_order, item.id);
+      }
+    });
+
+    reorderTx(orders);
 
     return res.status(200).json({
       success: true,

@@ -101,7 +101,8 @@ export function updateTestimonial(req, res, next) {
       throw new AppError(`Testimonial #${id} not found`, 404);
     }
 
-    const { client_name, business_type, rating, review, is_published, sort_order } = req.body;
+    const validated = testimonialSchema.partial().parse(req.body);
+    const { client_name, business_type, rating, review, is_published, sort_order } = validated;
 
     db.prepare(`
       UPDATE testimonials

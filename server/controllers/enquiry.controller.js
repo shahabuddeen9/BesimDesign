@@ -12,14 +12,19 @@ import AppError from '../utils/AppError.js';
 import logger from '../utils/logger.js';
 import { hashIp, normalizeIndianPhone, stripHtml } from '../utils/sanitize.js';
 
-// Allowed business types for commercial architecture
+// Allowed business types for architecture & turnkey projects
 export const ALLOWED_BUSINESS_TYPES = [
-  'restaurant',
+  'central_kitchen',
+  'hotels',
   'hotel',
-  'industrial',
+  'hospitality',
+  'residential',
+  'commercial',
+  'commercial_office',
+  'restaurant',
   'bar',
   'cafe',
-  'commercial_office',
+  'industrial',
   'cloud_kitchen',
   'other',
 ];
@@ -32,13 +37,23 @@ export const enquirySubmissionSchema = z.object({
     .max(80, 'Name must not exceed 80 characters'),
   phone: z
     .string()
-    .regex(/^(?:\+91[\s-]?)?[6-9]\d{9}$/, 'Please enter a valid 10-digit Indian mobile number (starts with 6-9)'),
+    .transform((val) => val.trim())
+    .refine(
+      (val) => {
+        const normalized = normalizeIndianPhone(val);
+        return /^[6-9]\d{9}$/.test(normalized);
+      },
+      {
+        message: 'Please enter a valid 10-digit Indian mobile number (starts with 6-9)',
+      }
+    ),
   email: z
     .string()
     .email('Please enter a valid email address'),
   business_type: z
     .string()
-    .refine((val) => ALLOWED_BUSINESS_TYPES.includes(val.toLowerCase()), {
+    .transform((val) => val.toLowerCase().trim().replace(/[\s-]+/g, '_'))
+    .refine((val) => ALLOWED_BUSINESS_TYPES.includes(val), {
       message: `Business type must be one of: ${ALLOWED_BUSINESS_TYPES.join(', ')}`,
     }),
   project_location: z
@@ -69,7 +84,7 @@ export const enquirySubmissionSchema = z.object({
     .optional()
     .default(''),
   consent: z
-    .union([z.boolean(), z.string()])
+    .union([z.boolean(), z.string(), z.number()])
     .refine((v) => v === true || v === 'true' || v === '1' || v === 1, {
       message: 'You must agree to be contacted regarding your enquiry.',
     }),
@@ -317,7 +332,7 @@ export function deleteEnquiry(req, res, next) {
  */
 export function exportEnquiriesCsv(req, res, next) {
   try {
-    const { status, source } = req.query;
+    const { status, source, search, startDate, endDate } = req.query;
     const conditions = [];
     const params = [];
 
@@ -328,6 +343,19 @@ export function exportEnquiriesCsv(req, res, next) {
     if (source && source !== 'all') {
       conditions.push('source = ?');
       params.push(source);
+    }
+    if (startDate) {
+      conditions.push('date(created_at) >= date(?)');
+      params.push(startDate);
+    }
+    if (endDate) {
+      conditions.push('date(created_at) <= date(?)');
+      params.push(endDate);
+    }
+    if (search && search.trim()) {
+      conditions.push('(name LIKE ? OR phone LIKE ? OR email LIKE ? OR project_location LIKE ? OR message LIKE ?)');
+      const term = `%${search.trim()}%`;
+      params.push(term, term, term, term, term);
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';

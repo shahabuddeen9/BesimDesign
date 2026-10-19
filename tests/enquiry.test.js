@@ -107,6 +107,36 @@ describe('Public Enquiries API (POST /api/enquiries)', () => {
     expect(res.body.errors.some((e) => e.field === 'consent')).toBe(true);
   });
 
+  it('should successfully accept central_kitchen and residential sectors from the frontend', async () => {
+    const payload = {
+      name: 'Sunita Patel',
+      phone: '9820011223',
+      email: 'sunita@example.com',
+      business_type: 'central_kitchen',
+      project_location: 'Bhiwandi, Mumbai',
+      area_sqft: 12000,
+      consent: true,
+    };
+
+    const res = await request(app)
+      .post('/api/enquiries')
+      .send(payload);
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+
+    const resResidential = await request(app)
+      .post('/api/enquiries')
+      .send({
+        ...payload,
+        name: 'Karan Mehra',
+        business_type: 'residential',
+      });
+
+    expect(resResidential.status).toBe(201);
+    expect(resResidential.body.success).toBe(true);
+  });
+
   it('should reject unallowed business types', async () => {
     const payload = {
       name: 'Test Client',

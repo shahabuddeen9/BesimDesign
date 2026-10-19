@@ -202,6 +202,10 @@ img {
   font-size: 0.82rem;
 }
 
+section[id] {
+  scroll-margin-top: 85px;
+}
+
 /* Top Announcement / Navigation */
 .navbar {
   position: fixed;
@@ -209,10 +213,16 @@ img {
   left: 0;
   right: 0;
   z-index: 1000;
-  background-color: rgba(8, 11, 17, 0.9);
-  backdrop-filter: blur(12px);
+  background-color: rgba(8, 11, 17, 0.85);
+  backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border-subtle);
-  transition: background-color var(--transition-normal);
+  transition: all var(--transition-normal);
+}
+
+.navbar.scrolled {
+  background-color: rgba(8, 11, 17, 0.98);
+  border-bottom-color: var(--border-gold);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
 }
 
 .nav-container {
@@ -278,7 +288,8 @@ img {
   letter-spacing: 0.02em;
 }
 
-.nav-link:hover {
+.nav-link:hover,
+.nav-link.active {
   color: var(--accent-gold);
 }
 
@@ -1294,14 +1305,20 @@ textarea.form-control {
   background: rgba(4, 7, 12, 0.88);
   backdrop-filter: blur(8px);
   z-index: 2000;
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s;
 }
 
 .modal-overlay.active {
-  display: flex;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .modal-content {
@@ -1347,10 +1364,10 @@ textarea.form-control {
 .quote-banner {
   background: linear-gradient(135deg, rgba(197, 168, 128, 0.08) 0%, rgba(15, 20, 32, 0.8) 100%);
   border: 1px solid var(--border-gold);
-  border-left: 4px solid var(--accent-gold);
   border-radius: var(--radius-md);
   padding: 28px 32px;
   margin: 32px 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   position: relative;
 }
 

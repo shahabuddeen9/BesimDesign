@@ -40,9 +40,11 @@ export function hashIp(ip) {
  */
 export function normalizeIndianPhone(phone) {
   if (!phone) return '';
-  const digits = phone.replace(/\D/g, '');
+  let digits = phone.replace(/\D/g, '');
   if (digits.length === 12 && digits.startsWith('91')) {
-    return digits.slice(2);
+    digits = digits.slice(2);
+  } else if (digits.length === 11 && digits.startsWith('0')) {
+    digits = digits.slice(1);
   }
   return digits;
 }

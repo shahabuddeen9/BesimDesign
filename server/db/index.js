@@ -14,12 +14,15 @@ import logger from '../utils/logger.js';
 
 let rawDb = null;
 let SQL = null;
+let initPromise = null;
+let inTransaction = false;
 
 /**
- * Persists in-memory SQLite state to the physical file on disk.
+ * Persists in-memory SQLite state to the physical file on disk using atomic writes.
+ * Skips export if a transaction is currently in flight to avoid aborting the transaction.
  */
 function persistDb() {
-  if (!rawDb) return;
+  if (!rawDb || inTransaction) return;
   try {
     const data = rawDb.export();
     const buffer = Buffer.from(data);
@@ -27,7 +30,9 @@ function persistDb() {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    fs.writeFileSync(env.DB_PATH, buffer);
+    const tempPath = `${env.DB_PATH}.tmp`;
+    fs.writeFileSync(tempPath, buffer);
+    fs.renameSync(tempPath, env.DB_PATH);
   } catch (err) {
     logger.error('Failed to persist database to disk:', err);
   }
@@ -35,42 +40,52 @@ function persistDb() {
 
 /**
  * Initializes SQLite database connection, loads disk file if present,
- * and runs schema migrations.
+ * and runs schema migrations. Safe against concurrent invocations.
  */
 export async function initDb() {
   if (rawDb) return rawDb;
+  if (initPromise) return initPromise;
 
-  SQL = await initSqlJs();
+  initPromise = (async () => {
+    try {
+      SQL = await initSqlJs();
 
-  if (fs.existsSync(env.DB_PATH)) {
-    const fileBuffer = fs.readFileSync(env.DB_PATH);
-    rawDb = new SQL.Database(fileBuffer);
-    logger.info(`Loaded existing SQLite database from ${env.DB_PATH}`);
-  } else {
-    rawDb = new SQL.Database();
-    logger.info(`Initialized fresh in-memory SQLite database for ${env.DB_PATH}`);
-  }
+      if (fs.existsSync(env.DB_PATH)) {
+        const fileBuffer = fs.readFileSync(env.DB_PATH);
+        rawDb = new SQL.Database(fileBuffer);
+        logger.info(`Loaded existing SQLite database from ${env.DB_PATH}`);
+      } else {
+        rawDb = new SQL.Database();
+        logger.info(`Initialized fresh in-memory SQLite database for ${env.DB_PATH}`);
+      }
 
-  // Run schema migrations
-  const schemaPath = path.resolve(path.dirname(env.DB_PATH), 'schema.sql');
-  if (fs.existsSync(schemaPath)) {
-    const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-    rawDb.run(schemaSql);
-    persistDb();
-    logger.info('Database schema verified and synced successfully.');
-  }
+      // Run schema migrations
+      const schemaPath = path.resolve(path.dirname(env.DB_PATH), 'schema.sql');
+      if (fs.existsSync(schemaPath)) {
+        const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+        rawDb.run(schemaSql);
+        persistDb();
+        logger.info('Database schema verified and synced successfully.');
+      }
 
-  return rawDb;
+      return rawDb;
+    } finally {
+      initPromise = null;
+    }
+  })();
+
+  return initPromise;
 }
 
 /**
  * Formats parameters for sql.js prepared statements.
- * @param {Array|Object} params 
+ * Correctly distinguishes between named parameter objects, arrays, and primitives (including null/0/false).
+ * @param {any} params 
  */
 function normalizeParams(params) {
-  if (!params) return [];
+  if (params === null || params === undefined) return [];
   if (Array.isArray(params)) return params;
-  if (typeof params === 'object') {
+  if (typeof params === 'object' && !(params instanceof Uint8Array) && !(params instanceof Buffer)) {
     const obj = {};
     for (const [k, v] of Object.entries(params)) {
       obj[k.startsWith(':') || k.startsWith('@') || k.startsWith('$') ? k : `:${k}`] = v;
@@ -78,6 +93,29 @@ function normalizeParams(params) {
     return obj;
   }
   return [params];
+}
+
+/**
+ * Extracts bindable parameters from method arguments.
+ * Handles:
+ * - .run([a, b, c]) -> positional array
+ * - .run({ a: 1 })   -> named object
+ * - .run(a, b, c)    -> positional args
+ * - .run(null)       -> single null param [null]
+ */
+function extractParams(args) {
+  if (args.length === 0) return [];
+  if (args.length === 1) {
+    const first = args[0];
+    if (first !== null && typeof first === 'object' && !Array.isArray(first)) {
+      return normalizeParams(first);
+    }
+    if (Array.isArray(first)) {
+      return first;
+    }
+    return [first];
+  }
+  return args;
 }
 
 /**
@@ -95,10 +133,7 @@ export const db = {
 
     return {
       all(...args) {
-        const params = args.length === 1 && (Array.isArray(args[0]) || typeof args[0] === 'object')
-          ? normalizeParams(args[0])
-          : args;
-
+        const params = extractParams(args);
         const stmt = rawDb.prepare(sql);
         try {
           if (Array.isArray(params) ? params.length > 0 : Object.keys(params).length > 0) {
@@ -115,10 +150,7 @@ export const db = {
       },
 
       get(...args) {
-        const params = args.length === 1 && (Array.isArray(args[0]) || typeof args[0] === 'object')
-          ? normalizeParams(args[0])
-          : args;
-
+        const params = extractParams(args);
         const stmt = rawDb.prepare(sql);
         try {
           if (Array.isArray(params) ? params.length > 0 : Object.keys(params).length > 0) {
@@ -134,10 +166,7 @@ export const db = {
       },
 
       run(...args) {
-        const params = args.length === 1 && (Array.isArray(args[0]) || typeof args[0] === 'object')
-          ? normalizeParams(args[0])
-          : args;
-
+        const params = extractParams(args);
         rawDb.run(sql, params);
         
         // Retrieve last_insert_rowid and changes
@@ -158,6 +187,31 @@ export const db = {
           changes,
         };
       },
+    };
+  },
+
+  /**
+   * Wraps a callback function in a single SQLite transaction and persists on commit.
+   * @param {Function} fn 
+   */
+  transaction(fn) {
+    return (...args) => {
+      if (!rawDb) throw new Error('Database not initialized!');
+      inTransaction = true;
+      rawDb.run('BEGIN TRANSACTION;');
+      try {
+        const result = fn(...args);
+        rawDb.run('COMMIT;');
+        inTransaction = false;
+        persistDb();
+        return result;
+      } catch (err) {
+        try {
+          rawDb.run('ROLLBACK;');
+        } catch (_) {}
+        inTransaction = false;
+        throw err;
+      }
     };
   },
 

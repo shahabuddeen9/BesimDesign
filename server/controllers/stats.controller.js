@@ -21,14 +21,14 @@ const projectRoot = path.resolve(__dirname, '../..');
 export function getStats(req, res, next) {
   try {
     // 1. Total Enquiries
-    const totalEnquiries = db.prepare('SELECT COUNT(*) as count FROM enquiries').get().count;
+    const totalEnquiries = db.prepare('SELECT COUNT(*) as count FROM enquiries').get()?.count ?? 0;
 
     // 2. New This Week (last 7 days)
     const newThisWeek = db.prepare(`
       SELECT COUNT(*) as count
       FROM enquiries
       WHERE datetime(created_at) >= datetime('now', '-7 days')
-    `).get().count;
+    `).get()?.count ?? 0;
 
     // 3. Breakdown by Source
     const bySourceRows = db.prepare(`
@@ -64,12 +64,13 @@ export function getStats(req, res, next) {
     });
 
     // 6. Downloads count
-    const totalDownloads = db.prepare('SELECT COUNT(*) as count FROM downloads').get().count;
+    const totalDownloads = db.prepare('SELECT COUNT(*) as count FROM downloads').get()?.count ?? 0;
 
-    // 7. Total Projects, Testimonials, FAQs
-    const totalProjects = db.prepare('SELECT COUNT(*) as count FROM projects').get().count;
-    const totalTestimonials = db.prepare('SELECT COUNT(*) as count FROM testimonials').get().count;
-    const totalFaqs = db.prepare('SELECT COUNT(*) as count FROM faqs').get().count;
+    // 7. Total Projects, Clients, Testimonials, FAQs
+    const totalProjects = db.prepare('SELECT COUNT(*) as count FROM projects').get()?.count ?? 0;
+    const totalClients = db.prepare('SELECT COUNT(*) as count FROM clients').get()?.count ?? 0;
+    const totalTestimonials = db.prepare('SELECT COUNT(*) as count FROM testimonials').get()?.count ?? 0;
+    const totalFaqs = db.prepare('SELECT COUNT(*) as count FROM faqs').get()?.count ?? 0;
 
     return res.status(200).json({
       success: true,
@@ -78,6 +79,7 @@ export function getStats(req, res, next) {
         newThisWeek,
         totalDownloads,
         totalProjects,
+        totalClients,
         totalTestimonials,
         totalFaqs,
         bySource,

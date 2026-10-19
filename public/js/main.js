@@ -28,6 +28,16 @@ const state = {
 // DOM Utility Functions & Toast System
 // =============================================================================
 
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function showToast(message, type = 'success') {
   const container = document.getElementById('toastContainer');
   if (!container) return;
@@ -36,7 +46,7 @@ function showToast(message, type = 'success') {
   toast.className = `toast toast-${type}`;
   toast.innerHTML = `
     <span>${type === 'success' ? '✓' : '⚠️'}</span>
-    <div>${message}</div>
+    <div>${escapeHtml(message)}</div>
   `;
 
   container.appendChild(toast);
@@ -142,33 +152,44 @@ function initCalculator() {
     btnUseEstimate.addEventListener('click', () => {
       const contactSection = document.getElementById('contact');
       const formSource = document.getElementById('formSource');
-      const formCalcData = document.getElementById('formCalculatorData');
+      const formCalcData = document.getElementById('formCalcData') || document.getElementById('formCalculatorData');
       const businessTypeSelect = document.getElementById('businessType');
       const areaInput = document.getElementById('areaSqft');
-      const messageTextarea = document.getElementById('clientMessage');
+      const messageTextarea = document.getElementById('projectMessage') || document.getElementById('clientMessage');
 
       // Populate form fields from calculator state
-      if (businessTypeSelect) businessTypeSelect.value = state.calculator.sector;
+      if (businessTypeSelect) {
+        // Map calculator sectors to business type options
+        const sectorMap = {
+          restaurant: 'hospitality',
+          hotel: 'hotels',
+          bar: 'hospitality',
+          industrial: 'central_kitchen',
+        };
+        businessTypeSelect.value = sectorMap[state.calculator.sector] || state.calculator.sector;
+      }
       if (areaInput) areaInput.value = state.calculator.area;
       if (formSource) formSource.value = 'calculator';
 
       const calcPayload = {
         sector: state.calculator.sector,
         area_sqft: state.calculator.area,
-        tier: specTier.options[specTier.selectedIndex].text,
-        estimated_budget: estBudgetDisplay.textContent,
-        turnaround: estTimeDisplay.textContent,
-        capacity: estCapacityDisplay.textContent,
+        tier: specTier ? specTier.options[specTier.selectedIndex]?.text : 'Standard',
+        estimated_budget: estBudgetDisplay ? estBudgetDisplay.textContent : '',
+        turnaround: estTimeDisplay ? estTimeDisplay.textContent : '',
+        capacity: estCapacityDisplay ? estCapacityDisplay.textContent : '',
       };
 
       if (formCalcData) formCalcData.value = JSON.stringify(calcPayload);
 
       if (messageTextarea && !messageTextarea.value) {
-        messageTextarea.value = `I generated an architectural estimate for a ${state.calculator.area.toLocaleString()} sq.ft ${state.calculator.sector.toUpperCase()} project (${estBudgetDisplay.textContent}). Please contact me with a detailed layout plan and turnkey tender.`;
+        messageTextarea.value = `I generated an architectural estimate for a ${state.calculator.area.toLocaleString()} sq.ft ${state.calculator.sector.toUpperCase()} project (${estBudgetDisplay ? estBudgetDisplay.textContent : ''}). Please contact me with a detailed layout plan and turnkey tender.`;
       }
 
       // Smooth scroll to form
-      contactSection.scrollIntoView({ behavior: 'smooth' });
+      if (contactSection) {
+        contactSection.scrollIntoView({ behavior: 'smooth' });
+      }
 
       // Highlight form card
       const formCard = document.querySelector('.contact-form-card');
@@ -224,27 +245,44 @@ function renderProjects(projectsList) {
   }
 
   grid.innerHTML = filtered.map((p) => {
-    const scopes = Array.isArray(p.scope) ? p.scope : [];
-    const formattedCat = p.category ? p.category.replace('_', ' ').toUpperCase() : 'ARCHITECTURE';
+    let scopes = [];
+    if (Array.isArray(p.scope)) {
+      scopes = p.scope;
+    } else if (typeof p.scope === 'string') {
+      try {
+        const parsed = JSON.parse(p.scope);
+        scopes = Array.isArray(parsed) ? parsed : [p.scope];
+      } catch (_) {
+        scopes = p.scope.split(',').map((s) => s.trim()).filter(Boolean);
+      }
+    }
+    const formattedCat = p.category ? escapeHtml(p.category.replace('_', ' ').toUpperCase()) : 'ARCHITECTURE';
+    const escapedTitle = escapeHtml(p.title);
+    const escapedDesc = escapeHtml(p.description);
+    const escapedClient = escapeHtml(p.client_name || '');
+    const escapedLocation = escapeHtml(p.location || '');
+    const escapedImg = escapeHtml(p.image_url);
+    const escapedSlug = escapeHtml(p.slug);
+
     return `
-      <div class="project-card" data-category="${p.category}">
+      <div class="project-card" data-category="${escapeHtml(p.category)}">
         <div class="project-img-wrap">
-          <img src="${p.image_url}" alt="${p.title}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80'">
+          <img src="${escapedImg}" alt="${escapedTitle}" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80'">
           <span class="project-cat-badge">${formattedCat}</span>
         </div>
         <div class="project-body">
           <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
-            <span style="font-size: 0.75rem; color: var(--accent-gold); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;">${p.client_name ? `Client: ${p.client_name}` : formattedCat}</span>
-            ${p.area_sqft ? `<span style="font-size: 0.75rem; color: var(--text-dim);">${p.area_sqft.toLocaleString()} sq.ft</span>` : ''}
+            <span style="font-size: 0.75rem; color: var(--accent-gold); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;">${escapedClient ? `Client: ${escapedClient}` : formattedCat}</span>
+            ${p.area_sqft ? `<span style="font-size: 0.75rem; color: var(--text-dim);">${Number(p.area_sqft).toLocaleString()} sq.ft</span>` : ''}
           </div>
-          <h3 class="project-title">${p.title}</h3>
-          ${p.location ? `<div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px;">📍 ${p.location}</div>` : ''}
-          <p class="project-desc">${p.description}</p>
+          <h3 class="project-title">${escapedTitle}</h3>
+          ${escapedLocation ? `<div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px;">📍 ${escapedLocation}</div>` : ''}
+          <p class="project-desc">${escapedDesc}</p>
           <div class="project-scope-list">
-            ${scopes.slice(0, 4).map((s) => `<span class="project-scope-item">${s}</span>`).join('')}
+            ${scopes.slice(0, 4).map((s) => `<span class="project-scope-item">${escapeHtml(s)}</span>`).join('')}
           </div>
           <div class="project-card-footer">
-            <button class="btn-link view-project-btn" data-slug="${p.slug}">
+            <button class="btn-link view-project-btn" data-slug="${escapedSlug}">
               View Project Blueprint →
             </button>
           </div>
@@ -298,6 +336,14 @@ function attachProjectModalTriggers() {
   });
 }
 
+function closeProjectModal() {
+  const modal = document.getElementById('projectModal');
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+}
+
 async function openProjectModal(slug) {
   const modal = document.getElementById('projectModal');
   const modalBody = document.getElementById('modalBody');
@@ -320,9 +366,10 @@ async function openProjectModal(slug) {
     modalBody.innerHTML = `
       <h3 style="margin-bottom: 12px; font-family: var(--font-serif);">Commercial Project Blueprint</h3>
       <p style="color: var(--text-muted); margin-bottom: 24px;">Detailed technical drawings, MEP schematics, and photographic walkthroughs are available upon request during initial feasibility consultations.</p>
-      <a href="#contact" class="btn btn-primary btn-sm" onclick="document.getElementById('projectModal').classList.remove('active');">Schedule a Technical Consultation</a>
+      <a href="#contact" class="btn btn-primary btn-sm" onclick="closeProjectModal();">Schedule a Technical Consultation</a>
     `;
     modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
     return;
   }
 
@@ -331,22 +378,22 @@ async function openProjectModal(slug) {
 
   modalBody.innerHTML = `
     <div style="margin-bottom: 20px;">
-      <span class="section-badge" style="margin-bottom: 8px;">${project.category.toUpperCase()}</span>
-      <h2 style="font-size: 1.8rem; margin-top: 8px; font-family: var(--font-serif);">${project.title}</h2>
+      <span class="section-badge" style="margin-bottom: 8px;">${escapeHtml(project.category.toUpperCase())}</span>
+      <h2 style="font-size: 1.8rem; margin-top: 8px; font-family: var(--font-serif);">${escapeHtml(project.title)}</h2>
     </div>
 
     <div style="border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 24px;">
-      <img src="${project.image_url}" alt="${project.title}" style="width: 100%; height: 320px; object-fit: cover;">
+      <img src="${escapeHtml(project.image_url)}" alt="${escapeHtml(project.title)}" style="width: 100%; height: 320px; object-fit: cover;" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80'">
     </div>
 
     <p style="color: var(--text-muted); line-height: 1.7; margin-bottom: 24px; font-size: 1rem;">
-      ${project.description}
+      ${escapeHtml(project.description)}
     </p>
 
     <div style="margin-bottom: 24px;">
       <h4 style="font-size: 1rem; color: var(--accent-gold); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;">Architectural & Engineering Scope</h4>
       <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-        ${scopes.map((s) => `<span style="background: rgba(255,255,255,0.06); padding: 5px 12px; border-radius: var(--radius-sm); font-size: 0.85rem; border: 1px solid var(--border-subtle);">${s}</span>`).join('')}
+        ${scopes.map((s) => `<span style="background: rgba(255,255,255,0.06); padding: 5px 12px; border-radius: var(--radius-sm); font-size: 0.85rem; border: 1px solid var(--border-subtle);">${escapeHtml(s)}</span>`).join('')}
       </div>
     </div>
 
@@ -354,19 +401,20 @@ async function openProjectModal(slug) {
       <div style="margin-bottom: 24px;">
         <h4 style="font-size: 1rem; color: var(--accent-gold); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;">Photographic Walkthrough</h4>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
-          ${gallery.map((img) => `<img src="${img}" style="width: 100%; height: 140px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">`).join('')}
+          ${gallery.map((img) => `<img src="${escapeHtml(img)}" style="width: 100%; height: 140px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80'">`).join('')}
         </div>
       </div>
     ` : ''}
 
     <div style="border-top: 1px solid var(--border-subtle); padding-top: 20px; display: flex; justify-content: flex-end;">
-      <a href="#contact" class="btn btn-primary btn-sm" onclick="document.getElementById('projectModal').classList.remove('active');">
+      <a href="#contact" class="btn btn-primary btn-sm" onclick="closeProjectModal();">
         Enquire About Similar Project →
       </a>
     </div>
   `;
 
   modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
 }
 
 // =============================================================================
@@ -383,18 +431,21 @@ async function loadTestimonials() {
     const json = await res.json();
 
     if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-      container.innerHTML = json.data.map((t) => `
-        <div class="testimonial-card">
-          <div>
-            <div class="testimonial-rating">${'★'.repeat(t.rating)}</div>
-            <p class="testimonial-text">"${t.review}"</p>
+      container.innerHTML = json.data.map((t) => {
+        const ratingNum = Math.min(5, Math.max(1, parseInt(t.rating, 10) || 5));
+        return `
+          <div class="testimonial-card">
+            <div>
+              <div class="testimonial-rating">${'★'.repeat(ratingNum)}</div>
+              <p class="testimonial-text">"${escapeHtml(t.review)}"</p>
+            </div>
+            <div class="testimonial-author">
+              <h5>${escapeHtml(t.client_name)}</h5>
+              <p>${escapeHtml(t.business_type)}</p>
+            </div>
           </div>
-          <div class="testimonial-author">
-            <h5>${t.client_name}</h5>
-            <p>${t.business_type}</p>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
   } catch (err) {
     console.warn('API unavailable; retaining static testimonial fallbacks.', err);
@@ -414,11 +465,11 @@ async function loadFaqs() {
       container.innerHTML = json.data.map((f, idx) => `
         <div class="faq-item ${idx === 0 ? 'active' : ''}">
           <button class="faq-question">
-            <span>${f.question}</span>
+            <span>${escapeHtml(f.question)}</span>
             <span class="faq-icon">+</span>
           </button>
           <div class="faq-answer">
-            <p>${f.answer}</p>
+            <p>${escapeHtml(f.answer)}</p>
           </div>
         </div>
       `).join('');
@@ -643,29 +694,69 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 3. Modal Close handlers
+  // 3. Modal Close handlers & Escape key
   const modal = document.getElementById('projectModal');
   const modalClose = document.getElementById('modalClose');
   if (modal && modalClose) {
-    modalClose.addEventListener('click', () => modal.classList.remove('active'));
+    modalClose.addEventListener('click', closeProjectModal);
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.classList.remove('active');
+      if (e.target === modal) closeProjectModal();
     });
   }
 
-  // 4. Initialize Components
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeProjectModal();
+    }
+  });
+
+  // 4. Smooth Navbar Scroll & Active Link Tracking
+  const navbar = document.getElementById('navbar');
+  const sections = document.querySelectorAll('section[id]');
+  const navLinkEls = document.querySelectorAll('.nav-link');
+
+  function handleNavbarScroll() {
+    if (!navbar) return;
+    if (window.scrollY > 30) {
+      navbar.classList.add('scrolled');
+    } else {
+      navbar.classList.remove('scrolled');
+    }
+
+    // ScrollSpy
+    const scrollPos = window.scrollY + 120;
+    sections.forEach((sec) => {
+      const top = sec.offsetTop;
+      const height = sec.offsetHeight;
+      const id = sec.getAttribute('id');
+      if (scrollPos >= top && scrollPos < top + height) {
+        navLinkEls.forEach((link) => {
+          if (link.getAttribute('href') === `#${id}`) {
+            link.classList.add('active');
+          } else {
+            link.classList.remove('active');
+          }
+        });
+      }
+    });
+  }
+
+  window.addEventListener('scroll', handleNavbarScroll, { passive: true });
+  handleNavbarScroll();
+
+  // 5. Initialize Components
   attachProjectModalTriggers();
   attachFaqAccordion();
   initCalculator();
   initContactForm();
 
-  // 5. Fetch dynamic API data
+  // 6. Fetch dynamic API data
   loadProjects();
   loadClients();
   loadTestimonials();
   loadFaqs();
 
-  // 6. Stealth Admin Portal keyboard shortcut (Alt+A or Ctrl+Shift+A)
+  // 7. Stealth Admin Portal keyboard shortcut (Alt+A or Ctrl+Shift+A)
   window.addEventListener('keydown', (e) => {
     if ((e.altKey && e.key.toLowerCase() === 'a') || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a')) {
       e.preventDefault();

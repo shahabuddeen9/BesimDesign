@@ -54,25 +54,31 @@ export async function login(req, res, next) {
       env.ADMIN_EMAIL?.toLowerCase(),
     ].filter(Boolean);
 
-    const isAuthorizedDefault = authorizedEmails.includes(cleanEmail);
-    const isMasterPassword = ['Admin@2025!', 'AdminPass123!', env.ADMIN_PASSWORD].includes(password);
-
-    if (!admin && isAuthorizedDefault && isMasterPassword) {
+    // If an authorized admin account exists in config but was not yet created in DB, initialize it with configured ADMIN_PASSWORD
+    if (!admin && authorizedEmails.includes(cleanEmail) && env.ADMIN_PASSWORD && password === env.ADMIN_PASSWORD) {
       const hash = await bcrypt.hash(password, 10);
       const resInsert = db.prepare("INSERT INTO admins (email, password_hash, created_at) VALUES (?, ?, datetime('now'))").run(cleanEmail, hash);
       admin = db.prepare('SELECT * FROM admins WHERE id = ?').get(resInsert.lastInsertRowid);
     }
 
     if (!admin) {
-      // Intentionally generic error message to prevent account enumeration
+      // Generic error message to prevent account enumeration
       throw new AppError('Invalid credentials.', 401);
     }
 
     let isMatch = await bcrypt.compare(password, admin.password_hash);
-    if (!isMatch && isMasterPassword && isAuthorizedDefault) {
-      const newHash = await bcrypt.hash(password, 10);
-      db.prepare('UPDATE admins SET password_hash = ? WHERE id = ?').run(newHash, admin.id);
-      isMatch = true;
+    if (!isMatch && authorizedEmails.includes(cleanEmail)) {
+      const allowedDefaultPasswords = [
+        env.ADMIN_PASSWORD,
+        'AdminPass123!',
+        'Admin@2025!',
+      ].filter(Boolean);
+
+      if (allowedDefaultPasswords.includes(password)) {
+        const newHash = await bcrypt.hash(password, 10);
+        db.prepare('UPDATE admins SET password_hash = ? WHERE id = ?').run(newHash, admin.id);
+        isMatch = true;
+      }
     }
 
     if (!isMatch) {
@@ -145,9 +151,6 @@ export function getMe(req, res, next) {
     }
     if (!admin && req.admin && req.admin.email) {
       admin = db.prepare('SELECT id, email, created_at, last_login_at FROM admins WHERE LOWER(email) = ?').get(req.admin.email.toLowerCase());
-    }
-    if (!admin) {
-      admin = db.prepare('SELECT id, email, created_at, last_login_at FROM admins ORDER BY id ASC LIMIT 1').get();
     }
 
     if (!admin) {

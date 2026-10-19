@@ -264,7 +264,7 @@ function showAdminToast(message, type = 'success') {
     transition: all 0.25s ease;
     pointer-events: auto;
   `;
-  toast.innerHTML = `<span>${isErr ? '⚠️' : '✓'}</span><span>${message}</span>`;
+  toast.innerHTML = `<span>${isErr ? '⚠️' : '✓'}</span><span>${escapeHtml(message)}</span>`;
   toastContainer.appendChild(toast);
 
   setTimeout(() => {

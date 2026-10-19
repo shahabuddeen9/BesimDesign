@@ -59,12 +59,7 @@ export function authenticateAdmin(req, res, next) {
     }
 
     if (!admin) {
-      // Token was signed by our valid JWT_SECRET; fallback to primary admin account
-      admin = db.prepare('SELECT id, email, created_at, last_login_at FROM admins ORDER BY id ASC LIMIT 1').get();
-    }
-
-    if (!admin) {
-      return next(new AppError('Administrator account no longer exists.', 401));
+      return next(new AppError('Administrator account no longer exists or credentials have changed.', 401));
     }
 
     req.admin = {

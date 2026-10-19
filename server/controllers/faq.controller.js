@@ -95,7 +95,8 @@ export function updateFaq(req, res, next) {
       throw new AppError(`FAQ #${id} not found`, 404);
     }
 
-    const { question, answer, sort_order, is_published } = req.body;
+    const validated = faqSchema.partial().parse(req.body);
+    const { question, answer, sort_order, is_published } = validated;
 
     db.prepare(`
       UPDATE faqs
