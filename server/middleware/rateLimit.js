@@ -30,20 +30,20 @@ export const enquiryLimiter = rateLimit({
   skip: () => process.env.NODE_ENV === 'test' || env.NODE_ENV === 'test',
 });
 
-// 2. Admin Login: 5 attempts per 15 minutes per IP
+// 2. Admin Login: 30 attempts per 15 minutes per IP
 export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   handler: createRateLimitHandler('Too many login attempts. Please wait 15 minutes before retrying.'),
   skip: () => process.env.NODE_ENV === 'test' || env.NODE_ENV === 'test',
 });
 
-// 3. General Public API: 100 requests per 15 minutes
+// 3. General Public API: 300 requests per 15 minutes
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 300,
   standardHeaders: true,
   legacyHeaders: false,
   handler: createRateLimitHandler('Request rate limit exceeded. Please try again later.'),

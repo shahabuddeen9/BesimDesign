@@ -73,12 +73,13 @@ export async function login(req, res, next) {
       { expiresIn: '7d' }
     );
 
-    // Set secure httpOnly cookie
+    // Set secure cookie with SameSite=None for iframe preview compatibility
     res.cookie(COOKIE_NAME, token, {
       httpOnly: true,
-      secure: env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
       maxAge: SEVEN_DAYS_MS,
+      path: '/',
     });
 
     logger.info(`Administrator logged in: ${admin.email}`);
@@ -86,6 +87,7 @@ export async function login(req, res, next) {
     return res.status(200).json({
       success: true,
       message: 'Login successful.',
+      token, // Return token for frontend Bearer authorization in iframes
       admin: {
         id: admin.id,
         email: admin.email,
@@ -103,8 +105,9 @@ export async function login(req, res, next) {
 export function logout(req, res) {
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
-    secure: env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: true,
+    sameSite: 'none',
+    path: '/',
   });
 
   return res.status(200).json({

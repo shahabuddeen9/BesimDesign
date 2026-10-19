@@ -54,24 +54,48 @@
   </div>
 
   <script>
-    // Check if session is already active
-    fetch('/api/auth/me')
-      .then(r => r.json())
-      .then(d => {
-        if (d.success) {
-          const params = new URLSearchParams(window.location.search);
-          const tab = params.get('tab') || window.location.hash.replace('#', '');
-          window.location.replace(tab ? `/admin/dashboard.html?tab=${tab}` : '/admin/dashboard.html');
-        }
-      })
-      .catch(() => {});
-
     const form = document.getElementById('loginForm');
     const alertBox = document.getElementById('loginAlert');
     const btnSubmit = document.getElementById('btnLoginSubmit');
     const btnText = document.getElementById('btnLoginText');
     const btnSpinner = document.getElementById('btnLoginSpinner');
     const btnQuick = document.getElementById('btnQuickDemoLogin');
+
+    // Check URL parameters for gentle status banners
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('session_expired') === '1' || urlParams.get('expired') === '1') {
+      alertBox.textContent = 'Your administrator session has ended. Please sign in again to continue.';
+      alertBox.style.background = 'rgba(234, 179, 8, 0.15)';
+      alertBox.style.borderColor = '#eab308';
+      alertBox.style.color = '#fde047';
+      alertBox.style.display = 'block';
+    } else if (urlParams.get('logged_out') === '1') {
+      alertBox.textContent = 'You have logged out successfully.';
+      alertBox.style.background = 'rgba(16, 185, 129, 0.15)';
+      alertBox.style.borderColor = '#10b981';
+      alertBox.style.color = '#6ee7b7';
+      alertBox.style.display = 'block';
+    }
+
+    // Check if valid session is already active
+    const savedToken = localStorage.getItem('besim_admin_token');
+    if (savedToken) {
+      fetch('/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${savedToken}` },
+        credentials: 'include'
+      })
+        .then(r => r.json())
+        .then(d => {
+          if (d.success && d.admin) {
+            const tab = urlParams.get('tab') || window.location.hash.replace('#', '');
+            window.location.replace(tab ? `/admin/dashboard.html?tab=${tab}` : '/admin/dashboard.html');
+          } else {
+            localStorage.removeItem('besim_admin_token');
+            localStorage.removeItem('besim_admin_email');
+          }
+        })
+        .catch(() => {});
+    }
 
     if (btnQuick) {
       btnQuick.addEventListener('click', () => {
@@ -90,6 +114,9 @@
 
       if (!email || !password) {
         alertBox.textContent = 'Please enter both administrator email and password.';
+        alertBox.style.background = 'rgba(239, 68, 68, 0.15)';
+        alertBox.style.borderColor = '#ef4444';
+        alertBox.style.color = '#fca5a5';
         alertBox.style.display = 'block';
         return;
       }
@@ -102,21 +129,43 @@
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({ email, password }),
         });
 
         const data = await res.json();
 
         if (res.ok && data.success) {
-          const params = new URLSearchParams(window.location.search);
-          const tab = params.get('tab') || window.location.hash.replace('#', '');
-          window.location.replace(tab ? `/admin/dashboard.html?tab=${tab}` : '/admin/dashboard.html');
+          // Store token in localStorage for reliable iframe and bearer authorization
+          if (data.token) {
+            localStorage.setItem('besim_admin_token', data.token);
+          }
+          if (data.admin && data.admin.email) {
+            localStorage.setItem('besim_admin_email', data.admin.email);
+          }
+
+          alertBox.textContent = '✓ Session authenticated! Loading admin dashboard...';
+          alertBox.style.background = 'rgba(16, 185, 129, 0.15)';
+          alertBox.style.borderColor = '#10b981';
+          alertBox.style.color = '#6ee7b7';
+          alertBox.style.display = 'block';
+
+          const tab = urlParams.get('tab') || window.location.hash.replace('#', '');
+          setTimeout(() => {
+            window.location.replace(tab ? `/admin/dashboard.html?tab=${tab}` : '/admin/dashboard.html');
+          }, 350);
         } else {
-          alertBox.textContent = data.message || 'Invalid credentials.';
+          alertBox.textContent = data.message || 'Invalid administrator credentials.';
+          alertBox.style.background = 'rgba(239, 68, 68, 0.15)';
+          alertBox.style.borderColor = '#ef4444';
+          alertBox.style.color = '#fca5a5';
           alertBox.style.display = 'block';
         }
       } catch (err) {
         alertBox.textContent = 'Network or server communication error. Please try again.';
+        alertBox.style.background = 'rgba(239, 68, 68, 0.15)';
+        alertBox.style.borderColor = '#ef4444';
+        alertBox.style.color = '#fca5a5';
         alertBox.style.display = 'block';
       } finally {
         btnSubmit.disabled = false;

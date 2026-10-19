@@ -13,13 +13,17 @@ import AppError from '../utils/AppError.js';
 export function authenticateAdmin(req, res, next) {
   let token = null;
 
-  // 1. Check httpOnly cookie
-  if (req.cookies && req.cookies.token) {
+  // 1. Check Authorization Bearer header first (primary for modern SPA & iframes)
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    token = req.headers.authorization.split(' ')[1].trim();
+  }
+  // 2. Check httpOnly cookie
+  else if (req.cookies && req.cookies.token) {
     token = req.cookies.token;
   }
-  // 2. Check Authorization Bearer header as fallback
-  else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
-    token = req.headers.authorization.split(' ')[1];
+  // 3. Check query param (e.g. for direct CSV downloads)
+  else if (req.query && req.query.token) {
+    token = String(req.query.token).trim();
   }
 
   if (!token) {

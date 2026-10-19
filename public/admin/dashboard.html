@@ -9,6 +9,16 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/admin/admin.css">
+  <script>
+    // Fast initial session validation: prevents showing dashboard for 1 second if unauthenticated
+    (function() {
+      const token = localStorage.getItem('besim_admin_token');
+      // If there is no token and no session cookie, redirect immediately to login
+      if (!token && !document.cookie.includes('token=')) {
+        window.location.replace('/admin/login.html');
+      }
+    })();
+  </script>
 </head>
 <body>
 
@@ -194,9 +204,17 @@
       <!-- TAB 2: PORTFOLIO PROJECTS -->
       <!-- ============================================================== -->
       <div class="tab-pane" id="pane-projects" style="display: none;">
-        <div class="filter-bar">
-          <div>
-            <p style="color: var(--text-muted); font-size: 0.9rem;">Manage live showcase cases on the public studio website.</p>
+        <div class="filter-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div class="filter-group" style="flex: 1; max-width: 600px; display: flex; gap: 10px; flex-wrap: wrap;">
+            <input type="text" id="searchProject" class="search-input" placeholder="Search projects by title, client, location, or slug..." style="flex: 1; min-width: 220px;">
+            <select id="filterProjectCategory" class="filter-select" style="min-width: 160px;">
+              <option value="all">All Categories</option>
+              <option value="central_kitchen">Central Kitchen</option>
+              <option value="hotels">Hotels</option>
+              <option value="hospitality">Hospitality</option>
+              <option value="residential">Residential</option>
+              <option value="commercial">Commercial / Office</option>
+            </select>
           </div>
           <button id="btnNewProject" class="btn btn-gold">
             + Add Architecture Project
@@ -231,9 +249,9 @@
       <!-- TAB 2.5: CLIENTS & BRANDS -->
       <!-- ============================================================== -->
       <div class="tab-pane" id="pane-clients" style="display: none;">
-        <div class="filter-bar">
-          <div>
-            <p style="color: var(--text-muted); font-size: 0.9rem;">Manage corporate clients, brand partners, and logos featured on the website.</p>
+        <div class="filter-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div class="filter-group" style="flex: 1; max-width: 450px;">
+            <input type="text" id="searchClient" class="search-input" placeholder="Search clients by name, sector, or notes..." style="width: 100%;">
           </div>
           <button id="btnNewClient" class="btn btn-gold">
             + Add New Client
@@ -637,6 +655,18 @@
           <button type="submit" class="btn btn-gold" id="btnSaveClient">Save Client</button>
         </div>
       </form>
+  <!-- ============================================================== -->
+  <!-- MODAL: IN-APP CONFIRMATION (Replaces disruptive window.confirm) -->
+  <!-- ============================================================== -->
+  <div class="admin-modal-overlay" id="modalConfirm">
+    <div class="admin-modal" style="max-width: 440px;">
+      <button class="admin-modal-close" data-close="modalConfirm">&times;</button>
+      <h3 style="font-family: var(--font-serif); margin-bottom: 12px; font-size: 1.3rem; color: #fff;" id="confirmModalTitle">Confirm Action</h3>
+      <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; margin-bottom: 24px;" id="confirmModalMessage"></p>
+      <div style="display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" class="btn btn-outline" data-close="modalConfirm" id="btnConfirmCancel">Cancel</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmProceed">Proceed Permanently</button>
+      </div>
     </div>
   </div>
 

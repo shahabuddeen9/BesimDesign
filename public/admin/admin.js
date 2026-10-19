@@ -22,29 +22,81 @@ const state = {
     search: '',
     status: 'all',
     source: 'all',
+    projectSearch: '',
+    projectCategory: 'all',
+    clientSearch: '',
   },
 };
 
 // =============================================================================
-// Session Verification & Logout
+// Token & Session Management
 // =============================================================================
 
-async function checkSession() {
+function getStoredToken() {
+  return localStorage.getItem('besim_admin_token') || '';
+}
+
+/**
+ * Universal authenticated fetch wrapper for all admin API endpoints.
+ * Automatically injects Bearer token from localStorage, passes credentials,
+ * and handles 401 unauthenticated transitions smoothly without loops.
+ */
+async function adminFetch(url, options = {}) {
+  const token = getStoredToken();
+  const headers = { ...(options.headers || {}) };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  // Set application/json only when sending body and not FormData
+  if (options.body && !(options.body instanceof FormData) && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   try {
-    const res = await fetch('/api/auth/me');
+    const res = await fetch(url, {
+      ...options,
+      headers,
+      credentials: 'include',
+    });
+
+    if (res.status === 401) {
+      localStorage.removeItem('besim_admin_token');
+      localStorage.removeItem('besim_admin_email');
+      window.location.replace('/admin/login.html?session_expired=1');
+      throw new Error('Authentication required');
+    }
+
+    return res;
+  } catch (err) {
+    if (err.message === 'Authentication required') {
+      throw err;
+    }
+    throw err;
+  }
+}
+
+async function checkSession() {
+  const token = getStoredToken();
+  try {
+    const res = await adminFetch('/api/auth/me');
     if (!res.ok) {
-      window.location.replace('/admin/login.html');
-      return false;
+      throw new Error('Session invalid');
     }
     const data = await res.json();
     if (data.success && data.admin) {
       const emailEl = document.getElementById('loggedAdminEmail');
       if (emailEl) emailEl.textContent = data.admin.email;
+      if (data.admin.email) {
+        localStorage.setItem('besim_admin_email', data.admin.email);
+      }
       return true;
     }
-    window.location.replace('/admin/login.html');
-    return false;
-  } catch (_) {
+    throw new Error('Admin profile missing');
+  } catch (err) {
+    localStorage.removeItem('besim_admin_token');
+    localStorage.removeItem('besim_admin_email');
     window.location.replace('/admin/login.html');
     return false;
   }
@@ -52,14 +104,17 @@ async function checkSession() {
 
 async function handleLogout() {
   try {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    await adminFetch('/api/auth/logout', { method: 'POST' });
+  } catch (_) {
   } finally {
-    window.location.replace('/admin/login.html');
+    localStorage.removeItem('besim_admin_token');
+    localStorage.removeItem('besim_admin_email');
+    window.location.replace('/admin/login.html?logged_out=1');
   }
 }
 
 // =============================================================================
-// Modal Helpers & In-Dashboard Toasts
+// Modal Helpers & In-Dashboard Confirmations & Toasts
 // =============================================================================
 
 function showAdminToast(message, type = 'success') {
@@ -67,25 +122,26 @@ function showAdminToast(message, type = 'success') {
   if (!toastContainer) {
     toastContainer = document.createElement('div');
     toastContainer.id = 'adminToastContainer';
-    toastContainer.style.cssText = 'position: fixed; bottom: 24px; right: 24px; z-index: 99999; display: flex; flex-direction: column; gap: 10px;';
+    toastContainer.style.cssText = 'position: fixed; bottom: 24px; right: 24px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;';
     document.body.appendChild(toastContainer);
   }
 
   const toast = document.createElement('div');
   const isErr = type === 'error';
   toast.style.cssText = `
-    padding: 14px 20px;
-    background: ${isErr ? 'rgba(239, 68, 68, 0.95)' : 'rgba(21, 27, 43, 0.95)'};
+    padding: 12px 18px;
+    background: ${isErr ? 'rgba(239, 68, 68, 0.96)' : 'rgba(20, 27, 44, 0.96)'};
     color: #fff;
     border: 1px solid ${isErr ? '#ef4444' : 'var(--gold, #c5a880)'};
     border-radius: 6px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-    font-size: 0.88rem;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.5);
+    font-size: 0.86rem;
     font-weight: 500;
     display: flex;
     align-items: center;
     gap: 10px;
-    transition: all 0.3s ease;
+    transition: all 0.25s ease;
+    pointer-events: auto;
   `;
   toast.innerHTML = `<span>${isErr ? '⚠️' : '✓'}</span><span>${message}</span>`;
   toastContainer.appendChild(toast);
@@ -93,8 +149,8 @@ function showAdminToast(message, type = 'success') {
   setTimeout(() => {
     toast.style.opacity = '0';
     toast.style.transform = 'translateY(10px)';
-    setTimeout(() => toast.remove(), 300);
-  }, 4000);
+    setTimeout(() => toast.remove(), 250);
+  }, 3500);
 }
 
 function openModal(id) {
@@ -105,6 +161,28 @@ function openModal(id) {
 function closeModal(id) {
   const modal = document.getElementById(id);
   if (modal) modal.classList.remove('active');
+}
+
+// In-app custom confirmation dialog to avoid window.confirm() in iframe environments
+let confirmResolver = null;
+
+function confirmDialog({ title, message, proceedText = 'Proceed Permanently', isDanger = true }) {
+  return new Promise((resolve) => {
+    confirmResolver = resolve;
+    const modal = document.getElementById('modalConfirm');
+    const titleEl = document.getElementById('confirmModalTitle');
+    const msgEl = document.getElementById('confirmModalMessage');
+    const btnProceed = document.getElementById('btnConfirmProceed');
+
+    if (titleEl) titleEl.textContent = title;
+    if (msgEl) msgEl.textContent = message;
+    if (btnProceed) {
+      btnProceed.textContent = proceedText;
+      btnProceed.className = isDanger ? 'btn btn-danger' : 'btn btn-gold';
+    }
+
+    openModal('modalConfirm');
+  });
 }
 
 // =============================================================================
@@ -148,7 +226,7 @@ function switchTab(tabName) {
     loadAdminFaqs();
   }
 
-  // Sync hash in browser without page jump
+  // Sync URL hash without jumping page
   try {
     history.replaceState(null, '', `#${tabName}`);
   } catch (_) {}
@@ -186,23 +264,32 @@ function initTabs() {
 
 async function loadStats() {
   try {
-    const res = await fetch('/api/admin/stats');
-    if (res.status === 401) return window.location.replace('/admin/login.html');
+    const res = await adminFetch('/api/admin/stats');
     if (!res.ok) return;
 
     const data = await res.json();
     if (data.success && data.stats) {
       const s = data.stats;
-      document.getElementById('statTotalEnquiries').textContent = s.totalEnquiries;
-      document.getElementById('statNewThisWeek').textContent = `${s.newThisWeek} new this week`;
-      document.getElementById('statActivePipeline').textContent = `${s.byStatus.won || 0} Won`;
-      document.getElementById('statStatusBreakdown').textContent = `${s.byStatus.new || 0} New • ${s.byStatus.contacted || 0} Contacted`;
-      document.getElementById('statCalculatorLeads').textContent = `${s.bySource.calculator || 0} Calc`;
-      document.getElementById('statSourceBreakdown').textContent = `${s.bySource.contact_form || 0} Forms • ${s.bySource.quote || 0} Quotes`;
-      document.getElementById('statDownloads').textContent = s.totalDownloads;
+      const elTotal = document.getElementById('statTotalEnquiries');
+      const elNewWeek = document.getElementById('statNewThisWeek');
+      const elPipeline = document.getElementById('statActivePipeline');
+      const elStatus = document.getElementById('statStatusBreakdown');
+      const elCalc = document.getElementById('statCalculatorLeads');
+      const elSource = document.getElementById('statSourceBreakdown');
+      const elDownloads = document.getElementById('statDownloads');
+
+      if (elTotal) elTotal.textContent = s.totalEnquiries;
+      if (elNewWeek) elNewWeek.textContent = `${s.newThisWeek} new this week`;
+      if (elPipeline) elPipeline.textContent = `${s.byStatus?.won || 0} Won`;
+      if (elStatus) elStatus.textContent = `${s.byStatus?.new || 0} New • ${s.byStatus?.contacted || 0} Contacted`;
+      if (elCalc) elCalc.textContent = `${s.bySource?.calculator || 0} Calc`;
+      if (elSource) elSource.textContent = `${s.bySource?.contact_form || 0} Forms • ${s.bySource?.quote || 0} Quotes`;
+      if (elDownloads) elDownloads.textContent = s.totalDownloads;
     }
   } catch (err) {
-    console.error('Failed to load stats:', err);
+    if (err.message !== 'Authentication required') {
+      console.error('Failed to load stats:', err);
+    }
   }
 }
 
@@ -231,8 +318,7 @@ async function loadEnquiries() {
   `;
 
   try {
-    const res = await fetch(`/api/admin/enquiries?${params.toString()}`);
-    if (res.status === 401) return window.location.replace('/admin/login.html');
+    const res = await adminFetch(`/api/admin/enquiries?${params.toString()}`);
     const json = await res.json();
 
     if (json.success) {
@@ -242,13 +328,15 @@ async function loadEnquiries() {
       updatePaginationControls();
     }
   } catch (err) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="9" style="text-align: center; padding: 24px; color: #f87171;">
-          Failed to load enquiries. Please refresh.
-        </td>
-      </tr>
-    `;
+    if (err.message !== 'Authentication required') {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="9" style="text-align: center; padding: 24px; color: #f87171;">
+            Failed to load enquiries. Please refresh.
+          </td>
+        </tr>
+      `;
+    }
   }
 }
 
@@ -278,19 +366,19 @@ function renderEnquiriesTable(records) {
       <tr>
         <td><strong>#${r.id}</strong></td>
         <td>
-          <strong style="color: var(--text-primary);">${r.name}</strong>
+          <strong style="color: var(--text-primary); font-size: 0.92rem;">${r.name}</strong>
         </td>
         <td>
-          <a href="tel:+91${r.phone}" style="color: var(--gold); display: block; font-weight: 500;">+91 ${r.phone}</a>
-          <a href="mailto:${r.email}" style="color: var(--text-muted); font-size: 0.8rem;">${r.email}</a>
+          <a href="tel:+91${r.phone}" style="color: var(--gold); display: block; font-weight: 500; font-size: 0.85rem;">+91 ${r.phone}</a>
+          <a href="mailto:${r.email}" style="color: var(--text-muted); font-size: 0.78rem;">${r.email}</a>
         </td>
-        <td style="text-transform: capitalize;">${r.business_type}</td>
+        <td style="text-transform: capitalize; font-size: 0.85rem;">${r.business_type}</td>
         <td>
-          <div>${r.project_location || '—'}</div>
-          <span style="font-size: 0.78rem; color: var(--text-dim);">${r.area_sqft ? r.area_sqft.toLocaleString() + ' sq.ft' : ''}</span>
+          <div style="font-size: 0.85rem;">${r.project_location || '—'}</div>
+          <span style="font-size: 0.75rem; color: var(--text-dim);">${r.area_sqft ? r.area_sqft.toLocaleString() + ' sq.ft' : ''}</span>
         </td>
         <td>
-          <span style="font-size: 0.78rem; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">
+          <span style="font-size: 0.75rem; background: rgba(255,255,255,0.06); padding: 3px 7px; border-radius: 4px; color: var(--text-muted);">
             ${r.source}
           </span>
         </td>
@@ -303,13 +391,13 @@ function renderEnquiriesTable(records) {
             <option value="lost" ${r.status === 'lost' ? 'selected' : ''}>Lost</option>
           </select>
         </td>
-        <td style="font-size: 0.8rem; color: var(--text-dim);">${dateFormatted}</td>
+        <td style="font-size: 0.78rem; color: var(--text-dim);">${dateFormatted}</td>
         <td>
           <div style="display: flex; gap: 6px;">
-            <button class="btn btn-outline btn-sm btn-view-enquiry" data-id="${r.id}" title="View Details & Notes">
+            <button class="btn btn-outline btn-sm btn-view-enquiry" data-id="${r.id}" title="View Details & Notes" style="padding: 4px 10px; font-size: 0.8rem;">
               Notes
             </button>
-            <button class="btn btn-danger btn-sm btn-delete-enquiry" data-id="${r.id}" title="Delete Lead">
+            <button class="btn btn-danger btn-sm btn-delete-enquiry" data-id="${r.id}" title="Delete Lead" style="padding: 4px 8px; font-size: 0.8rem;">
               ✕
             </button>
           </div>
@@ -349,6 +437,8 @@ function updatePaginationControls() {
   const btnPrev = document.getElementById('btnPrevPage');
   const btnNext = document.getElementById('btnNextPage');
 
+  if (!info || !btnPrev || !btnNext) return;
+
   const { page, total, limit, totalPages } = state.pagination;
   const start = total === 0 ? 0 : (page - 1) * limit + 1;
   const end = Math.min(page * limit, total);
@@ -361,16 +451,19 @@ function updatePaginationControls() {
 
 async function updateEnquiryStatus(id, status) {
   try {
-    const res = await fetch(`/api/admin/enquiries/${id}`, {
+    const res = await adminFetch(`/api/admin/enquiries/${id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     });
     if (res.ok) {
+      showAdminToast(`Lead #${id} status updated to ${status}.`);
       loadStats();
     }
   } catch (err) {
-    console.error('Failed to update enquiry status:', err);
+    if (err.message !== 'Authentication required') {
+      console.error('Failed to update enquiry status:', err);
+      showAdminToast('Failed to update status.', 'error');
+    }
   }
 }
 
@@ -414,23 +507,32 @@ function openEnquiryDetails(id) {
 }
 
 async function deleteEnquiry(id) {
-  if (!confirm(`Are you sure you want to permanently delete lead #${id}? This action cannot be undone.`)) {
-    return;
-  }
+  const confirmed = await confirmDialog({
+    title: 'Delete CRM Lead',
+    message: `Are you sure you want to permanently delete lead #${id}? This action cannot be undone.`,
+    proceedText: 'Delete Lead 🗑️',
+    isDanger: true,
+  });
+
+  if (!confirmed) return;
 
   try {
-    const res = await fetch(`/api/admin/enquiries/${id}`, { method: 'DELETE' });
+    const res = await adminFetch(`/api/admin/enquiries/${id}`, { method: 'DELETE' });
     if (res.ok) {
+      showAdminToast(`Lead #${id} deleted.`);
       loadEnquiries();
       loadStats();
     }
   } catch (err) {
-    console.error('Failed to delete enquiry:', err);
+    if (err.message !== 'Authentication required') {
+      console.error('Failed to delete enquiry:', err);
+      showAdminToast('Failed to delete lead.', 'error');
+    }
   }
 }
 
 // =============================================================================
-// Portfolio Projects CRUD
+// Portfolio Projects CRUD (Change & Delete)
 // =============================================================================
 
 async function loadAdminProjects() {
@@ -440,17 +542,39 @@ async function loadAdminProjects() {
   tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 32px; color: var(--text-dim);">Loading projects...</td></tr>`;
 
   try {
-    const res = await fetch('/api/admin/projects');
-    if (res.status === 401) return window.location.replace('/admin/login.html');
+    const res = await adminFetch('/api/admin/projects');
     const json = await res.json();
 
     if (json.success) {
       state.projects = json.data;
-      renderAdminProjectsTable(json.data);
+      filterAndRenderProjects();
     }
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: #f87171;">Failed to load projects.</td></tr>`;
+    if (err.message !== 'Authentication required') {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: #f87171;">Failed to load projects.</td></tr>`;
+    }
   }
+}
+
+function filterAndRenderProjects() {
+  const search = (state.filters.projectSearch || '').toLowerCase().trim();
+  const cat = state.filters.projectCategory || 'all';
+
+  let list = state.projects || [];
+  if (cat !== 'all') {
+    list = list.filter((p) => (p.category || '').toLowerCase() === cat.toLowerCase());
+  }
+  if (search) {
+    list = list.filter((p) => {
+      const titleMatch = (p.title || '').toLowerCase().includes(search);
+      const clientMatch = (p.client_name || '').toLowerCase().includes(search);
+      const locMatch = (p.location || '').toLowerCase().includes(search);
+      const slugMatch = (p.slug || '').toLowerCase().includes(search);
+      return titleMatch || clientMatch || locMatch || slugMatch;
+    });
+  }
+
+  renderAdminProjectsTable(list);
 }
 
 function renderAdminProjectsTable(projects) {
@@ -458,7 +582,7 @@ function renderAdminProjectsTable(projects) {
   if (!tbody) return;
 
   if (projects.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 32px;">No projects created yet.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 32px; color: var(--text-dim);">No matching projects found. Click "+ Add Architecture Project" above.</td></tr>`;
     return;
   }
 
@@ -549,12 +673,17 @@ async function deleteProject(id) {
   const p = state.projects.find((item) => item.id.toString() === id.toString());
   const title = p ? `"${p.title}"` : `Project #${id}`;
 
-  if (!confirm(`Are you sure you want to permanently delete ${title}?\n\nThis will remove it from the live website immediately.`)) {
-    return;
-  }
+  const confirmed = await confirmDialog({
+    title: 'Delete Architecture Project',
+    message: `Are you sure you want to permanently delete ${title}?\n\nThis will remove it from the live website portfolio immediately.`,
+    proceedText: 'Delete Project 🗑️',
+    isDanger: true,
+  });
+
+  if (!confirmed) return;
 
   try {
-    const res = await fetch(`/api/admin/projects/${id}`, { method: 'DELETE' });
+    const res = await adminFetch(`/api/admin/projects/${id}`, { method: 'DELETE' });
     const json = await res.json().catch(() => ({}));
 
     if (res.ok && json.success) {
@@ -564,13 +693,15 @@ async function deleteProject(id) {
       showAdminToast(json.message || 'Failed to delete project.', 'error');
     }
   } catch (err) {
-    console.error('Failed to delete project:', err);
-    showAdminToast('Network error while deleting project.', 'error');
+    if (err.message !== 'Authentication required') {
+      console.error('Failed to delete project:', err);
+      showAdminToast('Network error while deleting project.', 'error');
+    }
   }
 }
 
 // =============================================================================
-// Clients & Brand Partnerships CRUD
+// Clients & Brand Partnerships CRUD (Change & Delete)
 // =============================================================================
 
 async function loadAdminClients() {
@@ -580,17 +711,32 @@ async function loadAdminClients() {
   tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 32px; color: var(--text-dim);">Loading clients...</td></tr>`;
 
   try {
-    const res = await fetch('/api/admin/clients');
-    if (res.status === 401) return window.location.replace('/admin/login.html');
+    const res = await adminFetch('/api/admin/clients');
     const json = await res.json();
 
     if (json.success) {
       state.clients = json.data;
-      renderAdminClientsTable(json.data);
+      filterAndRenderClients();
     }
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: #f87171;">Failed to load clients.</td></tr>`;
+    if (err.message !== 'Authentication required') {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: #f87171;">Failed to load clients.</td></tr>`;
+    }
   }
+}
+
+function filterAndRenderClients() {
+  const search = (state.filters.clientSearch || '').toLowerCase().trim();
+  let list = state.clients || [];
+  if (search) {
+    list = list.filter((c) => {
+      const nameMatch = (c.name || '').toLowerCase().includes(search);
+      const catMatch = (c.category || '').toLowerCase().includes(search);
+      const descMatch = (c.description || '').toLowerCase().includes(search);
+      return nameMatch || catMatch || descMatch;
+    });
+  }
+  renderAdminClientsTable(list);
 }
 
 function renderAdminClientsTable(clients) {
@@ -598,7 +744,7 @@ function renderAdminClientsTable(clients) {
   if (!tbody) return;
 
   if (clients.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 32px;">No clients created yet. Click "+ Add New Client" above.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 32px; color: var(--text-dim);">No clients created yet. Click "+ Add New Client" above.</td></tr>`;
     return;
   }
 
@@ -665,12 +811,17 @@ async function deleteClient(id) {
   const c = state.clients.find((item) => item.id.toString() === id.toString());
   const name = c ? `"${c.name}"` : `Client #${id}`;
 
-  if (!confirm(`Are you sure you want to permanently delete client ${name}?\n\nThis will remove it from the website client showcase.`)) {
-    return;
-  }
+  const confirmed = await confirmDialog({
+    title: 'Delete Client Brand',
+    message: `Are you sure you want to permanently delete client ${name}?\n\nThis will remove it from the live website partner showcase immediately.`,
+    proceedText: 'Delete Client 🗑️',
+    isDanger: true,
+  });
+
+  if (!confirmed) return;
 
   try {
-    const res = await fetch(`/api/admin/clients/${id}`, { method: 'DELETE' });
+    const res = await adminFetch(`/api/admin/clients/${id}`, { method: 'DELETE' });
     const json = await res.json().catch(() => ({}));
 
     if (res.ok && json.success) {
@@ -680,8 +831,10 @@ async function deleteClient(id) {
       showAdminToast(json.message || 'Failed to delete client.', 'error');
     }
   } catch (err) {
-    console.error('Failed to delete client:', err);
-    showAdminToast('Network error while deleting client.', 'error');
+    if (err.message !== 'Authentication required') {
+      console.error('Failed to delete client:', err);
+      showAdminToast('Network error while deleting client.', 'error');
+    }
   }
 }
 
@@ -693,58 +846,84 @@ async function loadAdminTestimonials() {
   const tbody = document.getElementById('testimonialsTableBody');
   if (!tbody) return;
 
+  tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 32px; color: var(--text-dim);">Loading testimonials...</td></tr>`;
+
   try {
-    const res = await fetch('/api/admin/testimonials');
-    if (res.status === 401) return window.location.replace('/admin/login.html');
+    const res = await adminFetch('/api/admin/testimonials');
     const json = await res.json();
 
     if (json.success) {
       state.testimonials = json.data;
-      tbody.innerHTML = json.data.map((t) => `
-        <tr>
-          <td><strong>${t.client_name}</strong></td>
-          <td>${t.business_type}</td>
-          <td style="color: var(--gold);">${'★'.repeat(t.rating)}</td>
-          <td style="font-size: 0.85rem; color: var(--text-muted); max-width: 320px;">"${t.review}"</td>
-          <td>
-            <span class="badge-status ${t.is_published ? 'badge-won' : 'badge-lost'}">
-              ${t.is_published ? 'Published' : 'Hidden'}
-            </span>
-          </td>
-          <td>
-            <div style="display: flex; gap: 6px;">
-              <button class="btn btn-outline btn-sm btn-edit-test" data-id="${t.id}">Edit</button>
-              <button class="btn btn-danger btn-sm btn-del-test" data-id="${t.id}">✕</button>
-            </div>
-          </td>
-        </tr>
-      `).join('');
-
-      document.querySelectorAll('.btn-edit-test').forEach((b) => {
-        b.onclick = () => {
-          const item = state.testimonials.find((x) => x.id.toString() === b.dataset.id);
-          if (!item) return;
-          document.getElementById('modalTestimonialTitle').textContent = 'Edit Testimonial';
-          document.getElementById('editTestimonialId').value = item.id;
-          document.getElementById('testClient').value = item.client_name;
-          document.getElementById('testBusiness').value = item.business_type;
-          document.getElementById('testRating').value = item.rating;
-          document.getElementById('testReview').value = item.review;
-          openModal('modalTestimonial');
-        };
-      });
-
-      document.querySelectorAll('.btn-del-test').forEach((b) => {
-        b.onclick = async () => {
-          if (!confirm('Delete this client testimonial?')) return;
-          await fetch(`/api/admin/testimonials/${b.dataset.id}`, { method: 'DELETE' });
-          loadAdminTestimonials();
-        };
-      });
+      renderAdminTestimonials(json.data);
     }
   } catch (err) {
-    console.error('Failed to load testimonials:', err);
+    if (err.message !== 'Authentication required') {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 24px; color: #f87171;">Failed to load reviews.</td></tr>`;
+    }
   }
+}
+
+function renderAdminTestimonials(reviews) {
+  const tbody = document.getElementById('testimonialsTableBody');
+  if (!tbody) return;
+
+  if (reviews.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 32px; color: var(--text-dim);">No testimonials created yet.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = reviews.map((t) => `
+    <tr>
+      <td><strong style="color: #fff;">${t.client_name}</strong></td>
+      <td style="color: var(--gold);">${t.business_type}</td>
+      <td>${'★'.repeat(t.rating)}${'☆'.repeat(5 - t.rating)}</td>
+      <td style="max-width: 320px; font-size: 0.82rem; color: var(--text-muted);">${t.review}</td>
+      <td>
+        <span class="badge-status ${t.is_published ? 'badge-won' : 'badge-lost'}">
+          ${t.is_published ? 'Published' : 'Hidden'}
+        </span>
+      </td>
+      <td>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-outline btn-sm btn-edit-test" data-id="${t.id}">✏️ Change</button>
+          <button class="btn btn-danger btn-sm btn-del-test" data-id="${t.id}">🗑️ Delete</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  document.querySelectorAll('.btn-edit-test').forEach((b) => {
+    b.onclick = () => {
+      const t = state.testimonials.find((item) => item.id.toString() === b.dataset.id.toString());
+      if (!t) return;
+      document.getElementById('editTestimonialId').value = t.id;
+      document.getElementById('testClient').value = t.client_name;
+      document.getElementById('testBusiness').value = t.business_type;
+      document.getElementById('testRating').value = t.rating;
+      document.getElementById('testReview').value = t.review;
+      document.getElementById('modalTestimonialTitle').textContent = `Edit Testimonial: ${t.client_name}`;
+      openModal('modalTestimonial');
+    };
+  });
+
+  document.querySelectorAll('.btn-del-test').forEach((b) => {
+    b.onclick = async () => {
+      const confirmed = await confirmDialog({
+        title: 'Delete Client Review',
+        message: 'Are you sure you want to permanently delete this testimonial?',
+        proceedText: 'Delete Review 🗑️',
+        isDanger: true,
+      });
+
+      if (!confirmed) return;
+
+      try {
+        await adminFetch(`/api/admin/testimonials/${b.dataset.id}`, { method: 'DELETE' });
+        showAdminToast('Testimonial deleted successfully.');
+        loadAdminTestimonials();
+      } catch (_) {}
+    };
+  });
 }
 
 // =============================================================================
@@ -755,56 +934,82 @@ async function loadAdminFaqs() {
   const tbody = document.getElementById('faqsTableBody');
   if (!tbody) return;
 
+  tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 32px; color: var(--text-dim);">Loading FAQs...</td></tr>`;
+
   try {
-    const res = await fetch('/api/admin/faqs');
-    if (res.status === 401) return window.location.replace('/admin/login.html');
+    const res = await adminFetch('/api/admin/faqs');
     const json = await res.json();
 
     if (json.success) {
       state.faqs = json.data;
-      tbody.innerHTML = json.data.map((f) => `
-        <tr>
-          <td>${f.sort_order}</td>
-          <td><strong>${f.question}</strong></td>
-          <td style="font-size: 0.85rem; color: var(--text-muted); max-width: 380px;">${f.answer}</td>
-          <td>
-            <span class="badge-status ${f.is_published ? 'badge-won' : 'badge-lost'}">
-              ${f.is_published ? 'Published' : 'Hidden'}
-            </span>
-          </td>
-          <td>
-            <div style="display: flex; gap: 6px;">
-              <button class="btn btn-outline btn-sm btn-edit-faq" data-id="${f.id}">Edit</button>
-              <button class="btn btn-danger btn-sm btn-del-faq" data-id="${f.id}">✕</button>
-            </div>
-          </td>
-        </tr>
-      `).join('');
-
-      document.querySelectorAll('.btn-edit-faq').forEach((b) => {
-        b.onclick = () => {
-          const item = state.faqs.find((x) => x.id.toString() === b.dataset.id);
-          if (!item) return;
-          document.getElementById('modalFaqTitle').textContent = 'Edit FAQ';
-          document.getElementById('editFaqId').value = item.id;
-          document.getElementById('faqQuestion').value = item.question;
-          document.getElementById('faqAnswer').value = item.answer;
-          document.getElementById('faqSort').value = item.sort_order;
-          openModal('modalFaq');
-        };
-      });
-
-      document.querySelectorAll('.btn-del-faq').forEach((b) => {
-        b.onclick = async () => {
-          if (!confirm('Delete this architectural FAQ?')) return;
-          await fetch(`/api/admin/faqs/${b.dataset.id}`, { method: 'DELETE' });
-          loadAdminFaqs();
-        };
-      });
+      renderAdminFaqs(json.data);
     }
   } catch (err) {
-    console.error('Failed to load FAQs:', err);
+    if (err.message !== 'Authentication required') {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 24px; color: #f87171;">Failed to load FAQs.</td></tr>`;
+    }
   }
+}
+
+function renderAdminFaqs(faqs) {
+  const tbody = document.getElementById('faqsTableBody');
+  if (!tbody) return;
+
+  if (faqs.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 32px; color: var(--text-dim);">No architectural FAQs configured.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = faqs.map((f) => `
+    <tr>
+      <td>${f.sort_order}</td>
+      <td style="font-weight: 600; color: #fff;">${f.question}</td>
+      <td style="max-width: 320px; font-size: 0.82rem; color: var(--text-muted);">${f.answer}</td>
+      <td>
+        <span class="badge-status ${f.is_published ? 'badge-won' : 'badge-lost'}">
+          ${f.is_published ? 'Published' : 'Hidden'}
+        </span>
+      </td>
+      <td>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-outline btn-sm btn-edit-faq" data-id="${f.id}">✏️ Change</button>
+          <button class="btn btn-danger btn-sm btn-del-faq" data-id="${f.id}">🗑️ Delete</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  document.querySelectorAll('.btn-edit-faq').forEach((b) => {
+    b.onclick = () => {
+      const f = state.faqs.find((item) => item.id.toString() === b.dataset.id.toString());
+      if (!f) return;
+      document.getElementById('editFaqId').value = f.id;
+      document.getElementById('faqQuestion').value = f.question;
+      document.getElementById('faqAnswer').value = f.answer;
+      document.getElementById('faqSort').value = f.sort_order;
+      document.getElementById('modalFaqTitle').textContent = 'Edit Architectural FAQ';
+      openModal('modalFaq');
+    };
+  });
+
+  document.querySelectorAll('.btn-del-faq').forEach((b) => {
+    b.onclick = async () => {
+      const confirmed = await confirmDialog({
+        title: 'Delete FAQ',
+        message: 'Are you sure you want to delete this architectural FAQ?',
+        proceedText: 'Delete FAQ 🗑️',
+        isDanger: true,
+      });
+
+      if (!confirmed) return;
+
+      try {
+        await adminFetch(`/api/admin/faqs/${b.dataset.id}`, { method: 'DELETE' });
+        showAdminToast('FAQ deleted successfully.');
+        loadAdminFaqs();
+      } catch (_) {}
+    };
+  });
 }
 
 // =============================================================================
@@ -816,6 +1021,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!isAuth) return;
 
   initTabs();
+
+  // Wire custom confirm modal buttons
+  const btnProceed = document.getElementById('btnConfirmProceed');
+  const btnCancel = document.getElementById('btnConfirmCancel');
+  if (btnProceed) {
+    btnProceed.addEventListener('click', () => {
+      closeModal('modalConfirm');
+      if (confirmResolver) {
+        confirmResolver(true);
+        confirmResolver = null;
+      }
+    });
+  }
+  if (btnCancel) {
+    btnCancel.addEventListener('click', () => {
+      closeModal('modalConfirm');
+      if (confirmResolver) {
+        confirmResolver(false);
+        confirmResolver = null;
+      }
+    });
+  }
 
   // Logout button
   const btnLogout = document.getElementById('btnLogout');
@@ -832,17 +1059,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('[data-close]').forEach((btn) => {
     btn.addEventListener('click', () => {
       closeModal(btn.dataset.close);
+      if (btn.dataset.close === 'modalConfirm' && confirmResolver) {
+        confirmResolver(false);
+        confirmResolver = null;
+      }
     });
   });
 
   // Close modals on overlay background click
   document.querySelectorAll('.admin-modal-overlay').forEach((overlay) => {
     overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) overlay.classList.remove('active');
+      if (e.target === overlay) {
+        overlay.classList.remove('active');
+        if (overlay.id === 'modalConfirm' && confirmResolver) {
+          confirmResolver(false);
+          confirmResolver = null;
+        }
+      }
     });
   });
 
-  // Filter Bar Handlers
+  // Filter Bar Handlers - Enquiries
   const searchInput = document.getElementById('searchEnquiry');
   const filterStatus = document.getElementById('filterStatus');
   const filterSource = document.getElementById('filterSource');
@@ -876,13 +1113,65 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // CSV Export
+  // Filter Bar Handlers - Projects
+  const searchProjInput = document.getElementById('searchProject');
+  const filterProjCategory = document.getElementById('filterProjectCategory');
+
+  if (searchProjInput) {
+    searchProjInput.addEventListener('input', (e) => {
+      state.filters.projectSearch = e.target.value;
+      filterAndRenderProjects();
+    });
+  }
+
+  if (filterProjCategory) {
+    filterProjCategory.addEventListener('change', (e) => {
+      state.filters.projectCategory = e.target.value;
+      filterAndRenderProjects();
+    });
+  }
+
+  // Filter Bar Handlers - Clients
+  const searchClientInput = document.getElementById('searchClient');
+  if (searchClientInput) {
+    searchClientInput.addEventListener('input', (e) => {
+      state.filters.clientSearch = e.target.value;
+      filterAndRenderClients();
+    });
+  }
+
+  // CSV Export with blob download & Bearer support
   if (btnExportCsv) {
-    btnExportCsv.addEventListener('click', () => {
+    btnExportCsv.addEventListener('click', async () => {
       const p = new URLSearchParams();
       if (state.filters.status !== 'all') p.append('status', state.filters.status);
       if (state.filters.source !== 'all') p.append('source', state.filters.source);
-      window.location.href = `/api/admin/enquiries/export.csv?${p.toString()}`;
+
+      const origText = btnExportCsv.innerHTML;
+      btnExportCsv.innerHTML = 'Generating CSV...';
+      btnExportCsv.disabled = true;
+
+      try {
+        const res = await adminFetch(`/api/admin/enquiries/export.csv?${p.toString()}`);
+        if (!res.ok) throw new Error('Export failed');
+        const blob = await res.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `besim_crm_leads_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(blobUrl);
+        showAdminToast('CSV export downloaded successfully.');
+      } catch (err) {
+        if (err.message !== 'Authentication required') {
+          showAdminToast('Failed to export CSV.', 'error');
+        }
+      } finally {
+        btnExportCsv.innerHTML = origText;
+        btnExportCsv.disabled = false;
+      }
     });
   }
 
@@ -911,26 +1200,57 @@ document.addEventListener('DOMContentLoaded', async () => {
       e.preventDefault();
       const id = document.getElementById('editEnquiryId').value;
       const status = document.getElementById('editEnquiryStatus').value;
-      const admin_notes = document.getElementById('editEnquiryNotes').value;
+      const admin_notes = document.getElementById('editEnquiryNotes').value.trim();
 
       try {
-        const res = await fetch(`/api/admin/enquiries/${id}`, {
+        const res = await adminFetch(`/api/admin/enquiries/${id}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status, admin_notes }),
         });
+
         if (res.ok) {
           closeModal('modalEnquiry');
+          showAdminToast(`Enquiry #${id} notes saved.`);
           loadEnquiries();
           loadStats();
+        } else {
+          showAdminToast('Failed to save enquiry notes.', 'error');
         }
       } catch (err) {
-        console.error('Failed to update enquiry:', err);
+        if (err.message !== 'Authentication required') {
+          showAdminToast('Network error while saving notes.', 'error');
+        }
       }
     });
   }
 
-  // Image Upload Button (Projects modal)
+  // Auto-generate clean URL slug from Project Title
+  const projTitleInput = document.getElementById('projTitle');
+  const projSlugInput = document.getElementById('projSlug');
+  if (projTitleInput && projSlugInput) {
+    projTitleInput.addEventListener('input', () => {
+      const editId = document.getElementById('editProjectId')?.value;
+      if (!editId) {
+        projSlugInput.value = projTitleInput.value
+          .toLowerCase()
+          .trim()
+          .replace(/[^\w\s-]/g, '')
+          .replace(/[\s_-]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+      }
+    });
+
+    projSlugInput.addEventListener('blur', () => {
+      projSlugInput.value = projSlugInput.value
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    });
+  }
+
+  // Project Image File Upload
   const btnUploadImage = document.getElementById('btnUploadImage');
   const fileInput = document.getElementById('projImageFile');
   const uploadStatus = document.getElementById('uploadStatusText');
@@ -951,7 +1271,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       uploadStatus.style.color = 'var(--gold)';
 
       try {
-        const res = await fetch('/api/admin/upload', {
+        const res = await adminFetch('/api/admin/upload', {
           method: 'POST',
           body: formData,
         });
@@ -961,13 +1281,16 @@ document.addEventListener('DOMContentLoaded', async () => {
           document.getElementById('projImageUrl').value = json.url;
           uploadStatus.textContent = `Upload successful: ${json.filename}`;
           uploadStatus.style.color = '#10b981';
+          showAdminToast('Project image uploaded.');
         } else {
           uploadStatus.textContent = json.message || 'Upload failed.';
           uploadStatus.style.color = '#ef4444';
         }
       } catch (err) {
-        uploadStatus.textContent = 'Upload network error.';
-        uploadStatus.style.color = '#ef4444';
+        if (err.message !== 'Authentication required') {
+          uploadStatus.textContent = 'Upload network error.';
+          uploadStatus.style.color = '#ef4444';
+        }
       }
     });
   }
@@ -975,7 +1298,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Add / Edit Project Form
   const btnNewProject = document.getElementById('btnNewProject');
   const formProject = document.getElementById('formProject');
-  if (btnNewProject) {
+  if (btnNewProject && formProject) {
     btnNewProject.addEventListener('click', () => {
       formProject.reset();
       document.getElementById('editProjectId').value = '';
@@ -990,7 +1313,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       e.preventDefault();
       const id = document.getElementById('editProjectId').value;
       const title = document.getElementById('projTitle').value.trim();
-      const slug = document.getElementById('projSlug').value.trim();
+      let slug = document.getElementById('projSlug').value.trim().toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-');
       const category = document.getElementById('projCategory').value;
       const client_name = document.getElementById('projClientName')?.value.trim() || '';
       const location = document.getElementById('projLocation')?.value.trim() || '';
@@ -1002,6 +1325,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const sort_order = parseInt(document.getElementById('projSort').value, 10) || 0;
       const is_featured = parseInt(document.getElementById('projFeatured').value, 10) || 0;
       const is_published = parseInt(document.getElementById('projPublished').value, 10) || 1;
+
+      if (!title || !slug || !description || !image_url) {
+        showAdminToast('Please fill all required project fields (*).', 'error');
+        return;
+      }
 
       const scope = rawScope ? rawScope.split(',').map((s) => s.trim()).filter(Boolean) : [];
       const gallery = rawGallery ? rawGallery.split(',').map((g) => g.trim()).filter(Boolean) : [];
@@ -1026,9 +1354,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const method = id ? 'PATCH' : 'POST';
 
       try {
-        const res = await fetch(url, {
+        const res = await adminFetch(url, {
           method,
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
 
@@ -1039,11 +1366,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           loadAdminProjects();
         } else {
           showAdminToast(json.message || 'Failed to save project.', 'error');
-          alert(json.message || 'Failed to save project. Please check required fields.');
         }
       } catch (err) {
-        console.error('Project save error:', err);
-        showAdminToast('Network error while saving project.', 'error');
+        if (err.message !== 'Authentication required') {
+          console.error('Project save error:', err);
+          showAdminToast('Network error while saving project.', 'error');
+        }
       }
     });
   }
@@ -1069,7 +1397,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       clientUploadStatus.style.color = 'var(--gold)';
 
       try {
-        const res = await fetch('/api/admin/upload', {
+        const res = await adminFetch('/api/admin/upload', {
           method: 'POST',
           body: formData,
         });
@@ -1079,13 +1407,16 @@ document.addEventListener('DOMContentLoaded', async () => {
           document.getElementById('clientLogoUrl').value = json.url;
           clientUploadStatus.textContent = `Upload successful: ${json.filename}`;
           clientUploadStatus.style.color = '#10b981';
+          showAdminToast('Client logo uploaded.');
         } else {
           clientUploadStatus.textContent = json.message || 'Upload failed.';
           clientUploadStatus.style.color = '#ef4444';
         }
       } catch (err) {
-        clientUploadStatus.textContent = 'Upload network error.';
-        clientUploadStatus.style.color = '#ef4444';
+        if (err.message !== 'Authentication required') {
+          clientUploadStatus.textContent = 'Upload network error.';
+          clientUploadStatus.style.color = '#ef4444';
+        }
       }
     });
   }
@@ -1115,6 +1446,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const sort_order = parseInt(document.getElementById('clientSort').value, 10) || 0;
       const is_featured = parseInt(document.getElementById('clientFeatured').value, 10) || 1;
 
+      if (!name) {
+        showAdminToast('Please provide a client brand name.', 'error');
+        return;
+      }
+
       const payload = {
         name,
         category,
@@ -1129,9 +1465,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const method = id ? 'PATCH' : 'POST';
 
       try {
-        const res = await fetch(url, {
+        const res = await adminFetch(url, {
           method,
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
 
@@ -1142,19 +1477,20 @@ document.addEventListener('DOMContentLoaded', async () => {
           loadAdminClients();
         } else {
           showAdminToast(json.message || 'Failed to save client.', 'error');
-          alert(json.message || 'Failed to save client. Please check required fields.');
         }
       } catch (err) {
-        console.error('Client save error:', err);
-        showAdminToast('Network error while saving client.', 'error');
+        if (err.message !== 'Authentication required') {
+          console.error('Client save error:', err);
+          showAdminToast('Network error while saving client.', 'error');
+        }
       }
     });
   }
 
-  // Add Testimonial Form
+  // Add / Edit Testimonial Form
   const btnNewTestimonial = document.getElementById('btnNewTestimonial');
   const formTestimonial = document.getElementById('formTestimonial');
-  if (btnNewTestimonial) {
+  if (btnNewTestimonial && formTestimonial) {
     btnNewTestimonial.addEventListener('click', () => {
       formTestimonial.reset();
       document.getElementById('editTestimonialId').value = '';
@@ -1172,30 +1508,40 @@ document.addEventListener('DOMContentLoaded', async () => {
       const rating = parseInt(document.getElementById('testRating').value, 10);
       const review = document.getElementById('testReview').value.trim();
 
+      if (!client_name || !business_type || !review) {
+        showAdminToast('Please fill all required testimonial fields (*).', 'error');
+        return;
+      }
+
       const payload = { client_name, business_type, rating, review, is_published: 1 };
       const url = id ? `/api/admin/testimonials/${id}` : '/api/admin/testimonials';
       const method = id ? 'PATCH' : 'POST';
 
       try {
-        const res = await fetch(url, {
+        const res = await adminFetch(url, {
           method,
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
         if (res.ok) {
           closeModal('modalTestimonial');
+          showAdminToast(id ? 'Testimonial updated.' : 'Testimonial created.');
           loadAdminTestimonials();
+        } else {
+          showAdminToast('Failed to save testimonial.', 'error');
         }
       } catch (err) {
-        console.error('Testimonial save error:', err);
+        if (err.message !== 'Authentication required') {
+          console.error('Testimonial save error:', err);
+          showAdminToast('Failed to save testimonial.', 'error');
+        }
       }
     });
   }
 
-  // Add FAQ Form
+  // Add / Edit FAQ Form
   const btnNewFaq = document.getElementById('btnNewFaq');
   const formFaq = document.getElementById('formFaq');
-  if (btnNewFaq) {
+  if (btnNewFaq && formFaq) {
     btnNewFaq.addEventListener('click', () => {
       formFaq.reset();
       document.getElementById('editFaqId').value = '';
@@ -1212,27 +1558,33 @@ document.addEventListener('DOMContentLoaded', async () => {
       const answer = document.getElementById('faqAnswer').value.trim();
       const sort_order = parseInt(document.getElementById('faqSort').value, 10) || 0;
 
+      if (!question || !answer) {
+        showAdminToast('Please provide both question and answer.', 'error');
+        return;
+      }
+
       const payload = { question, answer, sort_order, is_published: 1 };
       const url = id ? `/api/admin/faqs/${id}` : '/api/admin/faqs';
       const method = id ? 'PATCH' : 'POST';
 
       try {
-        const res = await fetch(url, {
+        const res = await adminFetch(url, {
           method,
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
         if (res.ok) {
           closeModal('modalFaq');
+          showAdminToast(id ? 'FAQ updated.' : 'FAQ added.');
           loadAdminFaqs();
+        } else {
+          showAdminToast('Failed to save FAQ.', 'error');
         }
       } catch (err) {
-        console.error('FAQ save error:', err);
+        if (err.message !== 'Authentication required') {
+          console.error('FAQ save error:', err);
+          showAdminToast('Failed to save FAQ.', 'error');
+        }
       }
     });
   }
-
-  // Initial Load
-  loadStats();
-  loadEnquiries();
 });
