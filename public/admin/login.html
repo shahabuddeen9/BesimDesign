@@ -21,18 +21,9 @@
     <form id="loginForm" novalidate>
       <div id="loginAlert" style="display: none; padding: 12px 14px; background: rgba(239,68,68,0.15); border: 1px solid #ef4444; color: #fca5a5; font-size: 0.85rem; border-radius: 4px; margin-bottom: 20px;"></div>
 
-      <div style="background: rgba(197, 168, 128, 0.1); border: 1px solid rgba(197, 168, 128, 0.3); border-radius: 6px; padding: 14px; margin-bottom: 20px; font-size: 0.82rem; color: #f1f5f9;">
-        <div style="font-weight: 600; color: var(--gold); margin-bottom: 6px;">Admin Portal Access Credentials:</div>
-        <div>Email: <strong style="color: #fff;">besimdesigne@gmail.com</strong> <span style="color: var(--text-dim); font-size: 0.75rem;">(or admin@besimdesign.com)</span></div>
-        <div>Password: <strong style="color: #fff;">Admin@2025!</strong></div>
-        <button type="button" id="btnQuickDemoLogin" style="margin-top: 10px; width: 100%; background: rgba(197,168,128,0.25); border: 1px solid var(--gold); color: #fff; padding: 7px 12px; border-radius: 4px; cursor: pointer; font-size: 0.82rem; font-weight: 500;">
-          ⚡ Quick 1-Click Admin Login
-        </button>
-      </div>
-
       <div class="form-group">
-        <label class="form-label" for="adminEmail">Administrator Email</label>
-        <input type="email" id="adminEmail" name="email" class="form-control" placeholder="admin@besimdesign.com" required autocomplete="email">
+        <label class="form-label" for="adminEmail">User ID</label>
+        <input type="text" id="adminEmail" name="email" class="form-control" placeholder="Enter User ID" required autocomplete="username">
       </div>
 
       <div class="form-group">
@@ -59,7 +50,6 @@
     const btnSubmit = document.getElementById('btnLoginSubmit');
     const btnText = document.getElementById('btnLoginText');
     const btnSpinner = document.getElementById('btnLoginSpinner');
-    const btnQuick = document.getElementById('btnQuickDemoLogin');
 
     // Check URL parameters for gentle status banners
     const urlParams = new URLSearchParams(window.location.search);
@@ -77,9 +67,14 @@
       alertBox.style.display = 'block';
     }
 
-    // Check if valid session is already active
-    const savedToken = localStorage.getItem('besim_admin_token');
-    if (savedToken) {
+    // Check if valid session is already active (unless arriving from an explicit logout/expiration)
+    const isExplicitExit = urlParams.get('session_expired') === '1' || urlParams.get('expired') === '1' || urlParams.get('logged_out') === '1';
+    let savedToken = null;
+    try {
+      savedToken = localStorage.getItem('besim_admin_token') || sessionStorage.getItem('besim_admin_token');
+    } catch (_) {}
+
+    if (savedToken && !isExplicitExit) {
       fetch('/api/auth/me', {
         headers: { 'Authorization': `Bearer ${savedToken}` },
         credentials: 'include'
@@ -88,21 +83,17 @@
         .then(d => {
           if (d.success && d.admin) {
             const tab = urlParams.get('tab') || window.location.hash.replace('#', '');
-            window.location.replace(tab ? `/admin/dashboard.html?tab=${tab}` : '/admin/dashboard.html');
+            const redirectUrl = `/admin/dashboard.html?auth_token=${encodeURIComponent(savedToken)}${tab ? '&tab=' + tab : ''}`;
+            window.location.replace(redirectUrl);
           } else {
-            localStorage.removeItem('besim_admin_token');
-            localStorage.removeItem('besim_admin_email');
+            try {
+              localStorage.removeItem('besim_admin_token');
+              localStorage.removeItem('besim_admin_email');
+              sessionStorage.removeItem('besim_admin_token');
+            } catch (_) {}
           }
         })
         .catch(() => {});
-    }
-
-    if (btnQuick) {
-      btnQuick.addEventListener('click', () => {
-        document.getElementById('adminEmail').value = 'admin@besimdesign.com';
-        document.getElementById('adminPassword').value = 'Admin@2025!';
-        form.dispatchEvent(new Event('submit'));
-      });
     }
 
     form.addEventListener('submit', async (e) => {
@@ -113,7 +104,7 @@
       const password = document.getElementById('adminPassword').value;
 
       if (!email || !password) {
-        alertBox.textContent = 'Please enter both administrator email and password.';
+        alertBox.textContent = 'Please enter both User ID and password.';
         alertBox.style.background = 'rgba(239, 68, 68, 0.15)';
         alertBox.style.borderColor = '#ef4444';
         alertBox.style.color = '#fca5a5';
@@ -136,12 +127,18 @@
         const data = await res.json();
 
         if (res.ok && data.success) {
-          // Store token in localStorage for reliable iframe and bearer authorization
+          // Persist token in localStorage, sessionStorage, and client cookie for total iframe resiliency
           if (data.token) {
-            localStorage.setItem('besim_admin_token', data.token);
+            try {
+              localStorage.setItem('besim_admin_token', data.token);
+              sessionStorage.setItem('besim_admin_token', data.token);
+              document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
+            } catch (_) {}
           }
           if (data.admin && data.admin.email) {
-            localStorage.setItem('besim_admin_email', data.admin.email);
+            try {
+              localStorage.setItem('besim_admin_email', data.admin.email);
+            } catch (_) {}
           }
 
           alertBox.textContent = '✓ Session authenticated! Loading admin dashboard...';
@@ -151,9 +148,10 @@
           alertBox.style.display = 'block';
 
           const tab = urlParams.get('tab') || window.location.hash.replace('#', '');
+          const dest = `/admin/dashboard.html?auth_token=${encodeURIComponent(data.token)}${tab ? '&tab=' + tab : ''}`;
           setTimeout(() => {
-            window.location.replace(tab ? `/admin/dashboard.html?tab=${tab}` : '/admin/dashboard.html');
-          }, 350);
+            window.location.replace(dest);
+          }, 250);
         } else {
           alertBox.textContent = data.message || 'Invalid administrator credentials.';
           alertBox.style.background = 'rgba(239, 68, 68, 0.15)';

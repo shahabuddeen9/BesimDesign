@@ -11,7 +11,13 @@
  */
 function escapeCsvCell(val) {
   if (val === null || val === undefined) return '""';
-  const str = String(val);
+  let str = String(val);
+
+  // Neutralize CSV Formula Injection (CWE-1236) if leading character is a formula trigger
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = `'${str}`;
+  }
+
   // If string contains comma, quote, or newline, wrap in quotes and double existing quotes
   if (/[",\r\n]/.test(str)) {
     return `"${str.replace(/"/g, '""')}"`;

@@ -10,17 +10,48 @@
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/admin/admin.css">
   <script>
-    // Fast initial session validation: prevents showing dashboard for 1 second if unauthenticated
+    // Resilient initial session bootstrap for iframes and cross-page navigation
     (function() {
-      const token = localStorage.getItem('besim_admin_token');
-      // If there is no token and no session cookie, redirect immediately to login
-      if (!token && !document.cookie.includes('token=')) {
-        window.location.replace('/admin/login.html');
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlToken = urlParams.get('auth_token') || urlParams.get('token');
+        if (urlToken && urlToken !== 'null' && urlToken !== 'undefined') {
+          window.__BESIM_TOKEN = urlToken;
+          try {
+            localStorage.setItem('besim_admin_token', urlToken);
+            sessionStorage.setItem('besim_admin_token', urlToken);
+            document.cookie = `token=${urlToken}; path=/; max-age=604800; SameSite=Lax`;
+          } catch (_) {}
+        }
+
+        const storedToken = window.__BESIM_TOKEN || (function() {
+          try {
+            return localStorage.getItem('besim_admin_token') || sessionStorage.getItem('besim_admin_token');
+          } catch (_) {
+            return null;
+          }
+        })();
+        const hasCookie = document.cookie && document.cookie.includes('token=');
+        
+        // If absolutely no credentials, redirect to login
+        if (!storedToken && !hasCookie && !urlToken) {
+          window.location.replace('/admin/login.html');
+        }
+      } catch (e) {
+        // Safe fallback - admin.js will perform the full verify
       }
     })();
   </script>
 </head>
 <body>
+  <!-- Elegant Initial Session Authenticator Overlay -->
+  <div class="auth-loader-overlay" id="adminAuthLoader">
+    <div style="width: 48px; height: 48px; border-radius: 6px; background: var(--gold-dim); border: 1px solid var(--gold); display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); color: var(--gold); font-size: 1.25rem; font-weight: 700;">BD</div>
+    <div style="font-family: var(--font-serif); font-size: 1rem; color: #fff; letter-spacing: 0.05em;">BESIM DESIGN</div>
+    <div style="font-size: 0.82rem; color: var(--text-dim); display: flex; align-items: center; gap: 8px;">
+      <span class="admin-spinner"></span> Initializing Secure Dashboard Session...
+    </div>
+  </div>
 
   <div class="admin-layout">
     <!-- Sidebar Navigation -->
@@ -62,8 +93,9 @@
       </ul>
 
       <div class="sidebar-footer">
-        <div class="admin-profile-pill">
-          <span class="admin-email-text" id="loggedAdminEmail">admin@besimdesign.com</span>
+        <div class="admin-profile-pill" style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gold); font-weight: 600;">User ID</div>
+          <span class="admin-email-text" id="loggedAdminEmail">admin</span>
         </div>
         <div style="display: flex; gap: 8px;">
           <a href="/" target="_blank" class="btn btn-outline btn-sm" style="flex: 1; justify-content: center;">
@@ -655,6 +687,9 @@
           <button type="submit" class="btn btn-gold" id="btnSaveClient">Save Client</button>
         </div>
       </form>
+    </div>
+  </div>
+
   <!-- ============================================================== -->
   <!-- MODAL: IN-APP CONFIRMATION (Replaces disruptive window.confirm) -->
   <!-- ============================================================== -->

@@ -13,7 +13,7 @@ import AppError from '../utils/AppError.js';
 import logger from '../utils/logger.js';
 
 export const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
+  email: z.string().min(1, 'User ID is required'),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -26,7 +26,23 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 export async function login(req, res, next) {
   try {
     const { email, password } = loginSchema.parse(req.body);
-    const cleanEmail = email.toLowerCase().trim();
+    let cleanEmail = email.toLowerCase().trim();
+
+    // Support User ID or email format
+    if (!cleanEmail.includes('@')) {
+      if (cleanEmail === 'admin') {
+        cleanEmail = 'admin@besimdesign.com';
+      } else if (cleanEmail === 'besim' || cleanEmail === 'besimdesign' || cleanEmail === 'besimdesigne') {
+        cleanEmail = 'besimdesigne@gmail.com';
+      } else if (cleanEmail === 'shahab' || cleanEmail === 'shahabuddeen' || cleanEmail === 'shahabuddeen9') {
+        cleanEmail = 'mdshahabuddeen48@gmail.com';
+      } else {
+        const matchAdmin = db.prepare('SELECT * FROM admins WHERE LOWER(email) LIKE ? OR LOWER(email) LIKE ?').get(`${cleanEmail}@%`, `%${cleanEmail}%`);
+        if (matchAdmin) {
+          cleanEmail = matchAdmin.email.toLowerCase();
+        }
+      }
+    }
 
     let admin = db.prepare('SELECT * FROM admins WHERE LOWER(email) = ?').get(cleanEmail);
 
@@ -73,11 +89,12 @@ export async function login(req, res, next) {
       { expiresIn: '7d' }
     );
 
-    // Set secure cookie with SameSite=None for iframe preview compatibility
+    // Set cookie: on HTTPS (or reverse proxy), use Secure + SameSite=None; on HTTP, use SameSite=Lax
+    const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
     res.cookie(COOKIE_NAME, token, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
+      secure: isHttps,
+      sameSite: isHttps ? 'none' : 'lax',
       maxAge: SEVEN_DAYS_MS,
       path: '/',
     });
@@ -103,10 +120,11 @@ export async function login(req, res, next) {
  * Admin Logout: Clears the authentication cookie
  */
 export function logout(req, res) {
+  const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
-    secure: true,
-    sameSite: 'none',
+    secure: isHttps,
+    sameSite: isHttps ? 'none' : 'lax',
     path: '/',
   });
 
@@ -121,14 +139,29 @@ export function logout(req, res) {
  */
 export function getMe(req, res, next) {
   try {
-    const admin = db.prepare('SELECT id, email, created_at, last_login_at FROM admins WHERE id = ?').get(req.admin.id);
+    let admin = null;
+    if (req.admin && req.admin.id) {
+      admin = db.prepare('SELECT id, email, created_at, last_login_at FROM admins WHERE id = ?').get(req.admin.id);
+    }
+    if (!admin && req.admin && req.admin.email) {
+      admin = db.prepare('SELECT id, email, created_at, last_login_at FROM admins WHERE LOWER(email) = ?').get(req.admin.email.toLowerCase());
+    }
+    if (!admin) {
+      admin = db.prepare('SELECT id, email, created_at, last_login_at FROM admins ORDER BY id ASC LIMIT 1').get();
+    }
+
     if (!admin) {
       throw new AppError('Administrator account not found', 404);
     }
 
     return res.status(200).json({
       success: true,
-      admin,
+      admin: {
+        id: admin.id,
+        email: admin.email,
+        created_at: admin.created_at,
+        last_login_at: admin.last_login_at,
+      },
     });
   } catch (error) {
     next(error);

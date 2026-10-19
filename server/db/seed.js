@@ -318,7 +318,7 @@ export async function runSeed() {
       client_name: 'Prashant Chawla',
       business_type: 'Royal China Group',
       rating: 5,
-      review: 'With 30+ years of expertise, Mr. Sanjay Baikerikar and his engineering team solved our complex MEP and acoustic challenges effortlessly. Outstanding craftsmanship in both dining areas and back of house.',
+      review: 'With 20+ years of expertise, Mr. Sanjay Baikerikar and his engineering team solved our complex MEP and acoustic challenges effortlessly. Outstanding craftsmanship in both dining areas and back of house.',
       sort_order: 4,
       is_published: 1,
     }
@@ -338,7 +338,7 @@ export async function runSeed() {
   const sampleFaqs = [
     {
       question: 'What is Besim Design’s history and turnkey philosophy?',
-      answer: 'Besim Design was established 30+ years back in 1992 as a design studio under Managing Director Sanjay Baikerikar (GD Arch, Academy of Architecture). We realized that unless there is a strong and dedicated team to execute, most designs remain dreams. We created our own dedicated teams to provide complete turnkey execution from design to handover.',
+      answer: 'Besim Design was established 20+ years back in 1992 as a design studio under Managing Director Sanjay Baikerikar (GD Arch, Academy of Architecture). We realized that unless there is a strong and dedicated team to execute, most designs remain dreams. We created our own dedicated teams to provide complete turnkey execution from design to handover.',
       sort_order: 1,
       is_published: 1,
     },

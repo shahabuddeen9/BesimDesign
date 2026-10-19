@@ -27,19 +27,102 @@ const state = {
     clientSearch: '',
   },
 };
+// =============================================================================
+// Security & Sanitization Helpers
+// =============================================================================
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 // =============================================================================
 // Token & Session Management
 // =============================================================================
 
 function getStoredToken() {
-  return localStorage.getItem('besim_admin_token') || '';
+  try {
+    // 1. Check window global in-memory token first
+    if (window.__BESIM_TOKEN && window.__BESIM_TOKEN !== 'null' && window.__BESIM_TOKEN !== 'undefined') {
+      return window.__BESIM_TOKEN;
+    }
+
+    // 2. Check URL parameters (critical for reliable cross-page redirect in iframes)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('auth_token') || urlParams.get('token');
+    if (urlToken && urlToken !== 'null' && urlToken !== 'undefined') {
+      window.__BESIM_TOKEN = urlToken;
+      try {
+        localStorage.setItem('besim_admin_token', urlToken);
+        sessionStorage.setItem('besim_admin_token', urlToken);
+        document.cookie = `token=${urlToken}; path=/; max-age=604800; SameSite=Lax`;
+      } catch (_) {}
+      return urlToken;
+    }
+
+    // 3. Check localStorage
+    const local = localStorage.getItem('besim_admin_token');
+    if (local && local !== 'null' && local !== 'undefined') {
+      window.__BESIM_TOKEN = local;
+      return local;
+    }
+
+    // 4. Check sessionStorage
+    const session = sessionStorage.getItem('besim_admin_token');
+    if (session && session !== 'null' && session !== 'undefined') {
+      window.__BESIM_TOKEN = session;
+      return session;
+    }
+
+    // 5. Check cookies
+    if (document.cookie) {
+      const match = document.cookie.match(/(?:^|;\s*)token=([^;]+)/);
+      if (match && match[1] && match[1] !== 'null' && match[1] !== 'undefined') {
+        const cookieToken = decodeURIComponent(match[1]);
+        window.__BESIM_TOKEN = cookieToken;
+        return cookieToken;
+      }
+    }
+  } catch (err) {
+    console.warn('Token read warning:', err);
+  }
+
+  return window.__BESIM_TOKEN || '';
+}
+
+function persistStoredToken(token, email) {
+  if (!token) return;
+  try {
+    window.__BESIM_TOKEN = token;
+    localStorage.setItem('besim_admin_token', token);
+    sessionStorage.setItem('besim_admin_token', token);
+    document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`;
+    if (email) {
+      localStorage.setItem('besim_admin_email', email);
+      sessionStorage.setItem('besim_admin_email', email);
+    }
+  } catch (_) {}
+}
+
+function clearStoredToken() {
+  try {
+    delete window.__BESIM_TOKEN;
+    localStorage.removeItem('besim_admin_token');
+    localStorage.removeItem('besim_admin_email');
+    sessionStorage.removeItem('besim_admin_token');
+    sessionStorage.removeItem('besim_admin_email');
+    document.cookie = 'token=; path=/; max-age=0; SameSite=Lax';
+  } catch (_) {}
 }
 
 /**
  * Universal authenticated fetch wrapper for all admin API endpoints.
- * Automatically injects Bearer token from localStorage, passes credentials,
- * and handles 401 unauthenticated transitions smoothly without loops.
+ * Automatically injects Bearer token, passes credentials, and preserves active sessions.
  */
 async function adminFetch(url, options = {}) {
   const token = getStoredToken();
@@ -54,51 +137,90 @@ async function adminFetch(url, options = {}) {
     headers['Content-Type'] = 'application/json';
   }
 
-  try {
-    const res = await fetch(url, {
-      ...options,
-      headers,
-      credentials: 'include',
-    });
-
-    if (res.status === 401) {
-      localStorage.removeItem('besim_admin_token');
-      localStorage.removeItem('besim_admin_email');
-      window.location.replace('/admin/login.html?session_expired=1');
-      throw new Error('Authentication required');
-    }
-
-    return res;
-  } catch (err) {
-    if (err.message === 'Authentication required') {
-      throw err;
-    }
-    throw err;
+  // Also include auth_token query param as bulletproof iframe fallback
+  let fetchUrl = url;
+  if (token && !url.includes('auth_token=') && !url.includes('token=')) {
+    const sep = url.includes('?') ? '&' : '?';
+    fetchUrl = `${url}${sep}auth_token=${encodeURIComponent(token)}`;
   }
+
+  const res = await fetch(fetchUrl, {
+    ...options,
+    headers,
+    credentials: 'include',
+  });
+
+  return res;
 }
 
+let sessionCheckInProgress = false;
+
 async function checkSession() {
+  if (sessionCheckInProgress) return true;
+  sessionCheckInProgress = true;
+
   const token = getStoredToken();
-  try {
-    const res = await adminFetch('/api/auth/me');
-    if (!res.ok) {
-      throw new Error('Session invalid');
-    }
-    const data = await res.json();
-    if (data.success && data.admin) {
-      const emailEl = document.getElementById('loggedAdminEmail');
-      if (emailEl) emailEl.textContent = data.admin.email;
-      if (data.admin.email) {
-        localStorage.setItem('besim_admin_email', data.admin.email);
-      }
-      return true;
-    }
-    throw new Error('Admin profile missing');
-  } catch (err) {
-    localStorage.removeItem('besim_admin_token');
-    localStorage.removeItem('besim_admin_email');
+  const hasCookie = document.cookie && document.cookie.includes('token=');
+
+  if (!token && !hasCookie) {
+    sessionCheckInProgress = false;
+    clearStoredToken();
     window.location.replace('/admin/login.html');
     return false;
+  }
+
+  try {
+    // 1. Initial attempt to verify session
+    let res = await adminFetch('/api/auth/me');
+
+    // 2. If initial call fails but we have token, retry once with explicit header after brief pause
+    if (!res.ok && token) {
+      await new Promise((r) => setTimeout(r, 250));
+      res = await fetch(`/api/auth/me?auth_token=${encodeURIComponent(token)}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
+      });
+    }
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        throw new Error('401 Unauthorized');
+      }
+      // If server returned non-401 (e.g. temporary 502/503 during reload), keep session
+      console.warn(`Session check returned ${res.status}, maintaining active session.`);
+      sessionCheckInProgress = false;
+      return true;
+    }
+
+    const data = await res.json();
+    if (data.success && data.admin) {
+      persistStoredToken(token, data.admin.email);
+      const emailEl = document.getElementById('loggedAdminEmail');
+      if (emailEl) {
+        // Display User ID as clean username
+        const username = data.admin.email ? data.admin.email.split('@')[0] : 'admin';
+        emailEl.textContent = username;
+        emailEl.title = data.admin.email;
+      }
+      sessionCheckInProgress = false;
+      return true;
+    }
+
+    sessionCheckInProgress = false;
+    return true;
+  } catch (err) {
+    sessionCheckInProgress = false;
+    console.warn('Session verification caught error:', err.message);
+
+    // Only redirect if explicitly 401 confirmed
+    if (err.message && err.message.includes('401')) {
+      clearStoredToken();
+      window.location.replace('/admin/login.html?session_expired=1');
+      return false;
+    }
+
+    // Do NOT kick user out on temporary errors
+    return true;
   }
 }
 
@@ -107,8 +229,7 @@ async function handleLogout() {
     await adminFetch('/api/auth/logout', { method: 'POST' });
   } catch (_) {
   } finally {
-    localStorage.removeItem('besim_admin_token');
-    localStorage.removeItem('besim_admin_email');
+    clearStoredToken();
     window.location.replace('/admin/login.html?logged_out=1');
   }
 }
@@ -356,34 +477,43 @@ function renderEnquiriesTable(records) {
   }
 
   tbody.innerHTML = records.map((r) => {
-    const dateFormatted = new Date(r.created_at).toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
+    let dateFormatted = '—';
+    try {
+      if (r.created_at) {
+        const iso = r.created_at.includes('T') ? r.created_at : r.created_at.replace(' ', 'T') + 'Z';
+        const d = new Date(iso);
+        dateFormatted = !isNaN(d.getTime()) ? d.toLocaleDateString('en-IN', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }) : (r.created_at || '—');
+      }
+    } catch (_) {
+      dateFormatted = r.created_at || '—';
+    }
 
     return `
       <tr>
-        <td><strong>#${r.id}</strong></td>
+        <td><strong>#${escapeHtml(r.id)}</strong></td>
         <td>
-          <strong style="color: var(--text-primary); font-size: 0.92rem;">${r.name}</strong>
+          <strong style="color: var(--text-primary); font-size: 0.92rem;">${escapeHtml(r.name)}</strong>
         </td>
         <td>
-          <a href="tel:+91${r.phone}" style="color: var(--gold); display: block; font-weight: 500; font-size: 0.85rem;">+91 ${r.phone}</a>
-          <a href="mailto:${r.email}" style="color: var(--text-muted); font-size: 0.78rem;">${r.email}</a>
+          <a href="tel:+91${encodeURIComponent(r.phone)}" style="color: var(--gold); display: block; font-weight: 500; font-size: 0.85rem;">+91 ${escapeHtml(r.phone)}</a>
+          <a href="mailto:${encodeURIComponent(r.email)}" style="color: var(--text-muted); font-size: 0.78rem;">${escapeHtml(r.email)}</a>
         </td>
-        <td style="text-transform: capitalize; font-size: 0.85rem;">${r.business_type}</td>
+        <td style="text-transform: capitalize; font-size: 0.85rem;">${escapeHtml(r.business_type)}</td>
         <td>
-          <div style="font-size: 0.85rem;">${r.project_location || '—'}</div>
-          <span style="font-size: 0.75rem; color: var(--text-dim);">${r.area_sqft ? r.area_sqft.toLocaleString() + ' sq.ft' : ''}</span>
+          <div style="font-size: 0.85rem;">${escapeHtml(r.project_location) || '—'}</div>
+          <span style="font-size: 0.75rem; color: var(--text-dim);">${r.area_sqft ? Number(r.area_sqft).toLocaleString() + ' sq.ft' : ''}</span>
         </td>
         <td>
           <span style="font-size: 0.75rem; background: rgba(255,255,255,0.06); padding: 3px 7px; border-radius: 4px; color: var(--text-muted);">
-            ${r.source}
+            ${escapeHtml(r.source)}
           </span>
         </td>
         <td>
-          <select class="filter-select quick-status-select" data-id="${r.id}" style="padding: 4px 8px; font-size: 0.78rem;">
+          <select class="filter-select quick-status-select" data-id="${escapeHtml(r.id)}" style="padding: 4px 8px; font-size: 0.78rem;">
             <option value="new" ${r.status === 'new' ? 'selected' : ''}>New Lead</option>
             <option value="contacted" ${r.status === 'contacted' ? 'selected' : ''}>Contacted</option>
             <option value="quoted" ${r.status === 'quoted' ? 'selected' : ''}>Quoted</option>
@@ -391,13 +521,13 @@ function renderEnquiriesTable(records) {
             <option value="lost" ${r.status === 'lost' ? 'selected' : ''}>Lost</option>
           </select>
         </td>
-        <td style="font-size: 0.78rem; color: var(--text-dim);">${dateFormatted}</td>
+        <td style="font-size: 0.78rem; color: var(--text-dim);">${escapeHtml(dateFormatted)}</td>
         <td>
           <div style="display: flex; gap: 6px;">
-            <button class="btn btn-outline btn-sm btn-view-enquiry" data-id="${r.id}" title="View Details & Notes" style="padding: 4px 10px; font-size: 0.8rem;">
+            <button class="btn btn-outline btn-sm btn-view-enquiry" data-id="${escapeHtml(r.id)}" title="View Details & Notes" style="padding: 4px 10px; font-size: 0.8rem;">
               Notes
             </button>
-            <button class="btn btn-danger btn-sm btn-delete-enquiry" data-id="${r.id}" title="Delete Lead" style="padding: 4px 8px; font-size: 0.8rem;">
+            <button class="btn btn-danger btn-sm btn-delete-enquiry" data-id="${escapeHtml(r.id)}" title="Delete Lead" style="padding: 4px 8px; font-size: 0.8rem;">
               ✕
             </button>
           </div>
@@ -473,13 +603,27 @@ function openEnquiryDetails(id) {
 
   document.getElementById('editEnquiryId').value = enquiry.id;
   document.getElementById('modalEnquiryTitle').textContent = `Enquiry #${enquiry.id}: ${enquiry.name}`;
-  document.getElementById('modalEnquiryMeta').textContent = `Submitted on ${new Date(enquiry.created_at).toLocaleString()}`;
-  document.getElementById('modalEnquiryPhone').innerHTML = `<a href="tel:+91${enquiry.phone}" style="color: var(--gold);">+91 ${enquiry.phone}</a>`;
-  document.getElementById('modalEnquiryEmail').innerHTML = `<a href="mailto:${enquiry.email}" style="color: var(--gold);">${enquiry.email}</a>`;
-  document.getElementById('modalEnquirySector').textContent = enquiry.business_type.toUpperCase();
+  let formattedDate = '—';
+  try {
+    formattedDate = new Date(enquiry.created_at).toLocaleString();
+  } catch (_) {
+    formattedDate = enquiry.created_at || '—';
+  }
+  document.getElementById('modalEnquiryMeta').textContent = `Submitted on ${formattedDate}`;
+  
+  const phoneEl = document.getElementById('modalEnquiryPhone');
+  if (phoneEl) {
+    phoneEl.innerHTML = `<a href="tel:+91${encodeURIComponent(enquiry.phone)}" style="color: var(--gold); text-decoration: underline;">+91 ${escapeHtml(enquiry.phone)}</a>`;
+  }
+  const emailEl = document.getElementById('modalEnquiryEmail');
+  if (emailEl) {
+    emailEl.innerHTML = `<a href="mailto:${encodeURIComponent(enquiry.email)}" style="color: var(--gold); text-decoration: underline;">${escapeHtml(enquiry.email)}</a>`;
+  }
+
+  document.getElementById('modalEnquirySector').textContent = (enquiry.business_type || '').toUpperCase();
   document.getElementById('modalEnquiryLocation').textContent = enquiry.project_location || 'Not specified';
-  document.getElementById('modalEnquiryArea').textContent = enquiry.area_sqft ? `${enquiry.area_sqft.toLocaleString()} sq.ft` : 'Not specified';
-  document.getElementById('modalEnquirySource').textContent = enquiry.source;
+  document.getElementById('modalEnquiryArea').textContent = enquiry.area_sqft ? `${Number(enquiry.area_sqft).toLocaleString()} sq.ft` : 'Not specified';
+  document.getElementById('modalEnquirySource').textContent = enquiry.source || 'contact_form';
   document.getElementById('modalEnquiryMessage').textContent = enquiry.message || 'No additional project brief provided.';
 
   // Calculator data display
@@ -489,7 +633,7 @@ function openEnquiryDetails(id) {
     try {
       const parsed = typeof enquiry.calculator_data === 'string' ? JSON.parse(enquiry.calculator_data) : enquiry.calculator_data;
       calcDataEl.innerHTML = Object.entries(parsed).map(([k, v]) => `
-        <div style="margin-bottom: 4px;"><strong>${k.replace(/_/g, ' ')}:</strong> ${typeof v === 'object' ? JSON.stringify(v) : v}</div>
+        <div style="margin-bottom: 4px;"><strong>${escapeHtml(k.replace(/_/g, ' '))}:</strong> ${escapeHtml(typeof v === 'object' ? JSON.stringify(v) : String(v))}</div>
       `).join('');
       calcWrapper.style.display = 'block';
     } catch (_) {
@@ -589,18 +733,18 @@ function renderAdminProjectsTable(projects) {
   tbody.innerHTML = projects.map((p) => `
     <tr>
       <td style="width: 80px;">
-        <img src="${p.image_url}" alt="${p.title}" style="width: 64px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid var(--admin-border);" onerror="this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80'">
+        <img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.title)}" style="width: 64px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid var(--admin-border);" onerror="this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80'">
       </td>
       <td>
-        <strong style="color: #fff; font-size: 0.95rem;">${p.title}</strong>
-        ${p.client_name ? `<div style="font-size: 0.78rem; color: var(--gold);">Client: ${p.client_name}</div>` : ''}
-        <div style="font-size: 0.75rem; color: var(--text-dim);">slug: ${p.slug} • ${p.location || 'Mumbai'}</div>
+        <strong style="color: #fff; font-size: 0.95rem;">${escapeHtml(p.title)}</strong>
+        ${p.client_name ? `<div style="font-size: 0.78rem; color: var(--gold);">Client: ${escapeHtml(p.client_name)}</div>` : ''}
+        <div style="font-size: 0.75rem; color: var(--text-dim);">slug: ${escapeHtml(p.slug)} • ${escapeHtml(p.location || 'Mumbai')}</div>
       </td>
-      <td style="text-transform: uppercase; font-size: 0.8rem; color: var(--gold); font-weight: 600;">${p.category}</td>
+      <td style="text-transform: uppercase; font-size: 0.8rem; color: var(--gold); font-weight: 600;">${escapeHtml(p.category)}</td>
       <td style="font-size: 0.8rem; color: var(--text-muted); max-width: 250px;">
-        ${(Array.isArray(p.scope) ? p.scope : []).slice(0, 3).join(', ')}
+        ${(Array.isArray(p.scope) ? p.scope : []).slice(0, 3).map(escapeHtml).join(', ')}
       </td>
-      <td>${p.sort_order}</td>
+      <td>${Number(p.sort_order || 0)}</td>
       <td>
         <span class="badge-status ${p.is_published ? 'badge-won' : 'badge-lost'}">
           ${p.is_published ? 'Live' : 'Draft'}
@@ -609,10 +753,10 @@ function renderAdminProjectsTable(projects) {
       </td>
       <td>
         <div style="display: flex; gap: 8px;">
-          <button class="btn btn-outline btn-sm btn-edit-proj" data-id="${p.id}" style="padding: 5px 12px; font-weight: 500;">
+          <button class="btn btn-outline btn-sm btn-edit-proj" data-id="${escapeHtml(p.id)}" style="padding: 5px 12px; font-weight: 500;">
             ✏️ Change
           </button>
-          <button class="btn btn-danger btn-sm btn-del-proj" data-id="${p.id}" style="padding: 5px 12px; font-weight: 500;">
+          <button class="btn btn-danger btn-sm btn-del-proj" data-id="${escapeHtml(p.id)}" style="padding: 5px 12px; font-weight: 500;">
             🗑️ Delete
           </button>
         </div>
@@ -751,28 +895,28 @@ function renderAdminClientsTable(clients) {
   tbody.innerHTML = clients.map((c) => `
     <tr>
       <td style="width: 80px;">
-        ${c.logo_url ? `<img src="${c.logo_url}" alt="${c.name}" style="width: 60px; height: 40px; object-fit: contain; background: #fff; padding: 4px; border-radius: 4px; border: 1px solid var(--admin-border);" onerror="this.onerror=null;this.parentElement.innerHTML='<span style=\\'font-size:0.7rem;color:var(--gold);\\'>LOGO</span>';">` : '<div style="width: 60px; height: 40px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--text-dim);">No logo</div>'}
+        ${c.logo_url ? `<img src="${escapeHtml(c.logo_url)}" alt="${escapeHtml(c.name)}" style="width: 60px; height: 40px; object-fit: contain; background: #fff; padding: 4px; border-radius: 4px; border: 1px solid var(--admin-border);" onerror="this.onerror=null;this.parentElement.innerHTML='<span style=\\'font-size:0.7rem;color:var(--gold);\\'>LOGO</span>';">` : '<div style="width: 60px; height: 40px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--text-dim);">No logo</div>'}
       </td>
       <td>
-        <strong style="color: #fff; font-size: 0.95rem;">${c.name}</strong>
-        ${c.description ? `<div style="font-size: 0.78rem; color: var(--text-dim); max-width: 250px;">${c.description}</div>` : ''}
+        <strong style="color: #fff; font-size: 0.95rem;">${escapeHtml(c.name)}</strong>
+        ${c.description ? `<div style="font-size: 0.78rem; color: var(--text-dim); max-width: 250px;">${escapeHtml(c.description)}</div>` : ''}
       </td>
-      <td style="font-size: 0.82rem; color: var(--gold); font-weight: 600;">${c.category || 'General'}</td>
+      <td style="font-size: 0.82rem; color: var(--gold); font-weight: 600;">${escapeHtml(c.category || 'General')}</td>
       <td style="font-size: 0.8rem;">
-        ${c.website_url ? `<a href="${c.website_url}" target="_blank" style="color: var(--gold); text-decoration: underline;">${c.website_url.replace(/^https?:\/\//, '')}</a>` : '<span style="color: var(--text-dim);">—</span>'}
+        ${c.website_url ? `<a href="${escapeHtml(c.website_url)}" target="_blank" rel="noopener noreferrer" style="color: var(--gold); text-decoration: underline;">${escapeHtml(c.website_url.replace(/^https?:\/\//, ''))}</a>` : '<span style="color: var(--text-dim);">—</span>'}
       </td>
       <td>
         <span class="badge-status ${c.is_featured ? 'badge-won' : 'badge-lost'}">
           ${c.is_featured ? 'Showcase ★' : 'Hidden'}
         </span>
       </td>
-      <td>${c.sort_order}</td>
+      <td>${Number(c.sort_order || 0)}</td>
       <td>
         <div style="display: flex; gap: 8px;">
-          <button class="btn btn-outline btn-sm btn-edit-client" data-id="${c.id}" style="padding: 5px 12px; font-weight: 500;">
+          <button class="btn btn-outline btn-sm btn-edit-client" data-id="${escapeHtml(c.id)}" style="padding: 5px 12px; font-weight: 500;">
             ✏️ Change
           </button>
-          <button class="btn btn-danger btn-sm btn-del-client" data-id="${c.id}" style="padding: 5px 12px; font-weight: 500;">
+          <button class="btn btn-danger btn-sm btn-del-client" data-id="${escapeHtml(c.id)}" style="padding: 5px 12px; font-weight: 500;">
             🗑️ Delete
           </button>
         </div>
@@ -1019,6 +1163,12 @@ function renderAdminFaqs(faqs) {
 document.addEventListener('DOMContentLoaded', async () => {
   const isAuth = await checkSession();
   if (!isAuth) return;
+
+  const authLoader = document.getElementById('adminAuthLoader');
+  if (authLoader) {
+    authLoader.classList.add('hidden');
+    setTimeout(() => authLoader.remove(), 350);
+  }
 
   initTabs();
 
