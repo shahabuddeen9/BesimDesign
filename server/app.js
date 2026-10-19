@@ -7,6 +7,7 @@
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
+import fs from 'fs';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'path';
@@ -71,8 +72,12 @@ app.use(cookieParser());
 // 6. Static Asset Hosting
 const uploadsPath = path.resolve(projectRoot, 'uploads');
 const publicPath = path.resolve(projectRoot, 'public');
+const distPath = path.resolve(projectRoot, 'dist');
 
 app.use('/uploads', express.static(uploadsPath));
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+}
 app.use(express.static(publicPath));
 
 // 7. General API Rate Limiting for /api

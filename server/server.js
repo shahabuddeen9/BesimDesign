@@ -21,7 +21,7 @@ async function startServer() {
     await runSeed();
 
     // 4. Start HTTP listener
-    const server = app.listen(env.PORT, () => {
+    const server = app.listen(env.PORT, '0.0.0.0', () => {
       logger.info(`🚀 Server running in [${env.NODE_ENV}] mode on port ${env.PORT}`);
       logger.info(`🌐 Public URL: http://localhost:${env.PORT}`);
       logger.info(`🛡️ Admin Portal: http://localhost:${env.PORT}/admin/login.html`);
