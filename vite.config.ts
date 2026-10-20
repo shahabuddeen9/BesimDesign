@@ -15,6 +15,7 @@ export default defineConfig(() => {
       rollupOptions: {
         input: {
           main: path.resolve(import.meta.dirname, 'index.html'),
+          about: path.resolve(import.meta.dirname, 'about.html'),
           centralKitchen: path.resolve(import.meta.dirname, 'central-kitchen.html'),
           hotels: path.resolve(import.meta.dirname, 'hotels.html'),
           hospitality: path.resolve(import.meta.dirname, 'hospitality.html'),

@@ -81,6 +81,14 @@ if (fs.existsSync(distPath)) {
 app.use(express.static(publicPath));
 
 // Clean routes for dedicated showcase experiences
+app.get(['/about', '/about.html'], (req, res) => {
+  const distFile = path.resolve(distPath, 'about.html');
+  const pubFile = path.resolve(publicPath, 'about.html');
+  const rootFile = path.resolve(projectRoot, 'about.html');
+  const target = fs.existsSync(distFile) ? distFile : (fs.existsSync(pubFile) ? pubFile : rootFile);
+  res.sendFile(target);
+});
+
 app.get(['/central-kitchen', '/central-kitchen.html'], (req, res) => {
   const distFile = path.resolve(distPath, 'central-kitchen.html');
   const pubFile = path.resolve(publicPath, 'central-kitchen.html');

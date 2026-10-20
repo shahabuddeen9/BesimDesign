@@ -653,3 +653,51 @@ textarea.form-control {
   pointer-events: none;
 }
 
+/* Sector Quick Filter Pills & Subnav Controls */
+.sector-tab-pill {
+  padding: 6px 14px;
+  background: var(--admin-card);
+  border: 1px solid var(--admin-border);
+  border-radius: 20px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.sector-tab-pill:hover {
+  background: var(--admin-card-hover);
+  color: #fff;
+  border-color: var(--gold);
+}
+
+.sector-tab-pill.active {
+  background: var(--gold-dim);
+  border-color: var(--gold);
+  color: var(--gold);
+  font-weight: 600;
+  box-shadow: 0 0 10px rgba(197, 168, 128, 0.15);
+}
+
+.subnav-sector-btn {
+  transition: all 0.2s ease;
+}
+
+.subnav-sector-btn:hover {
+  color: #fff !important;
+  background: rgba(197, 168, 128, 0.08) !important;
+}
+
+.subnav-sector-btn.active {
+  color: var(--gold) !important;
+  font-weight: 600;
+  background: var(--gold-dim) !important;
+}
+
+.subnav-quick-add:hover {
+  transform: scale(1.2);
+}
+
+
