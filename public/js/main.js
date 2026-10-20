@@ -214,14 +214,12 @@ async function loadProjects() {
   if (!grid) return;
 
   try {
-    // Exclude central kitchen projects from main page so it stays compact and concise
-    const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects?exclude=central_kitchen`);
+    const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects`);
     if (!res.ok) throw new Error('Failed to fetch projects');
     const json = await res.json();
 
     if (json.success && Array.isArray(json.data)) {
-      // Safeguard: Ensure central kitchen projects are never loaded into the main page portfolio
-      state.projects = json.data.filter((p) => p.category !== 'central_kitchen' && p.category !== 'cloud_kitchen');
+      state.projects = json.data;
       renderProjects(state.projects);
     }
   } catch (err) {
@@ -233,12 +231,9 @@ function renderProjects(projectsList) {
   const grid = document.getElementById('portfolioGrid');
   if (!grid) return;
 
-  // Ensure central kitchen projects are excluded from main page display
-  const mainPortfolio = (projectsList || []).filter((p) => p.category !== 'central_kitchen' && p.category !== 'cloud_kitchen');
-
   const filtered = state.activeCategory === 'all'
-    ? mainPortfolio
-    : mainPortfolio.filter((p) => p.category === state.activeCategory || (state.activeCategory === 'hotels' && p.category === 'hotel') || (state.activeCategory === 'hospitality' && (p.category === 'hospitality' || p.category === 'restaurant' || p.category === 'bar')));
+    ? projectsList
+    : projectsList.filter((p) => p.category === state.activeCategory || (state.activeCategory === 'hotels' && p.category === 'hotel') || (state.activeCategory === 'hospitality' && (p.category === 'hospitality' || p.category === 'restaurant' || p.category === 'bar')));
 
   if (filtered.length === 0) {
     grid.innerHTML = `
@@ -678,19 +673,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // 2. Portfolio Category Filter Buttons
   const filterBtns = document.querySelectorAll('.filter-btn');
   filterBtns.forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      const category = btn.dataset.category || '';
-      const href = btn.getAttribute('href');
-
-      // If user clicks Central Kitchen, navigate directly to dedicated showcase page
-      if (category === 'central_kitchen' || (href && href.includes('central-kitchen'))) {
-        window.location.href = '/central-kitchen.html';
-        return;
-      }
-
+    btn.addEventListener('click', () => {
       filterBtns.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
-      state.activeCategory = category;
+      state.activeCategory = btn.dataset.category;
 
       if (state.projects.length > 0) {
         renderProjects(state.projects);

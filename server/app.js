@@ -94,21 +94,6 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// 9. Dedicated Central Kitchen Showcase Route
-app.get(['/central-kitchen', '/central-kitchen.html'], (req, res) => {
-  const possiblePaths = [
-    path.resolve(distPath, 'central-kitchen.html'),
-    path.resolve(projectRoot, 'central-kitchen.html'),
-    path.resolve(publicPath, 'central-kitchen.html'),
-  ];
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
-      return res.sendFile(p);
-    }
-  }
-  res.redirect('/#portfolio');
-});
-
 import adminRoutes from './routes/admin.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import publicRoutes from './routes/public.routes.js';

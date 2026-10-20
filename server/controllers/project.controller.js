@@ -48,7 +48,7 @@ export const projectSchema = z.object({
  */
 export function getPublishedProjects(req, res, next) {
   try {
-    const { category, exclude } = req.query;
+    const { category } = req.query;
     let sql = `
       SELECT id, title, slug, category, client_name, location, area_sqft, description, scope, image_url, gallery, is_featured, sort_order, created_at
       FROM projects
@@ -57,27 +57,8 @@ export function getPublishedProjects(req, res, next) {
     const params = [];
 
     if (category && category !== 'all') {
-      const catLower = category.toLowerCase().trim();
-      if (catLower === 'hotels' || catLower === 'hotel') {
-        sql += ' AND (LOWER(category) = "hotels" OR LOWER(category) = "hotel")';
-      } else if (catLower === 'hospitality') {
-        sql += ' AND (LOWER(category) = "hospitality" OR LOWER(category) = "restaurant" OR LOWER(category) = "bar" OR LOWER(category) = "cafe")';
-      } else if (catLower === 'central_kitchen' || catLower === 'central-kitchen') {
-        sql += ' AND (LOWER(category) = "central_kitchen" OR LOWER(category) = "cloud_kitchen")';
-      } else if (catLower === 'residential') {
-        sql += ' AND LOWER(category) = "residential"';
-      } else {
-        sql += ' AND (LOWER(category) = LOWER(?) OR category LIKE ?)';
-        params.push(category, `%${category}%`);
-      }
-    }
-
-    if (exclude) {
-      const excluded = exclude.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
-      for (const ex of excluded) {
-        sql += ' AND LOWER(category) != ?';
-        params.push(ex);
-      }
+      sql += ' AND (LOWER(category) = LOWER(?) OR category LIKE ?)';
+      params.push(category, `%${category}%`);
     }
 
     sql += ' ORDER BY sort_order ASC, created_at DESC';

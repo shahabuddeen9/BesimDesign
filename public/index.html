@@ -32,7 +32,6 @@
       <ul class="nav-links" id="navLinks">
         <li><a href="#about" class="nav-link">About</a></li>
         <li><a href="#specialization" class="nav-link">Specialization</a></li>
-        <li><a href="/central-kitchen.html" class="nav-link" style="color: var(--accent-gold); font-weight: 600;">Central Kitchens ↗</a></li>
         <li><a href="#portfolio" class="nav-link">Projects</a></li>
         <li><a href="#vision-mission" class="nav-link">Vision & Mission</a></li>
         <li><a href="#advantages" class="nav-link">Advantages</a></li>
@@ -222,42 +221,52 @@
       </div>
     </section>
 
-    <!-- Portfolio Section (Hotels, Hospitality, Residential on Main Page) -->
+    <!-- Portfolio Section (With Categories: Central Kitchen, Hotels, Hospitality, Residential) -->
     <section class="section-padding" id="portfolio" style="background-color: var(--bg-surface);">
       <div class="container">
         <div class="section-header">
           <div class="section-badge">Selected Portfolio</div>
           <h2 class="section-title">Our Turnkey Projects</h2>
           <p class="section-subtitle">
-            Explore our executed landmarks across Boutique Hotels, Fine Dining Hospitality, and Luxury Residential spaces.
+            Explore our executed landmarks across Central Kitchens, Hotels, Hospitality, and Luxury Residential.
           </p>
         </div>
 
-        <!-- Dedicated Central Kitchen Showcase Callout Banner -->
-        <div style="background: linear-gradient(135deg, rgba(197, 168, 128, 0.12), rgba(15, 20, 32, 0.95)); border: 1px solid var(--border-gold); border-radius: var(--radius-md); padding: 22px 28px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
-          <div>
-            <div style="font-size: 0.75rem; color: var(--accent-gold); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;">Dedicated Industrial Division</div>
-            <strong style="color: #fff; font-size: 1.1rem;">Looking for Central Kitchen & Commissary Projects?</strong>
-            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">We maintain a dedicated technical portal for large-scale cloud commissaries, blast freezers, and HACCP layouts.</p>
-          </div>
-          <a href="/central-kitchen.html" class="btn btn-gold btn-sm" style="white-space: nowrap;">
-            Open Central Kitchens Page ➔
-          </a>
-        </div>
-
-        <!-- Category Filters (Hotels, Hospitality, Residential + Dedicated Link to Central Kitchens) -->
+        <!-- Category Filters: central_kitchen, hotels, hospitality, residential -->
         <div class="portfolio-filters" id="portfolioFilters">
           <button class="filter-btn active" data-category="all">All Projects</button>
+          <button class="filter-btn" data-category="central_kitchen">Central Kitchen</button>
           <button class="filter-btn" data-category="hotels">Hotels</button>
           <button class="filter-btn" data-category="hospitality">Hospitality</button>
           <button class="filter-btn" data-category="residential">Residential</button>
-          <a href="/central-kitchen.html" class="filter-btn" style="border-color: var(--accent-gold); color: var(--accent-gold); font-weight: 600;" title="View dedicated Central Kitchen projects page">
-            Central Kitchens ↗
-          </a>
         </div>
 
         <!-- Portfolio Grid (Dynamic API Loading + Static Fallback) -->
         <div class="portfolio-grid" id="portfolioGrid">
+          <!-- Fallback Central Kitchen Card -->
+          <div class="project-card" data-category="central_kitchen">
+            <div class="project-img-wrap">
+              <img src="https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80" alt="Cloud Culinary Central Kitchen">
+              <span class="project-cat-badge">CENTRAL KITCHEN</span>
+            </div>
+            <div class="project-body">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+                <span style="font-size: 0.75rem; color: var(--accent-gold); font-weight: 600; text-transform: uppercase;">Client: K Hospitality Hubs</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">18,500 sq.ft</span>
+              </div>
+              <h3 class="project-title">Cloud Culinary Hub & Central Commissary</h3>
+              <div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px;">📍 Bhiwandi / Mumbai Outskirts</div>
+              <p class="project-desc">Comprehensive turnkey central kitchen facility engineered for multi-brand culinary production. Features commercial walk-in blast freezers, heavy-duty stainless work lines, and HACCP drainage.</p>
+              <div class="project-scope-list">
+                <span class="project-scope-item">Turnkey MEP Layout</span>
+                <span class="project-scope-item">Cold Chain Blast Freezers</span>
+                <span class="project-scope-item">HACCP Drainage</span>
+              </div>
+              <div class="project-card-footer">
+                <button class="btn-link view-project-btn" data-slug="cloud-culinary-central-kitchen">View Project Blueprint →</button>
+              </div>
+            </div>
+          </div>
 
           <!-- Fallback Hotels Card -->
           <div class="project-card" data-category="hotels">
