@@ -82,8 +82,13 @@
         .then(r => r.json())
         .then(d => {
           if (d.success && d.admin) {
-            const tab = urlParams.get('tab') || window.location.hash.replace('#', '');
-            const redirectUrl = `/admin/dashboard.html?auth_token=${encodeURIComponent(savedToken)}${tab ? '&tab=' + tab : ''}`;
+            const redirectParams = new URLSearchParams(window.location.search);
+            if (savedToken) redirectParams.set('auth_token', savedToken);
+            if (!redirectParams.get('tab')) {
+              const hashTab = window.location.hash.replace('#', '');
+              if (hashTab) redirectParams.set('tab', hashTab);
+            }
+            const redirectUrl = `/admin/dashboard.html?${redirectParams.toString()}`;
             window.location.replace(redirectUrl);
           } else {
             try {
@@ -147,8 +152,13 @@
           alertBox.style.color = '#6ee7b7';
           alertBox.style.display = 'block';
 
-          const tab = urlParams.get('tab') || window.location.hash.replace('#', '');
-          const dest = `/admin/dashboard.html?auth_token=${encodeURIComponent(data.token)}${tab ? '&tab=' + tab : ''}`;
+          const redirectParams = new URLSearchParams(window.location.search);
+          if (data.token) redirectParams.set('auth_token', data.token);
+          if (!redirectParams.get('tab')) {
+            const hashTab = window.location.hash.replace('#', '');
+            if (hashTab) redirectParams.set('tab', hashTab);
+          }
+          const dest = `/admin/dashboard.html?${redirectParams.toString()}`;
           setTimeout(() => {
             window.location.replace(dest);
           }, 250);

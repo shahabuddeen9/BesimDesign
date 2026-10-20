@@ -214,7 +214,7 @@ async function loadProjects() {
   if (!grid) return;
 
   try {
-    const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects?exclude=central_kitchen`);
+    const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects`);
     if (!res.ok) throw new Error('Failed to fetch projects');
     const json = await res.json();
 
@@ -231,20 +231,31 @@ function renderProjects(projectsList) {
   const grid = document.getElementById('portfolioGrid');
   if (!grid) return;
 
-  const filtered = state.activeCategory === 'all'
+  const cat = state.activeCategory || 'all';
+  const filtered = cat === 'all'
     ? projectsList
-    : projectsList.filter((p) => p.category === state.activeCategory || (state.activeCategory === 'hotels' && p.category === 'hotel') || (state.activeCategory === 'hospitality' && (p.category === 'hospitality' || p.category === 'restaurant' || p.category === 'bar')));
+    : projectsList.filter((p) => {
+        const pCat = (p.category || '').toLowerCase();
+        if (cat === 'hotels') return pCat === 'hotels' || pCat === 'hotel';
+        if (cat === 'hospitality') return pCat === 'hospitality' || pCat === 'restaurant' || pCat === 'bar';
+        if (cat === 'residential') return pCat === 'residential';
+        if (cat === 'central_kitchen' || cat === 'central-kitchen') return pCat === 'central_kitchen' || pCat === 'central-kitchen';
+        return pCat === cat;
+      });
 
   if (filtered.length === 0) {
     grid.innerHTML = `
       <div style="grid-column: 1 / -1; text-align: center; padding: 48px; color: var(--text-muted);">
         <p>No projects found in this sector yet.</p>
+        <a href="/admin/dashboard.html?tab=projects&action=new" class="btn btn-gold btn-sm" style="margin-top: 14px; text-decoration: none; display: inline-block;">
+          ➕ Add First Project in this Sector
+        </a>
       </div>
     `;
     return;
   }
 
-  grid.innerHTML = filtered.map((p) => {
+  const projectCardsHtml = filtered.map((p) => {
     let scopes = [];
     if (Array.isArray(p.scope)) {
       scopes = p.scope;
@@ -273,7 +284,6 @@ function renderProjects(projectsList) {
         <div class="project-body">
           <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
             <span style="font-size: 0.75rem; color: var(--accent-gold); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;">${escapedClient ? `Client: ${escapedClient}` : formattedCat}</span>
-            ${p.area_sqft ? `<span style="font-size: 0.75rem; color: var(--text-dim);">${Number(p.area_sqft).toLocaleString()} sq.ft</span>` : ''}
           </div>
           <h3 class="project-title">${escapedTitle}</h3>
           ${escapedLocation ? `<div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px;">📍 ${escapedLocation}</div>` : ''}
@@ -286,10 +296,39 @@ function renderProjects(projectsList) {
               View Project Blueprint →
             </button>
           </div>
+          <!-- Admin Access Quick Controls (Add / Modify / Delete) -->
+          <div class="project-admin-card-actions" style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(197, 168, 128, 0.25); display: flex; gap: 8px; align-items: center; justify-content: space-between;">
+            <span style="font-size: 0.72rem; color: var(--accent-gold); font-weight: 600; letter-spacing: 0.04em;">ADMIN ACCESS</span>
+            <div style="display: flex; gap: 6px;">
+              <a href="/admin/dashboard.html?tab=projects&edit=${p.id}" class="btn-admin-card-edit" style="background: rgba(197, 168, 128, 0.12); border: 1px solid var(--border-gold, rgba(197, 168, 128, 0.4)); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;" title="Modify this project in Admin Portal">
+                ✏️ Modify
+              </a>
+              <a href="/admin/dashboard.html?tab=projects&delete=${p.id}" class="btn-admin-card-delete" style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); color: #fca5a5; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;" title="Delete this project in Admin Portal">
+                🗑️ Delete
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     `;
   }).join('');
+
+  const addProjectCard = `
+    <div class="project-card add-project-card" style="border: 2px dashed rgba(197, 168, 128, 0.35); background: rgba(197, 168, 128, 0.03); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 36px 20px; text-align: center; min-height: 380px;">
+      <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(197, 168, 128, 0.12); border: 1px solid var(--border-gold, rgba(197, 168, 128, 0.4)); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; margin-bottom: 14px; color: var(--accent-gold);">
+        ➕
+      </div>
+      <h4 style="font-family: var(--font-serif); font-size: 1.15rem; color: #fff; margin-bottom: 8px;">Add Architecture Project</h4>
+      <p style="color: var(--text-muted); font-size: 0.82rem; max-width: 240px; margin-bottom: 18px; line-height: 1.5;">
+        Expand the live website portfolio with new turnkey hotels, restaurants, residences, or kitchens.
+      </p>
+      <a href="/admin/dashboard.html?tab=projects&action=new" class="btn btn-gold btn-sm" style="font-weight: 600; text-decoration: none; padding: 8px 16px; border-radius: 6px; font-size: 0.82rem;">
+        ➕ Add New Project
+      </a>
+    </div>
+  `;
+
+  grid.innerHTML = projectCardsHtml + addProjectCard;
 
   attachProjectModalTriggers();
 }

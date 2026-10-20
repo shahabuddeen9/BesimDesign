@@ -692,6 +692,39 @@ async function loadAdminProjects() {
     if (json.success) {
       state.projects = json.data;
       filterAndRenderProjects();
+
+      // Deep linking handler: check URL query params for action=new, edit=ID, delete=ID, category=CAT
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const action = urlParams.get('action');
+        const editId = urlParams.get('edit');
+        const deleteId = urlParams.get('delete');
+        const catParam = urlParams.get('category');
+
+        if (catParam) {
+          state.filters.projectCategory = catParam;
+          const catSelect = document.getElementById('filterProjectCategory');
+          if (catSelect) catSelect.value = catParam;
+          filterAndRenderProjects();
+        }
+
+        if (action === 'new' || urlParams.get('add') === '1') {
+          setTimeout(() => {
+            const btnNew = document.getElementById('btnNewProject');
+            if (btnNew) btnNew.click();
+          }, 100);
+        } else if (editId) {
+          setTimeout(() => {
+            editProject(editId);
+          }, 100);
+        } else if (deleteId) {
+          setTimeout(() => {
+            deleteProject(deleteId);
+          }, 100);
+        }
+      } catch (paramErr) {
+        console.warn('Deep link handling error:', paramErr);
+      }
     }
   } catch (err) {
     if (err.message !== 'Authentication required') {

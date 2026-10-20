@@ -138,7 +138,7 @@ function bindCardActionEvents() {
 
       const notesField = document.getElementById('residentialMessage');
       if (notesField && title) {
-        notesField.value = `Inquiry benchmarked against "${title}" (${area ? area + ' sq.ft' : 'Luxury Scope'}). We are looking for turnkey interior execution and factory-crafted furniture fit-out.`;
+        notesField.value = `Inquiry benchmarked against "${title}" (Luxury Turnkey Scope). We are looking for turnkey interior execution and factory-crafted furniture fit-out.`;
         notesField.focus();
       }
 
