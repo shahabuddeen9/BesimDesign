@@ -236,4 +236,32 @@ describe('Backend CRUD, Downloads & Filtered Export', () => {
       db.prepare('DELETE FROM faqs WHERE question = ?').run('Tx Question Success');
     });
   });
+
+  // 7. Central Kitchen Dedicated Route & Filtering Test
+  describe('Central Kitchen Dedicated Page & Filtering API', () => {
+    it('GET /central-kitchen serves dedicated Central Kitchen showcase page', async () => {
+      const res = await request(app).get('/central-kitchen');
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toContain('text/html');
+      expect(res.text).toContain('Central Kitchen & Commissary Architecture');
+      expect(res.text).toContain('centralKitchenGrid');
+    });
+
+    it('GET /api/projects?exclude=central_kitchen excludes central kitchen projects from main page', async () => {
+      const res = await request(app).get('/api/projects?exclude=central_kitchen');
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.every((p) => p.category !== 'central_kitchen')).toBe(true);
+    });
+
+    it('GET /api/projects?category=central_kitchen returns ONLY central kitchen projects for dedicated page', async () => {
+      const res = await request(app).get('/api/projects?category=central_kitchen');
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.length).toBeGreaterThan(0);
+      expect(res.body.data.every((p) => p.category === 'central_kitchen')).toBe(true);
+    });
+  });
 });
