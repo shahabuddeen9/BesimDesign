@@ -32,7 +32,10 @@
       <ul class="nav-links" id="navLinks">
         <li><a href="#about" class="nav-link">About</a></li>
         <li><a href="#specialization" class="nav-link">Specialization</a></li>
-        <li><a href="#portfolio" class="nav-link">Projects</a></li>
+        <li><a href="/hotels.html" class="nav-link">Hotels ↗</a></li>
+        <li><a href="/hospitality.html" class="nav-link">Hospitality ↗</a></li>
+        <li><a href="/residential.html" class="nav-link">Residential ↗</a></li>
+        <li><a href="/central-kitchen.html" class="nav-link" style="color: var(--accent-gold); font-weight: 600;">Central Kitchens ↗</a></li>
         <li><a href="#vision-mission" class="nav-link">Vision & Mission</a></li>
         <li><a href="#advantages" class="nav-link">Advantages</a></li>
         <li><a href="#clients" class="nav-link">Clients</a></li>
@@ -40,8 +43,8 @@
       </ul>
 
       <div class="nav-actions">
-        <a href="#contact" class="btn btn-primary btn-sm">
-          Get in Touch
+        <a href="/showcase.html#uploadSection" class="btn btn-primary btn-sm">
+          Upload Brief ↗
         </a>
         <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
           ☰
@@ -74,8 +77,8 @@
             </p>
 
             <div class="hero-actions">
-              <a href="#portfolio" class="btn btn-primary">
-                Explore Projects
+              <a href="/showcase.html" class="btn btn-primary">
+                Explore Dedicated Showcases →
               </a>
               <a href="#contact" class="btn btn-secondary">
                 Get in Touch
@@ -91,9 +94,9 @@
             <div class="admin-quick-banner" style="background: rgba(18, 20, 24, 0.85); border: 1px solid var(--border-gold); border-radius: var(--radius-md); padding: 14px 18px; margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
               <div>
                 <strong style="color: #fff; font-size: 0.9rem;">Turnkey Architectural Fit-Outs</strong>
-                <p style="font-size: 0.78rem; color: var(--text-dim); margin-top: 2px;">Central Kitchens • Boutique Hotels • Bespoke Joinery</p>
+                <p style="font-size: 0.78rem; color: var(--text-dim); margin-top: 2px;">Central Kitchens • Boutique Hotels • Luxury Residences</p>
               </div>
-              <a href="#portfolio" class="btn btn-gold btn-sm">Explore Works →</a>
+              <a href="/showcase.html" class="btn btn-gold btn-sm">Explore Works →</a>
             </div>
           </div>
         </div>
@@ -221,132 +224,147 @@
       </div>
     </section>
 
-    <!-- Portfolio Section (With Categories: Central Kitchen, Hotels, Hospitality, Residential) -->
+    <!-- Dedicated Architectural Sector Showcases Gateway (Compact, non-lengthy portal) -->
     <section class="section-padding" id="portfolio" style="background-color: var(--bg-surface);">
       <div class="container">
         <div class="section-header">
-          <div class="section-badge">Selected Portfolio</div>
-          <h2 class="section-title">Our Turnkey Projects</h2>
+          <div class="section-badge">Dedicated Sector Portfolios</div>
+          <h2 class="section-title">Architectural Showcases</h2>
           <p class="section-subtitle">
-            Explore our executed landmarks across Central Kitchens, Hotels, Hospitality, and Luxury Residential.
+            Explore dedicated portfolios for each architectural discipline. Click any sector to view comprehensive blueprints, photo galleries, and upload your project brief.
           </p>
         </div>
 
-        <!-- Category Filters: central_kitchen, hotels, hospitality, residential -->
-        <div class="portfolio-filters" id="portfolioFilters">
-          <button class="filter-btn active" data-category="all">All Projects</button>
-          <button class="filter-btn" data-category="central_kitchen">Central Kitchen</button>
-          <button class="filter-btn" data-category="hotels">Hotels</button>
-          <button class="filter-btn" data-category="hospitality">Hospitality</button>
-          <button class="filter-btn" data-category="residential">Residential</button>
+        <div class="sector-gateway-grid">
+          <!-- 1. Hotels & Resorts -->
+          <a href="/hotels.html" class="sector-gateway-card">
+            <div class="sector-gateway-img-wrap">
+              <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80" alt="Hotels & Boutique Resorts Portfolio">
+              <div class="sector-gateway-overlay"></div>
+              <span class="sector-gateway-badge">HOTELS & RESORTS</span>
+              <span class="sector-gateway-count">65+ Keys Executed</span>
+            </div>
+            <div class="sector-gateway-body">
+              <h3 class="sector-gateway-title">
+                <span>Hotels & Boutique Resorts</span>
+                <span style="font-size: 1.1rem; color: var(--accent-gold);">→</span>
+              </h3>
+              <p class="sector-gateway-desc">
+                Luxury boutique hotels, turnkey guest suites, acoustic corridor isolation, grand double-height lobbies, and rooftop pool lounges.
+              </p>
+              <div class="sector-gateway-highlights">
+                <span class="sector-gateway-tag">Grand Arrival Lobbies</span>
+                <span class="sector-gateway-tag">Acoustic Suites</span>
+                <span class="sector-gateway-tag">Turnkey MEP</span>
+              </div>
+              <div class="sector-gateway-action">
+                <span>Open Dedicated Showcase</span>
+                <span>Explore Hotels →</span>
+              </div>
+            </div>
+          </a>
+
+          <!-- 2. Hospitality & Dining -->
+          <a href="/hospitality.html" class="sector-gateway-card">
+            <div class="sector-gateway-img-wrap">
+              <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80" alt="Hospitality & Dining Portfolio">
+              <div class="sector-gateway-overlay"></div>
+              <span class="sector-gateway-badge">HOSPITALITY & DINING</span>
+              <span class="sector-gateway-count">100+ Dining Venues</span>
+            </div>
+            <div class="sector-gateway-body">
+              <h3 class="sector-gateway-title">
+                <span>Hospitality & Dining</span>
+                <span style="font-size: 1.1rem; color: var(--accent-gold);">→</span>
+              </h3>
+              <p class="sector-gateway-desc">
+                High-energy cocktail lounges, artisan cafes, Asian tapas, and fine dining institutions (The Nutcracker, FOO, Royal China, SAZ, RSVP).
+              </p>
+              <div class="sector-gateway-highlights">
+                <span class="sector-gateway-tag">Bare-Shell Handover</span>
+                <span class="sector-gateway-tag">Kitchen Scrubbers</span>
+                <span class="sector-gateway-tag">Early Handover</span>
+              </div>
+              <div class="sector-gateway-action">
+                <span>Open Dedicated Showcase</span>
+                <span>Explore Hospitality →</span>
+              </div>
+            </div>
+          </a>
+
+          <!-- 3. Luxury Residential -->
+          <a href="/residential.html" class="sector-gateway-card">
+            <div class="sector-gateway-img-wrap">
+              <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80" alt="Luxury Residential Portfolio">
+              <div class="sector-gateway-overlay"></div>
+              <span class="sector-gateway-badge">LUXURY RESIDENTIAL</span>
+              <span class="sector-gateway-count">7,500+ sq.ft Sky Villas</span>
+            </div>
+            <div class="sector-gateway-body">
+              <h3 class="sector-gateway-title">
+                <span>Luxury Residential</span>
+                <span style="font-size: 1.1rem; color: var(--accent-gold);">→</span>
+              </h3>
+              <p class="sector-gateway-desc">
+                Ultra-luxury duplex penthouses, sea-facing villas, imported Italian marble cladding, smart automation, and bespoke Nalasopara factory wardrobes.
+              </p>
+              <div class="sector-gateway-highlights">
+                <span class="sector-gateway-tag">Italian Marble</span>
+                <span class="sector-gateway-tag">Factory Wardrobes</span>
+                <span class="sector-gateway-tag">Smart VRV Climate</span>
+              </div>
+              <div class="sector-gateway-action">
+                <span>Open Dedicated Showcase</span>
+                <span>Explore Residential →</span>
+              </div>
+            </div>
+          </a>
+
+          <!-- 4. Central Kitchens -->
+          <a href="/central-kitchen.html" class="sector-gateway-card">
+            <div class="sector-gateway-img-wrap">
+              <img src="https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80" alt="Central Kitchens Portfolio">
+              <div class="sector-gateway-overlay"></div>
+              <span class="sector-gateway-badge">CENTRAL KITCHENS</span>
+              <span class="sector-gateway-count">18,500 sq.ft Hubs</span>
+            </div>
+            <div class="sector-gateway-body">
+              <h3 class="sector-gateway-title">
+                <span>Central Kitchens & Hubs</span>
+                <span style="font-size: 1.1rem; color: var(--accent-gold);">↗</span>
+              </h3>
+              <p class="sector-gateway-desc">
+                Industrial commissaries, sub-zero blast freezers (-40°C), cleanroom airlocks, heavy-duty stainless fabrication, and HACCP drainage.
+              </p>
+              <div class="sector-gateway-highlights">
+                <span class="sector-gateway-tag">Blast Freezers</span>
+                <span class="sector-gateway-tag">Cold Chain</span>
+                <span class="sector-gateway-tag">HACCP Drainage</span>
+              </div>
+              <div class="sector-gateway-action">
+                <span>Open Dedicated Showcase</span>
+                <span>Explore Central Kitchens ↗</span>
+              </div>
+            </div>
+          </a>
         </div>
 
-        <!-- Portfolio Grid (Dynamic API Loading + Static Fallback) -->
-        <div class="portfolio-grid" id="portfolioGrid">
-          <!-- Fallback Central Kitchen Card -->
-          <div class="project-card" data-category="central_kitchen">
-            <div class="project-img-wrap">
-              <img src="https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80" alt="Cloud Culinary Central Kitchen">
-              <span class="project-cat-badge">CENTRAL KITCHEN</span>
-            </div>
-            <div class="project-body">
-              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
-                <span style="font-size: 0.75rem; color: var(--accent-gold); font-weight: 600; text-transform: uppercase;">Client: K Hospitality Hubs</span>
-                <span style="font-size: 0.75rem; color: var(--text-dim);">18,500 sq.ft</span>
-              </div>
-              <h3 class="project-title">Cloud Culinary Hub & Central Commissary</h3>
-              <div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px;">📍 Bhiwandi / Mumbai Outskirts</div>
-              <p class="project-desc">Comprehensive turnkey central kitchen facility engineered for multi-brand culinary production. Features commercial walk-in blast freezers, heavy-duty stainless work lines, and HACCP drainage.</p>
-              <div class="project-scope-list">
-                <span class="project-scope-item">Turnkey MEP Layout</span>
-                <span class="project-scope-item">Cold Chain Blast Freezers</span>
-                <span class="project-scope-item">HACCP Drainage</span>
-              </div>
-              <div class="project-card-footer">
-                <button class="btn-link view-project-btn" data-slug="cloud-culinary-central-kitchen">View Project Blueprint →</button>
-              </div>
-            </div>
+        <!-- Dedicated Commercial Commissary Callout Banner -->
+        <div class="admin-quick-banner" style="background: linear-gradient(135deg, rgba(197, 168, 128, 0.12) 0%, rgba(15, 20, 32, 0.95) 100%); border: 1px solid var(--border-gold); border-radius: var(--radius-md); padding: 26px 30px; margin-top: 36px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+          <div style="max-width: 720px;">
+            <div class="section-badge" style="margin-bottom: 8px;">Dedicated Industrial Showcase</div>
+            <h3 style="font-family: var(--font-serif); font-size: 1.35rem; color: #fff; margin-bottom: 6px;">Commercial Central Kitchens & Commissary Engineering</h3>
+            <p style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.6; margin: 0;">Looking for high-volume culinary commissaries, sub-zero blast freezers (-40°C), Grade 304 HACCP drainage, and heavy-CFM ecology exhaust scrubbers? Explore our dedicated industrial division.</p>
           </div>
-
-          <!-- Fallback Hotels Card -->
-          <div class="project-card" data-category="hotels">
-            <div class="project-img-wrap">
-              <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80" alt="The Grand Pavilion Luxury Hotel">
-              <span class="project-cat-badge">HOTELS</span>
-            </div>
-            <div class="project-body">
-              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
-                <span style="font-size: 0.75rem; color: var(--accent-gold); font-weight: 600; text-transform: uppercase;">Client: Royal Orchid & Parinee</span>
-                <span style="font-size: 0.75rem; color: var(--text-dim);">32,000 sq.ft</span>
-              </div>
-              <h3 class="project-title">The Grand Pavilion Luxury Suites & Hotel</h3>
-              <div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px;">📍 BKC / Santacruz, Mumbai</div>
-              <p class="project-desc">Turnkey execution of 65 boutique keys, double-height grand arrival lobby, all-day dining restaurant, and rooftop pool deck. Included complete civil fit-out and factory-made millwork.</p>
-              <div class="project-scope-list">
-                <span class="project-scope-item">Grand Double Lobby</span>
-                <span class="project-scope-item">Acoustic Keys</span>
-                <span class="project-scope-item">Factory Millwork</span>
-              </div>
-              <div class="project-card-footer">
-                <button class="btn-link view-project-btn" data-slug="grand-pavilion-luxury-hotel">View Project Blueprint →</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Fallback Hospitality Card -->
-          <div class="project-card" data-category="hospitality">
-            <div class="project-img-wrap">
-              <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80" alt="The Nutcracker BKC">
-              <span class="project-cat-badge">HOSPITALITY</span>
-            </div>
-            <div class="project-body">
-              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
-                <span style="font-size: 0.75rem; color: var(--accent-gold); font-weight: 600; text-transform: uppercase;">Client: Annie Bafna (The Nutcracker)</span>
-                <span style="font-size: 0.75rem; color: var(--text-dim);">4,800 sq.ft</span>
-              </div>
-              <h3 class="project-title">The Nutcracker Café & Restaurant</h3>
-              <div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px;">📍 Jio World Drive, BKC, Mumbai</div>
-              <p class="project-desc">Complete turnkey execution from bare shell to restaurant handover, delivered ahead of schedule. Bespoke banquette seating, brass-trimmed joinery, and specialized kitchen exhaust balancing.</p>
-              <div class="project-scope-list">
-                <span class="project-scope-item">Bare-Shell Handover</span>
-                <span class="project-scope-item">Kitchen Scrubbers</span>
-                <span class="project-scope-item">Custom Brass</span>
-              </div>
-              <div class="project-card-footer">
-                <button class="btn-link view-project-btn" data-slug="the-nutcracker-jio-mall-bkc">View Project Blueprint →</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Fallback Residential Card -->
-          <div class="project-card" data-category="residential">
-            <div class="project-img-wrap">
-              <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80" alt="The Sky Villa Parinee">
-              <span class="project-cat-badge">RESIDENTIAL</span>
-            </div>
-            <div class="project-body">
-              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
-                <span style="font-size: 0.75rem; color: var(--accent-gold); font-weight: 600; text-transform: uppercase;">Client: Parinee HNI Penthouse</span>
-                <span style="font-size: 0.75rem; color: var(--text-dim);">7,500 sq.ft</span>
-              </div>
-              <h3 class="project-title">The Sky Villa at Parinee Crescenzo</h3>
-              <div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px;">📍 Bandra Kurla Complex, Mumbai</div>
-              <p class="project-desc">Turnkey duplex sky villa fit-out with imported Italian marble flooring, bespoke walnut veneer wardrobes produced in our Nalasopara factory, and home automation.</p>
-              <div class="project-scope-list">
-                <span class="project-scope-item">Italian Marble</span>
-                <span class="project-scope-item">Factory Wardrobes</span>
-                <span class="project-scope-item">Smart Automation</span>
-              </div>
-              <div class="project-card-footer">
-                <button class="btn-link view-project-btn" data-slug="sky-villa-parinee-bkc">View Project Blueprint →</button>
-              </div>
-            </div>
-          </div>
+          <a href="/central-kitchen.html" class="btn btn-gold">Open Central Kitchen Showcase ↗</a>
         </div>
 
-        <div style="text-align: center; margin-top: 36px;">
-          <a href="#contact" class="btn btn-outline" style="border-color: var(--border-gold); color: var(--accent-gold);">
-            Discuss Your Project Feasibility →
+        <div style="text-align: center; margin-top: 36px; display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
+          <a href="/showcase.html" class="btn btn-primary">
+            View All Showcases & Blueprints →
+          </a>
+          <a href="/central-kitchen.html#feasibilitySection" class="btn btn-secondary">
+            Request Commissary Feasibility ↗
           </a>
         </div>
       </div>
@@ -829,12 +847,12 @@
         </div>
 
         <div class="footer-column">
-          <h5>Project Sectors</h5>
+          <h5>Dedicated Showcases</h5>
           <ul>
-            <li><a href="#portfolio">Central Kitchens</a></li>
-            <li><a href="#portfolio">Hotels & Resorts</a></li>
-            <li><a href="#portfolio">Hospitality & Dining</a></li>
-            <li><a href="#portfolio">Luxury Residential</a></li>
+            <li><a href="/hotels.html">Hotels & Resorts ↗</a></li>
+            <li><a href="/hospitality.html">Hospitality & Dining ↗</a></li>
+            <li><a href="/residential.html">Luxury Residential ↗</a></li>
+            <li><a href="/central-kitchen.html" style="color: var(--accent-gold);">Central Kitchens ↗</a></li>
           </ul>
         </div>
 

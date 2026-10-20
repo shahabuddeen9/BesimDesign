@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architectural Sector Showcase | Besim Design Mumbai</title>
+  <meta name="description" content="Dedicated architectural and turnkey interior showcase for Hotels, Hospitality, Luxury Residential, and Central Kitchens in Mumbai by Besim Design.">
+  <meta property="og:title" content="Besim Design | Dedicated Architectural Showcase">
+  <meta property="og:description" content="Explore turnkey project showcases across Hotels, Hospitality, and Luxury Residential. Submit your project drawings and briefs directly.">
+  <meta property="og:type" content="website">
+
+  <!-- Google Fonts: Cinzel & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header class="navbar" id="navbar">
+    <div class="container nav-container">
+      <a href="/index.html" class="nav-logo">
+        <div class="nav-logo-mark">BD</div>
+        <div class="nav-logo-text">
+          <span class="nav-logo-name">BESIM</span>
+          <span class="nav-logo-sub">DESIGN</span>
+        </div>
+      </a>
+
+      <ul class="nav-links" id="navLinks">
+        <li><a href="/index.html" class="nav-link">Home</a></li>
+        <li><a href="/hotels.html" class="nav-link">Hotels ↗</a></li>
+        <li><a href="/hospitality.html" class="nav-link">Hospitality ↗</a></li>
+        <li><a href="/residential.html" class="nav-link">Residential ↗</a></li>
+        <li><a href="/central-kitchen.html" class="nav-link" style="color: var(--accent-gold); font-weight: 600;">Central Kitchens ↗</a></li>
+        <li><a href="/index.html#contact" class="nav-link">Contact</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <a href="#uploadSection" class="btn btn-primary btn-sm">
+          Upload Project Brief ↗
+        </a>
+        <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
+          ☰
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Showcase Hero Banner -->
+    <section class="showcase-hero">
+      <div class="container">
+        <!-- Breadcrumb Navigation -->
+        <div class="showcase-breadcrumb">
+          <a href="/index.html">Home</a>
+          <span>/</span>
+          <a href="/showcase.html">Showcases</a>
+          <span>/</span>
+          <span id="breadcrumbCategory" style="color: var(--accent-gold); font-weight: 600;">Hotels & Boutique Resorts</span>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: gap; gap: 24px;">
+          <div style="max-width: 800px;">
+            <div class="section-badge" id="showcaseBadge">
+              ★ Architectural Showcase • Hotels & Resorts
+            </div>
+            <h1 class="hero-title" id="showcaseTitle" style="font-size: 2.8rem; margin-bottom: 16px;">
+              Hotels & Boutique Resorts Portfolio
+            </h1>
+            <p class="hero-description" id="showcaseSubtitle" style="margin-bottom: 24px; font-size: 1.05rem;">
+              Explore our turnkey hotel fit-outs, luxury suites, grand double-height lobbies, acoustic guest corridors, and coastal resort developments executed across India.
+            </p>
+          </div>
+
+          <div style="display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
+            <a href="#uploadSection" class="btn btn-gold btn-sm">
+              Upload Project Drawings ↓
+            </a>
+            <a href="/index.html" class="btn btn-secondary btn-sm">
+              ← Return to Main Page
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sticky Sector Tabs Bar -->
+    <div class="showcase-tabs-wrapper">
+      <div class="container">
+        <div class="showcase-tabs" id="showcaseTabs">
+          <button class="showcase-tab active" data-category="hotels">
+            <span class="tab-icon">🏨</span>
+            <span>Hotels & Resorts</span>
+          </button>
+          <button class="showcase-tab" data-category="hospitality">
+            <span class="tab-icon">🍽️</span>
+            <span>Hospitality & Dining</span>
+          </button>
+          <button class="showcase-tab" data-category="residential">
+            <span class="tab-icon">🏡</span>
+            <span>Luxury Residential</span>
+          </button>
+          <button class="showcase-tab" data-category="central_kitchen">
+            <span class="tab-icon">🏭</span>
+            <span>Central Kitchens</span>
+          </button>
+          <button class="showcase-tab" data-category="all">
+            <span class="tab-icon">🌐</span>
+            <span>All Sectors</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Projects Showcase Grid -->
+    <section class="section-padding" style="padding-top: 10px; padding-bottom: 60px;">
+      <div class="container">
+        <div class="portfolio-grid" id="showcaseGrid">
+          <!-- Fallback Hotel 1 -->
+          <div class="project-card" data-category="hotels">
+            <div class="project-img-wrap">
+              <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80" alt="The Grand Pavilion Luxury Hotel">
+              <span class="project-cat-badge">HOTELS</span>
+            </div>
+            <div class="project-body">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+                <span style="font-size: 0.75rem; color: var(--accent-gold); font-weight: 600; text-transform: uppercase;">
+                  Royal Orchid & Parinee
+                </span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">32,000 sq.ft</span>
+              </div>
+              <h3 class="project-title">The Grand Pavilion Luxury Suites & Hotel</h3>
+              <div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px;">📍 BKC / Santacruz, Mumbai</div>
+              <p class="project-desc">Turnkey execution of 65 boutique keys, double-height grand arrival lobby, all-day dining restaurant, and rooftop pool deck. Included complete civil fit-out and factory-made millwork.</p>
+              <div class="project-scope-list">
+                <span class="project-scope-item">Grand Double Lobby</span>
+                <span class="project-scope-item">Acoustic Keys</span>
+                <span class="project-scope-item">Factory Millwork</span>
+              </div>
+              <div class="project-card-footer">
+                <button class="btn-link view-blueprint-btn" data-slug="grand-pavilion-luxury-hotel">View Blueprint & Gallery →</button>
+                <button class="btn btn-gold btn-xs upload-similar-btn" data-slug="grand-pavilion-luxury-hotel" data-title="The Grand Pavilion Luxury Hotel" data-category="hotels">Upload Similar Brief ↗</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fallback Hotel 2 -->
+          <div class="project-card" data-category="hotels">
+            <div class="project-img-wrap">
+              <img src="https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=1200&q=80" alt="Solstice Bay Boutique Hotel">
+              <span class="project-cat-badge">HOTELS</span>
+            </div>
+            <div class="project-body">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+                <span style="font-size: 0.75rem; color: var(--accent-gold); font-weight: 600; text-transform: uppercase;">
+                  White Oak Hospitality
+                </span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">24,000 sq.ft</span>
+              </div>
+              <h3 class="project-title">Solstice Bay Boutique Coastal Hotel & Spa</h3>
+              <div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px;">📍 Alibaug, Maharashtra</div>
+              <p class="project-desc">Boutique coastal resort featuring handcrafted teak furniture fabricated at our Nalasopara facility, passive cooling cross-ventilation, luxury stone masonry suites, and wellness pavilion.</p>
+              <div class="project-scope-list">
+                <span class="project-scope-item">Civil & Fit-out</span>
+                <span class="project-scope-item">Bespoke Teak Millwork</span>
+                <span class="project-scope-item">Passive Cooling</span>
+              </div>
+              <div class="project-card-footer">
+                <button class="btn-link view-blueprint-btn" data-slug="solstice-bay-boutique-hotel">View Blueprint & Gallery →</button>
+                <button class="btn btn-gold btn-xs upload-similar-btn" data-slug="solstice-bay-boutique-hotel" data-title="Solstice Bay Boutique Hotel" data-category="hotels">Upload Similar Brief ↗</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dedicated Project Upload & Brief Submission Section -->
+    <section class="section-padding" id="uploadSection" style="background-color: var(--bg-surface); padding-top: 40px;">
+      <div class="container">
+        <div class="upload-brief-section">
+          <div class="upload-brief-header">
+            <div class="section-badge">Client & Architect Portal</div>
+            <h2 class="section-title" id="uploadSectorTitle" style="font-size: 2.2rem;">
+              Submit & Upload Your Project Brief or Layout Drawings
+            </h2>
+            <p class="section-subtitle">
+              Planning a new project or seeking turnkey execution accountability? Upload your architectural drawings (PDF/CAD/Images) or enter project specs for a confidential feasibility assessment and budget estimation.
+            </p>
+          </div>
+
+          <form id="projectUploadForm">
+            <!-- Sector Selector Pills -->
+            <div style="margin-bottom: 28px;">
+              <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--accent-gold); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em;">
+                Select Project Sector *
+              </label>
+              <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <label class="scope-checkbox-label">
+                  <input type="radio" name="upload_sector" value="hotels" checked>
+                  <span>🏨 Hotels & Resorts</span>
+                </label>
+                <label class="scope-checkbox-label">
+                  <input type="radio" name="upload_sector" value="hospitality">
+                  <span>🍽️ Hospitality & Dining</span>
+                </label>
+                <label class="scope-checkbox-label">
+                  <input type="radio" name="upload_sector" value="residential">
+                  <span>🏡 Luxury Residential</span>
+                </label>
+                <label class="scope-checkbox-label">
+                  <input type="radio" name="upload_sector" value="central_kitchen">
+                  <span>🏭 Central Kitchens</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Two Column Form Details -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 24px;">
+              <div>
+                <label class="form-label">Project / Property Name *</label>
+                <input type="text" id="projectTitleInput" class="form-control" placeholder="e.g. 40-Key Luxury Resort / 5BHK Penthouse" required>
+              </div>
+
+              <div>
+                <label class="form-label">Client / Architectural Firm Name</label>
+                <input type="text" id="uploaderFirm" class="form-control" placeholder="e.g. SP+A Associates / Private HNI">
+              </div>
+
+              <div>
+                <label class="form-label">Contact Person Name *</label>
+                <input type="text" id="uploaderName" class="form-control" placeholder="Full Name" required>
+              </div>
+
+              <div>
+                <label class="form-label">Mobile Number (Indian 10-digit) *</label>
+                <input type="tel" id="uploaderPhone" class="form-control" placeholder="e.g. 9892699850" required pattern="[6-9][0-9]{9}">
+              </div>
+
+              <div>
+                <label class="form-label">Email Address *</label>
+                <input type="email" id="uploaderEmail" class="form-control" placeholder="name@domain.com" required>
+              </div>
+
+              <div>
+                <label class="form-label">Project Location / City *</label>
+                <input type="text" id="uploaderLocation" class="form-control" placeholder="e.g. Bandra Kurla Complex, Mumbai" required>
+              </div>
+
+              <div>
+                <label class="form-label">Estimated Carpet Area (sq.ft)</label>
+                <input type="number" id="uploaderArea" class="form-control" placeholder="e.g. 12000" min="100" max="100000">
+              </div>
+            </div>
+
+            <!-- Drag & Drop File Upload Zone -->
+            <div style="margin-bottom: 28px;">
+              <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--accent-gold); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
+                Upload Architectural Drawings, Layouts, or RFP (PDF, JPG, PNG — up to 10MB)
+              </label>
+
+              <div class="upload-dropzone" id="uploadDropzone">
+                <input type="file" id="projectFileInput" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display: none;">
+                <div class="upload-dropzone-icon">📁</div>
+                <div style="font-size: 1.05rem; font-weight: 600; color: #fff; margin-bottom: 4px;">
+                  Click or Drag & Drop Drawing / RFP Files Here
+                </div>
+                <div style="font-size: 0.82rem; color: var(--text-dim);">
+                  Supported formats: PDF blueprints, JPG floorplans, PNG sketches, and CAD exports (Max 10MB)
+                </div>
+
+                <div class="upload-file-pill" id="uploadFilePill" style="display: none;">
+                  <span>📄</span>
+                  <span id="uploadFileName">filename.pdf</span>
+                  <button type="button" id="btnRemoveFile" title="Remove attached file">&times;</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Turnkey Scope Required Checkboxes -->
+            <div style="margin-bottom: 28px;">
+              <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--accent-gold); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
+                Required Execution Scope (Check all that apply)
+              </label>
+              <div class="scope-checkbox-grid">
+                <label class="scope-checkbox-label">
+                  <input type="checkbox" name="project_scope" value="Turnkey Interior Fit-out" checked>
+                  <span>Turnkey Interior Contracting</span>
+                </label>
+                <label class="scope-checkbox-label">
+                  <input type="checkbox" name="project_scope" value="Factory Finished Furniture" checked>
+                  <span>Factory Finished Furniture (Nalasopara)</span>
+                </label>
+                <label class="scope-checkbox-label">
+                  <input type="checkbox" name="project_scope" value="MEP & HVAC Air Balancing" checked>
+                  <span>MEP & HVAC Air Balancing</span>
+                </label>
+                <label class="scope-checkbox-label">
+                  <input type="checkbox" name="project_scope" value="Kitchen Exhaust Scrubbers">
+                  <span>Kitchen Exhaust & Scrubbers</span>
+                </label>
+                <label class="scope-checkbox-label">
+                  <input type="checkbox" name="project_scope" value="Civil Contracting & Flooring">
+                  <span>Civil Contracting & Marble Work</span>
+                </label>
+                <label class="scope-checkbox-label">
+                  <input type="checkbox" name="project_scope" value="Post-Handover AMC">
+                  <span>Preventive Maintenance AMC</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Project Brief Notes -->
+            <div style="margin-bottom: 24px;">
+              <label class="form-label">Project Scope Notes & Special Requirements</label>
+              <textarea id="briefNotes" class="form-control" rows="4" placeholder="Detail any critical handover dates, finishes, brand guidelines, or specific site constraints..."></textarea>
+            </div>
+
+            <!-- DPDP Compliance Consent -->
+            <div style="margin-bottom: 28px;">
+              <label style="display: flex; align-items: flex-start; gap: 10px; font-size: 0.82rem; color: var(--text-dim); cursor: pointer;">
+                <input type="checkbox" id="uploaderConsent" checked required style="margin-top: 3px; accent-color: var(--accent-gold);">
+                <span>I confirm that the submitted project details are accurate and authorize Besim Design to evaluate the brief for engineering consultation under data privacy compliance.</span>
+              </label>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn btn-primary" id="btnSubmitUpload" style="width: 100%; justify-content: center; padding: 16px; font-size: 1rem;">
+              <span id="submitUploadText">Submit Project Brief & Upload Drawings →</span>
+              <span id="submitUploadSpinner" style="display: none;">Securing Transmission & Uploading...</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Project Blueprint Modal Dialog -->
+  <div class="modal-overlay" id="projectModal">
+    <div class="modal-content">
+      <button class="modal-close" id="modalClose">&times;</button>
+      <div id="modalBody">
+        <!-- Rendered dynamically by showcase.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="nav-logo" style="margin-bottom: 16px;">
+            <div class="nav-logo-mark">BD</div>
+            <div class="nav-logo-text">
+              <span class="nav-logo-name">BESIM</span>
+              <span class="nav-logo-sub">DESIGN</span>
+            </div>
+          </div>
+          <p style="font-size: 0.88rem; color: var(--text-dim); line-height: 1.7; max-width: 320px;">
+            Turnkey architectural contracting, factory finished joinery from our Nalasopara plant, and comprehensive MEP engineering in Mumbai since 1992.
+          </p>
+        </div>
+
+        <div class="footer-column">
+          <h5>Dedicated Portfolios</h5>
+          <ul>
+            <li><a href="/hotels.html">Hotels & Resorts ↗</a></li>
+            <li><a href="/hospitality.html">Hospitality & Dining ↗</a></li>
+            <li><a href="/residential.html">Luxury Residential ↗</a></li>
+            <li><a href="/central-kitchen.html">Central Kitchens ↗</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-column">
+          <h5>Studio Contact</h5>
+          <ul>
+            <li><a href="tel:+919892699850">+91 98926 99850</a></li>
+            <li><a href="mailto:besimdesigne@gmail.com">besimdesigne@gmail.com</a></li>
+            <li><a href="/privacy.html">Privacy & DPDP Policy</a></li>
+            <li><a href="/admin/login.html" class="stealth-admin-link">Staff CRM Login</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>
+          <a href="/admin/login.html" class="stealth-admin-link">© 2026 Besim Design</a>. All Rights Reserved.
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/showcase.js"></script>
+</body>
+</html>

@@ -48,7 +48,7 @@ export const projectSchema = z.object({
  */
 export function getPublishedProjects(req, res, next) {
   try {
-    const { category } = req.query;
+    const { category, exclude } = req.query;
     let sql = `
       SELECT id, title, slug, category, client_name, location, area_sqft, description, scope, image_url, gallery, is_featured, sort_order, created_at
       FROM projects
@@ -59,6 +59,14 @@ export function getPublishedProjects(req, res, next) {
     if (category && category !== 'all') {
       sql += ' AND (LOWER(category) = LOWER(?) OR category LIKE ?)';
       params.push(category, `%${category}%`);
+    }
+
+    if (exclude) {
+      const exclusions = exclude.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+      for (const exc of exclusions) {
+        sql += ' AND LOWER(category) != ? AND category NOT LIKE ?';
+        params.push(exc, `%${exc}%`);
+      }
     }
 
     sql += ' ORDER BY sort_order ASC, created_at DESC';

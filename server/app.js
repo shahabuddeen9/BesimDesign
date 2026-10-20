@@ -80,6 +80,42 @@ if (fs.existsSync(distPath)) {
 }
 app.use(express.static(publicPath));
 
+// Clean routes for dedicated showcase experiences
+app.get(['/central-kitchen', '/central-kitchen.html'], (req, res) => {
+  const distFile = path.resolve(distPath, 'central-kitchen.html');
+  const pubFile = path.resolve(publicPath, 'central-kitchen.html');
+  const target = fs.existsSync(distFile) ? distFile : pubFile;
+  res.sendFile(target);
+});
+
+app.get(['/hotels', '/hotels.html'], (req, res) => {
+  const distFile = path.resolve(distPath, 'hotels.html');
+  const pubFile = path.resolve(publicPath, 'hotels.html');
+  const target = fs.existsSync(distFile) ? distFile : pubFile;
+  res.sendFile(target);
+});
+
+app.get(['/hospitality', '/hospitality.html'], (req, res) => {
+  const distFile = path.resolve(distPath, 'hospitality.html');
+  const pubFile = path.resolve(publicPath, 'hospitality.html');
+  const target = fs.existsSync(distFile) ? distFile : pubFile;
+  res.sendFile(target);
+});
+
+app.get(['/residential', '/residential.html'], (req, res) => {
+  const distFile = path.resolve(distPath, 'residential.html');
+  const pubFile = path.resolve(publicPath, 'residential.html');
+  const target = fs.existsSync(distFile) ? distFile : pubFile;
+  res.sendFile(target);
+});
+
+app.get(['/showcase', '/showcase.html'], (req, res) => {
+  const distFile = path.resolve(distPath, 'showcase.html');
+  const pubFile = path.resolve(publicPath, 'showcase.html');
+  const target = fs.existsSync(distFile) ? distFile : pubFile;
+  res.sendFile(target);
+});
+
 // 7. General API Rate Limiting for /api
 app.use('/api', generalLimiter);
 

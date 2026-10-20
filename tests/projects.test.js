@@ -74,6 +74,31 @@ describe('Projects Lifecycle & Public Filtering', () => {
     expect(res.body.data.every((p) => p.category === 'restaurant')).toBe(true);
   });
 
+  it('should filter projects exclusively by category=central_kitchen', async () => {
+    const res = await request(app).get('/api/projects?category=central_kitchen');
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.length).toBeGreaterThan(0);
+    expect(res.body.data.every((p) => p.category === 'central_kitchen')).toBe(true);
+  });
+
+  it('should exclude central_kitchen projects when ?exclude=central_kitchen is passed', async () => {
+    const res = await request(app).get('/api/projects?exclude=central_kitchen');
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.length).toBeGreaterThan(0);
+    expect(res.body.data.every((p) => p.category !== 'central_kitchen')).toBe(true);
+  });
+
+  it('should serve /central-kitchen clean route returning 200 HTML', async () => {
+    const res = await request(app).get('/central-kitchen');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('text/html');
+  });
+
   it('should retrieve single project by slug', async () => {
     const res = await request(app).get(`/api/projects/${uniqueSlug}`);
 

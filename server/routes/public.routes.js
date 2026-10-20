@@ -31,7 +31,31 @@ publicRouter.get('/testimonials', getPublishedTestimonials);
 // 4. Studio FAQs
 publicRouter.get('/faqs', getPublishedFaqs);
 
+import { uploadImage } from '../middleware/upload.js';
+import AppError from '../utils/AppError.js';
+
 // 5. Download Company Profile Deck
 publicRouter.get('/download/company-profile', downloadCompanyProfile);
+
+// 6. Upload Project Brief / Drawings (JPG, PNG, WebP, PDF up to 10MB)
+publicRouter.post('/upload', uploadImage.single('file'), (req, res, next) => {
+  try {
+    if (!req.file) {
+      throw new AppError('No drawing or document file uploaded.', 400);
+    }
+    const fileUrl = `/uploads/${req.file.filename}`;
+    return res.status(200).json({
+      success: true,
+      message: 'Project file uploaded successfully.',
+      url: fileUrl,
+      filename: req.file.filename,
+      originalname: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 export default publicRouter;

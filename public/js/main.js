@@ -214,7 +214,7 @@ async function loadProjects() {
   if (!grid) return;
 
   try {
-    const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects`);
+    const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects?exclude=central_kitchen`);
     if (!res.ok) throw new Error('Failed to fetch projects');
     const json = await res.json();
 
@@ -674,9 +674,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const filterBtns = document.querySelectorAll('.filter-btn');
   filterBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
+      const cat = btn.dataset.category;
+      if (cat === 'central_kitchen') {
+        window.location.href = '/central-kitchen.html';
+        return;
+      }
+
       filterBtns.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
-      state.activeCategory = btn.dataset.category;
+      state.activeCategory = cat;
 
       if (state.projects.length > 0) {
         renderProjects(state.projects);
