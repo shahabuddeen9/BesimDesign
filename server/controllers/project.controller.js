@@ -48,7 +48,16 @@ export const projectSchema = z.object({
  */
 export function getPublishedProjects(req, res, next) {
   try {
-    const { category, exclude } = req.query;
+    let { category, exclude } = req.query;
+
+    // Smooth category alias normalization for hyphenated values
+    if (category) {
+      const catLower = String(category).toLowerCase().trim();
+      if (catLower === 'central-kitchen' || catLower === 'centralkitchen') {
+        category = 'central_kitchen';
+      }
+    }
+
     let sql = `
       SELECT id, title, slug, category, client_name, location, area_sqft, description, scope, image_url, gallery, is_featured, sort_order, created_at
       FROM projects
@@ -77,6 +86,7 @@ export function getPublishedProjects(req, res, next) {
       gallery: safeJsonParse(p.gallery),
     }));
 
+    res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
     return res.status(200).json({
       success: true,
       data: projects,

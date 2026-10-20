@@ -86,7 +86,6 @@ function renderProjects(projectsList) {
             <span style="font-size: 0.75rem; color: var(--accent-gold); font-weight: 600; text-transform: uppercase;">
               ${escapeHtml(project.client_name || 'Bespoke Private Residence')}
             </span>
-            <span style="font-size: 0.75rem; color: var(--text-dim);">${escapeHtml(area)}</span>
           </div>
           <h3 class="project-title">${escapeHtml(project.title)}</h3>
           <div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px;">
@@ -196,9 +195,9 @@ function openBlueprintModal(project) {
 
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 24px; background: rgba(18, 20, 24, 0.6); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
       <div>
-        <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">Carpet Area</div>
+        <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">Scale & Typology</div>
         <div style="font-size: 1.25rem; font-weight: 700; color: var(--accent-gold); font-family: var(--font-serif);">
-          ${project.area_sqft ? Number(project.area_sqft).toLocaleString() + ' sq.ft' : 'Turnkey Scale'}
+          Turnkey Luxury
         </div>
       </div>
       <div>

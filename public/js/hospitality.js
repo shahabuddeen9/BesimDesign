@@ -91,7 +91,6 @@ function renderProjects(projectsList) {
             <span style="font-size: 0.75rem; color: var(--accent-gold); font-weight: 600; text-transform: uppercase;">
               ${escapeHtml(p.client_name || 'Iconic Dining Landmark')}
             </span>
-            ${p.area_sqft ? `<span style="font-size: 0.75rem; color: var(--text-dim);">${Number(p.area_sqft).toLocaleString()} sq.ft</span>` : ''}
           </div>
           <h3 class="project-title">${escapeHtml(p.title)}</h3>
           ${p.location ? `<div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px;">📍 ${escapeHtml(p.location)}</div>` : ''}
@@ -200,7 +199,6 @@ function openHospitalityModal(project) {
       <div style="display: flex; gap: 20px; flex-wrap: wrap; color: var(--text-dim); font-size: 0.85rem;">
         ${project.client_name ? `<span>🍽️ Hospitality Client: <strong>${escapeHtml(project.client_name)}</strong></span>` : ''}
         ${project.location ? `<span>📍 Location: <strong>${escapeHtml(project.location)}</strong></span>` : ''}
-        ${project.area_sqft ? `<span>📐 Carpet Area: <strong>${Number(project.area_sqft).toLocaleString()} sq.ft</strong></span>` : ''}
       </div>
     </div>
 
