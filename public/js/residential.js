@@ -494,14 +494,14 @@ ${message || 'Requesting architectural consultation and turnkey interior quotati
 
         const waUrl = json.whatsapp_url || `https://wa.me/${waPhone}?text=${encodeURIComponent(waLines)}`;
 
-        showToast('✓ Luxury Residential brief registered! Opening WhatsApp...', 'success');
+        showToast(`✓ Luxury Residential brief registered!`, 'success');
         form.reset();
         const fileStatus = document.getElementById('residentialFileStatus');
         if (fileStatus) fileStatus.innerHTML = '';
 
-        setTimeout(() => {
-          window.location.href = waUrl;
-        }, 300);
+        try {
+          window.open(waUrl, '_blank', 'noopener,noreferrer');
+        } catch (_) {}
       } else {
         throw new Error(json.message || 'Submission failed. Please check inputs.');
       }
@@ -533,42 +533,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (modal) {
     modal.addEventListener('click', (e) => {
       if (e.target === modal) modal.classList.remove('active');
-    });
-  }
-
-  // Mobile nav toggle & smooth dropdown handling
-  const navToggle = document.getElementById('navToggle');
-  const navLinks = document.getElementById('navLinks');
-  const navbarEl = document.getElementById('navbar');
-  if (navToggle && navLinks) {
-    navToggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const isOpen = navLinks.classList.toggle('active');
-      navToggle.textContent = isOpen ? '✕' : '☰';
-    });
-
-    document.querySelectorAll('.nav-item-dropdown > .nav-link').forEach((dropdownLink) => {
-      dropdownLink.addEventListener('click', (e) => {
-        if (window.innerWidth <= 992) {
-          e.preventDefault();
-          const parent = dropdownLink.closest('.nav-item-dropdown');
-          if (parent) parent.classList.toggle('open');
-        }
-      });
-    });
-
-    document.querySelectorAll('.nav-link:not(.nav-item-dropdown > .nav-link), .dropdown-item').forEach((link) => {
-      link.addEventListener('click', () => {
-        navLinks.classList.remove('active');
-        if (navToggle) navToggle.textContent = '☰';
-      });
-    });
-
-    document.addEventListener('click', (e) => {
-      if (navbarEl && !navbarEl.contains(e.target) && navLinks.classList.contains('active')) {
-        navLinks.classList.remove('active');
-        if (navToggle) navToggle.textContent = '☰';
-      }
     });
   }
 });

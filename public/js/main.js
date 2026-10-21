@@ -679,15 +679,15 @@ function initContactForm() {
         // Success state
         form.reset();
         displayFormSuccess(
-          `Thank you, ${name}! Your brief (${formattedId}) has been registered. Connecting you to WhatsApp...`,
+          `Thank you, ${name}! Your brief (${formattedId}) has been registered with Besim Design. Our turnkey architectural team will review your specifications.`,
           waUrl
         );
-        showToast('✓ Project brief registered! Opening WhatsApp...', 'success');
+        showToast(`✓ Project brief ${formattedId} registered!`, 'success');
 
-        // Automatically take user to WhatsApp
-        setTimeout(() => {
-          window.location.href = waUrl;
-        }, 300);
+        // Gracefully attempt opening WhatsApp in a new tab without leaving the site
+        try {
+          window.open(waUrl, '_blank', 'noopener,noreferrer');
+        } catch (_) {}
       } else {
         // Server validation or rate limit error
         let errorMsg = result.message || 'Unable to submit enquiry. Please check your inputs and try again.';
@@ -746,83 +746,8 @@ function initContactForm() {
 // =============================================================================
 // Global Initializer
 // =============================================================================
-
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. Mobile navigation toggle & smooth dropdown handling
-  const navToggle = document.getElementById('navToggle');
-  const navLinks = document.getElementById('navLinks');
-  const navbarEl = document.getElementById('navbar');
-
-  if (navToggle && navLinks) {
-    navToggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const isOpen = navLinks.classList.toggle('active');
-      navToggle.textContent = isOpen ? '✕' : '☰';
-      navToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-    });
-
-    // Handle mobile dropdown toggle on "Project"
-    document.querySelectorAll('.nav-item-dropdown > .nav-link').forEach((dropdownLink) => {
-      dropdownLink.addEventListener('click', (e) => {
-        if (window.innerWidth <= 992) {
-          e.preventDefault();
-          const parent = dropdownLink.closest('.nav-item-dropdown');
-          if (parent) parent.classList.toggle('open');
-        }
-      });
-    });
-
-    // Close mobile menu when clicking regular links or dropdown items
-    document.querySelectorAll('.nav-link:not(.nav-item-dropdown > .nav-link), .dropdown-item').forEach((link) => {
-      link.addEventListener('click', () => {
-        navLinks.classList.remove('active');
-        if (navToggle) {
-          navToggle.textContent = '☰';
-          navToggle.setAttribute('aria-expanded', 'false');
-        }
-      });
-    });
-
-    // Close mobile menu if clicked outside
-    document.addEventListener('click', (e) => {
-      if (navbarEl && !navbarEl.contains(e.target) && navLinks.classList.contains('active')) {
-        navLinks.classList.remove('active');
-        if (navToggle) {
-          navToggle.textContent = '☰';
-          navToggle.setAttribute('aria-expanded', 'false');
-        }
-      }
-    });
-  }
-
-  // Smooth in-page anchor scrolling with fixed header offset
-  document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
-    anchor.addEventListener('click', function(e) {
-      const targetId = this.getAttribute('href');
-      if (!targetId || targetId === '#') return;
-      
-      // If on mobile and tapping dropdown parent, allow dropdown toggle above to handle
-      if (window.innerWidth <= 992 && this.classList.contains('nav-link') && this.closest('.nav-item-dropdown')) {
-        return;
-      }
-
-      const targetElement = document.querySelector(targetId);
-      if (targetElement) {
-        e.preventDefault();
-        const headerHeight = 80;
-        const targetPos = targetElement.getBoundingClientRect().top + window.pageYOffset - headerHeight;
-        window.scrollTo({
-          top: targetPos,
-          behavior: 'smooth'
-        });
-        if (window.history.pushState) {
-          window.history.pushState(null, null, targetId);
-        }
-      }
-    });
-  });
-
-  // 2. Portfolio Category Filter Buttons
+  // 1. Portfolio Category Filter Buttons
   const filterBtns = document.querySelectorAll('.filter-btn');
   filterBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -831,7 +756,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = '/central-kitchen.html';
         return;
       }
-
       filterBtns.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       state.activeCategory = cat;
@@ -852,7 +776,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 3. Modal Close handlers & Escape key
+  // 2. Modal Close handlers & Escape key
   const modal = document.getElementById('projectModal');
   const modalClose = document.getElementById('modalClose');
   if (modal && modalClose) {
@@ -861,65 +785,22 @@ document.addEventListener('DOMContentLoaded', () => {
       if (e.target === modal) closeProjectModal();
     });
   }
-
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeProjectModal();
     }
   });
 
-  // 4. Smooth Navbar Scroll & Active Link Tracking
-  const navbar = document.getElementById('navbar');
-  const sections = document.querySelectorAll('section[id]');
-  const navLinkEls = document.querySelectorAll('.nav-link');
-
-  function handleNavbarScroll() {
-    if (!navbar) return;
-    if (window.scrollY > 30) {
-      navbar.classList.add('scrolled');
-    } else {
-      navbar.classList.remove('scrolled');
-    }
-
-    // ScrollSpy
-    const scrollPos = window.scrollY + 120;
-    sections.forEach((sec) => {
-      const top = sec.offsetTop;
-      const height = sec.offsetHeight;
-      const id = sec.getAttribute('id');
-      if (scrollPos >= top && scrollPos < top + height) {
-        navLinkEls.forEach((link) => {
-          if (link.getAttribute('href') === `#${id}`) {
-            link.classList.add('active');
-          } else {
-            link.classList.remove('active');
-          }
-        });
-      }
-    });
-  }
-
-  window.addEventListener('scroll', handleNavbarScroll, { passive: true });
-  handleNavbarScroll();
-
-  // 5. Initialize Components
+  // 3. Initialize Interactive Components
   attachProjectModalTriggers();
   attachFaqAccordion();
   initCalculator();
   initContactForm();
 
-  // 6. Fetch dynamic API data
+  // 4. Fetch Dynamic API Data
   loadProjects();
   loadClients();
   loadTestimonials();
   loadFaqs();
-
-  // 7. Stealth Admin Portal keyboard shortcut (Alt+A or Ctrl+Shift+A)
-  window.addEventListener('keydown', (e) => {
-    if ((e.altKey && e.key.toLowerCase() === 'a') || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a')) {
-      e.preventDefault();
-      window.location.href = '/admin/login.html';
-    }
-  });
 });
 
