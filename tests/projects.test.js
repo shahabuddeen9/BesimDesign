@@ -137,6 +137,49 @@ describe('Projects Lifecycle & Public Filtering', () => {
     expect(res.body.success).toBe(true);
   });
 
+  it('should allow admin to add multiple photos to a selected project (supporting 4-5 photos)', async () => {
+    const photosToAdd = [
+      'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=800&q=80',
+    ];
+
+    const res = await request(app)
+      .post(`/api/admin/projects/${createdProjectId}/photos`)
+      .set('Cookie', [authCookie])
+      .send({ urls: photosToAdd });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.gallery.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('should allow admin to set a specific photo as primary cover', async () => {
+    const newCoverUrl = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80';
+
+    const res = await request(app)
+      .patch(`/api/admin/projects/${createdProjectId}/photos/cover`)
+      .set('Cookie', [authCookie])
+      .send({ url: newCoverUrl });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.image_url).toBe(newCoverUrl);
+  });
+
+  it('should allow admin to delete a photo from the selected project', async () => {
+    const photoToDelete = 'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=800&q=80';
+
+    const res = await request(app)
+      .delete(`/api/admin/projects/${createdProjectId}/photos`)
+      .set('Cookie', [authCookie])
+      .send({ url: photoToDelete });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.gallery.includes(photoToDelete)).toBe(false);
+  });
+
   it('should allow admin to delete a project', async () => {
     const res = await request(app)
       .delete(`/api/admin/projects/${createdProjectId}`)

@@ -803,10 +803,15 @@ function renderAdminProjectsTable(projects) {
 
   tbody.innerHTML = projects.map((p) => {
     const publicUrl = getProjectPublicUrl(p.category, p.slug);
+    const galleryCount = Array.isArray(p.gallery) ? p.gallery.length : 0;
+    const totalPhotos = (p.image_url ? 1 : 0) + galleryCount;
     return `
     <tr id="proj-row-${p.id}" style="transition: all 0.25s ease;">
       <td style="width: 80px;">
-        <img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.title)}" style="width: 68px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid var(--admin-border);" onerror="this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80'">
+        <div style="position: relative; cursor: pointer; display: inline-block;" title="Click to view and delete project photos" onclick="openProjectPhotosModal('${escapeHtml(p.id)}')">
+          <img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.title)}" style="width: 68px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid var(--admin-border);" onerror="this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80'">
+          <span style="position: absolute; bottom: 2px; right: 2px; background: rgba(0,0,0,0.85); color: var(--gold); font-size: 0.65rem; font-weight: 700; padding: 1px 4px; border-radius: 3px; border: 1px solid rgba(197, 168, 128, 0.4);">📸 ${totalPhotos}</span>
+        </div>
       </td>
       <td>
         <div style="display: flex; align-items: center; gap: 8px;">
@@ -832,11 +837,14 @@ function renderAdminProjectsTable(projects) {
         ${p.is_featured ? '<span style="color: var(--gold); margin-left: 6px; font-size: 1rem;" title="Featured on Homepage">★</span>' : ''}
       </td>
       <td>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <button class="btn btn-outline btn-sm btn-edit-proj" data-id="${escapeHtml(p.id)}" style="padding: 6px 12px; font-weight: 600;">
+        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+          <button class="btn btn-gold btn-sm btn-photos-proj" data-id="${escapeHtml(p.id)}" style="padding: 5px 10px; font-weight: 600; white-space: nowrap;" title="Manage and delete photos for this project">
+            📸 Photos (${totalPhotos})
+          </button>
+          <button class="btn btn-outline btn-sm btn-edit-proj" data-id="${escapeHtml(p.id)}" style="padding: 5px 10px; font-weight: 600;">
             ✏️ Edit
           </button>
-          <button class="btn btn-danger btn-sm btn-del-proj" data-id="${escapeHtml(p.id)}" style="padding: 6px 12px; font-weight: 600;">
+          <button class="btn btn-danger btn-sm btn-del-proj" data-id="${escapeHtml(p.id)}" style="padding: 5px 10px; font-weight: 600;">
             🗑️ Delete
           </button>
         </div>
@@ -845,6 +853,9 @@ function renderAdminProjectsTable(projects) {
   `;
   }).join('');
 
+  document.querySelectorAll('.btn-photos-proj').forEach((b) => {
+    b.onclick = () => openProjectPhotosModal(b.dataset.id);
+  });
   document.querySelectorAll('.btn-edit-proj').forEach((b) => {
     b.onclick = () => editProject(b.dataset.id);
   });
@@ -887,14 +898,23 @@ function editProject(id) {
   if (areaInput) areaInput.value = p.area_sqft || 0;
   document.getElementById('projDesc').value = p.description || '';
   
+  const coverUrl = p.image_url || '';
+  const gallery = Array.isArray(p.gallery) ? p.gallery : (function() {
+    try { return JSON.parse(p.gallery || '[]'); } catch (_) { return []; }
+  })();
+
   const imageUrlInput = document.getElementById('projImageUrl');
   if (imageUrlInput) {
-    imageUrlInput.value = p.image_url || '';
-    updateProjectImagePreview(p.image_url || '');
+    imageUrlInput.value = coverUrl;
+  }
+  const galleryInput = document.getElementById('projGallery');
+  if (galleryInput) {
+    galleryInput.value = JSON.stringify(gallery);
   }
 
+  renderModalProjectPhotosGrid();
+
   document.getElementById('projScope').value = Array.isArray(p.scope) ? p.scope.join(', ') : (p.scope || '');
-  document.getElementById('projGallery').value = Array.isArray(p.gallery) ? p.gallery.join(', ') : (p.gallery || '');
   document.getElementById('projSort').value = p.sort_order ?? 0;
   document.getElementById('projFeatured').value = p.is_featured ?? 0;
   document.getElementById('projPublished').value = p.is_published ?? 1;
@@ -951,6 +971,313 @@ async function deleteProject(id) {
     }
   }
 }
+
+// =============================================================================
+// Project Photo Gallery & Photo Deletion Helpers
+// =============================================================================
+
+function renderModalProjectPhotosGrid() {
+  const grid = document.getElementById('modalProjPhotosGrid');
+  const countBadge = document.getElementById('editProjPhotoCountBadge');
+  if (!grid) return;
+
+  const coverUrl = (document.getElementById('projImageUrl')?.value || '').trim();
+  let gallery = [];
+  try {
+    const raw = document.getElementById('projGallery')?.value;
+    gallery = Array.isArray(raw) ? raw : JSON.parse(raw || '[]');
+  } catch (_) {
+    gallery = (document.getElementById('projGallery')?.value || '').split(',').map((s) => s.trim()).filter(Boolean);
+  }
+
+  const allPhotos = [];
+  if (coverUrl) {
+    allPhotos.push({ url: coverUrl, isCover: true });
+  }
+  gallery.forEach((url) => {
+    if (url && url !== coverUrl && !allPhotos.some((p) => p.url === url)) {
+      allPhotos.push({ url, isCover: false });
+    }
+  });
+
+  if (countBadge) {
+    countBadge.textContent = `${allPhotos.length} Photo${allPhotos.length === 1 ? '' : 's'}${allPhotos.length >= 4 ? ' ★ Ready' : ' (Add 4-5 photos)'}`;
+  }
+
+  if (allPhotos.length === 0) {
+    grid.innerHTML = `
+      <div style="grid-column: 1 / -1; padding: 22px; text-align: center; color: var(--text-dim); background: rgba(0,0,0,0.25); border-radius: 6px; font-size: 0.82rem;">
+        No photos added yet. Upload 4-5 photos or paste an image URL below.
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = allPhotos.map((item, idx) => `
+    <div class="photo-card ${item.isCover ? 'is-cover' : ''}" style="border-radius: 6px;">
+      <div class="photo-card-img-wrap" style="height: 105px;">
+        <img src="${escapeHtml(item.url)}" alt="Photo ${idx + 1}" onerror="this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80'">
+        <span class="photo-card-badge ${item.isCover ? 'badge-cover' : ''}">
+          ${item.isCover ? '⭐ Cover' : `Photo ${idx + 1}`}
+        </span>
+      </div>
+      <div class="photo-card-actions" style="padding: 5px 8px;">
+        ${!item.isCover ? `
+          <button type="button" class="btn-photo-action btn-photo-cover" title="Set as primary cover photo" onclick="makeFormPhotoCover('${escapeHtml(item.url)}')">
+            ⭐ Cover
+          </button>
+        ` : '<span style="font-size: 0.68rem; color: var(--gold); font-weight: 700;">★ Cover</span>'}
+        <button type="button" class="btn-photo-action btn-photo-delete" title="Delete this photo" onclick="removeFormPhoto('${escapeHtml(item.url)}')">
+          🗑️ Del
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+window.makeFormPhotoCover = function(url) {
+  const currentCover = (document.getElementById('projImageUrl')?.value || '').trim();
+  let gallery = [];
+  try {
+    gallery = JSON.parse(document.getElementById('projGallery')?.value || '[]');
+  } catch (_) {
+    gallery = [];
+  }
+  
+  gallery = gallery.filter((u) => u !== url);
+  if (currentCover && currentCover !== url && !gallery.includes(currentCover)) {
+    gallery.unshift(currentCover);
+  }
+  
+  if (document.getElementById('projImageUrl')) document.getElementById('projImageUrl').value = url;
+  if (document.getElementById('projGallery')) document.getElementById('projGallery').value = JSON.stringify(gallery);
+  renderModalProjectPhotosGrid();
+  showAdminToast('Cover photo updated.');
+};
+
+window.removeFormPhoto = function(url) {
+  const currentCover = (document.getElementById('projImageUrl')?.value || '').trim();
+  let gallery = [];
+  try {
+    gallery = JSON.parse(document.getElementById('projGallery')?.value || '[]');
+  } catch (_) {
+    gallery = [];
+  }
+
+  if (currentCover === url) {
+    if (gallery.length > 0) {
+      if (document.getElementById('projImageUrl')) document.getElementById('projImageUrl').value = gallery[0];
+      gallery = gallery.slice(1);
+    } else {
+      if (document.getElementById('projImageUrl')) document.getElementById('projImageUrl').value = '';
+    }
+  } else {
+    gallery = gallery.filter((u) => u !== url);
+  }
+
+  if (document.getElementById('projGallery')) document.getElementById('projGallery').value = JSON.stringify(gallery);
+  renderModalProjectPhotosGrid();
+  showAdminToast('Photo removed from project.');
+};
+
+function updatePhotoModalProjectSelect() {
+  const selectEl = document.getElementById('selectActiveProjectPhotos');
+  if (!selectEl || !state.projects) return;
+
+  const currentId = state.activePhotoProject ? state.activePhotoProject.id.toString() : '';
+
+  selectEl.innerHTML = state.projects.map((proj) => {
+    const g = Array.isArray(proj.gallery) ? proj.gallery : [];
+    const total = (proj.image_url ? 1 : 0) + g.filter((u) => u && u !== proj.image_url).length;
+    const isSelected = proj.id.toString() === currentId;
+    return `<option value="${escapeHtml(proj.id)}" ${isSelected ? 'selected' : ''}>
+      ${escapeHtml(proj.title)} — [${total} Photo${total === 1 ? '' : 's'}]
+    </option>`;
+  }).join('');
+
+  selectEl.onchange = () => {
+    const targetId = selectEl.value;
+    const targetProj = (state.projects || []).find((item) => item.id.toString() === targetId);
+    if (targetProj) {
+      state.activePhotoProject = targetProj;
+      updatePhotoModalHeaders(targetProj);
+      renderDedicatedProjectPhotosGrid();
+    }
+  };
+}
+
+function updatePhotoModalHeaders(p) {
+  if (!p) return;
+  const titleEl = document.getElementById('photoModalProjectTitle');
+  if (titleEl) titleEl.textContent = `Photos for: ${p.title}`;
+
+  const catEl = document.getElementById('photoModalProjectCat');
+  if (catEl) catEl.textContent = (p.category || 'PROJECT').toUpperCase().replace('_', ' ');
+
+  const feedbackEl = document.getElementById('photoUploadFeedback');
+  if (feedbackEl) feedbackEl.textContent = '';
+}
+
+function openProjectPhotosModal(projectId) {
+  if (!state.projects || state.projects.length === 0) {
+    showAdminToast('No projects available.', 'error');
+    return;
+  }
+
+  let p = state.projects.find((item) => item.id.toString() === (projectId || '').toString());
+  if (!p) {
+    p = state.projects[0];
+  }
+  if (!p) {
+    showAdminToast('Project not found.', 'error');
+    return;
+  }
+
+  state.activePhotoProject = p;
+  updatePhotoModalHeaders(p);
+  updatePhotoModalProjectSelect();
+  renderDedicatedProjectPhotosGrid();
+  openModal('modalProjectPhotos');
+}
+window.openProjectPhotosModal = openProjectPhotosModal;
+
+function renderDedicatedProjectPhotosGrid() {
+  const p = state.activePhotoProject;
+  if (!p) return;
+
+  const grid = document.getElementById('projectPhotosGrid');
+  const countBadge = document.getElementById('photoModalCountBadge');
+  if (!grid) return;
+
+  const coverUrl = (p.image_url || '').trim();
+  const gallery = Array.isArray(p.gallery) ? p.gallery : (function() {
+    try { return JSON.parse(p.gallery || '[]'); } catch (_) { return []; }
+  })();
+
+  const allPhotos = [];
+  if (coverUrl) {
+    allPhotos.push({ url: coverUrl, isCover: true });
+  }
+  gallery.forEach((url) => {
+    const clean = (url || '').trim();
+    if (clean && clean !== coverUrl && !allPhotos.some((item) => item.url === clean)) {
+      allPhotos.push({ url: clean, isCover: false });
+    }
+  });
+
+  if (countBadge) {
+    countBadge.textContent = `${allPhotos.length} Photo${allPhotos.length === 1 ? '' : 's'}${allPhotos.length >= 4 ? ' ★ Ready (4-5 Photos)' : ' (Add 4-5 photos)'}`;
+  }
+
+  if (allPhotos.length === 0) {
+    grid.innerHTML = `
+      <div style="grid-column: 1 / -1; padding: 36px 20px; text-align: center; color: var(--text-dim); background: rgba(0,0,0,0.25); border-radius: 8px; border: 1px dashed var(--admin-border);">
+        <div style="font-size: 2.2rem; margin-bottom: 8px;">📷</div>
+        <strong style="color: #fff; font-size: 1rem;">No photos in this project yet</strong>
+        <p style="font-size: 0.85rem; margin-top: 4px;">Upload 4-5 high resolution photos using the box above or paste direct URLs.</p>
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = allPhotos.map((item, idx) => `
+    <div class="photo-card ${item.isCover ? 'is-cover' : ''}" id="photo-tile-${idx}">
+      <div class="photo-card-img-wrap" style="height: 140px;">
+        <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" title="Click to open full resolution photo">
+          <img src="${escapeHtml(item.url)}" alt="Project Photo ${idx + 1}" onerror="this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80'">
+        </a>
+        <span class="photo-card-badge ${item.isCover ? 'badge-cover' : ''}">
+          ${item.isCover ? '⭐ Primary Cover' : `Photo #${idx + 1}`}
+        </span>
+      </div>
+      <div class="photo-card-actions" style="padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+        ${!item.isCover ? `
+          <button type="button" class="btn-photo-action btn-photo-cover" title="Set this photo as the main project cover" onclick="setProjectCoverDedicated('${escapeHtml(item.url)}')">
+            ⭐ Set Cover
+          </button>
+        ` : '<span style="font-size: 0.72rem; color: var(--gold); font-weight: 700; padding: 2px 4px;">★ Cover</span>'}
+        <button type="button" class="btn-photo-action btn-photo-delete" title="Delete this photo from selected project" onclick="deleteProjectPhotoDedicated('${escapeHtml(item.url)}')">
+          🗑️ Delete Photo
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+window.deleteProjectPhotoDedicated = async function(url) {
+  const p = state.activePhotoProject;
+  if (!p) return;
+
+  const confirmed = await confirmDialog({
+    title: `Delete Photo from "${p.title}"`,
+    message: `Are you sure you want to delete this photo from selected project "${p.title}"?\n\nThis photo will be removed immediately from the project gallery on the live website.`,
+    proceedText: 'Yes, Delete Photo 🗑️',
+    isDanger: true,
+  });
+
+  if (!confirmed) return;
+
+  try {
+    const res = await adminFetch(`/api/admin/projects/${p.id}/photos`, {
+      method: 'DELETE',
+      body: JSON.stringify({ url }),
+    });
+
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && json.success) {
+      showAdminToast(`Photo deleted from "${p.title}".`);
+      if (json.data) {
+        state.activePhotoProject = json.data;
+        const idx = (state.projects || []).findIndex((item) => item.id.toString() === p.id.toString());
+        if (idx !== -1) {
+          state.projects[idx] = json.data;
+        }
+      }
+      renderDedicatedProjectPhotosGrid();
+      updatePhotoModalProjectSelect();
+      filterAndRenderProjects();
+    } else {
+      showAdminToast(json.message || 'Failed to delete photo.', 'error');
+    }
+  } catch (err) {
+    if (err.message !== 'Authentication required') {
+      showAdminToast('Network error while deleting photo.', 'error');
+    }
+  }
+};
+
+window.setProjectCoverDedicated = async function(url) {
+  const p = state.activePhotoProject;
+  if (!p) return;
+
+  try {
+    const res = await adminFetch(`/api/admin/projects/${p.id}/photos/cover`, {
+      method: 'PATCH',
+      body: JSON.stringify({ url }),
+    });
+
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && json.success) {
+      showAdminToast(`Cover photo updated for "${p.title}".`);
+      if (json.data) {
+        state.activePhotoProject = json.data;
+        const idx = (state.projects || []).findIndex((item) => item.id.toString() === p.id.toString());
+        if (idx !== -1) {
+          state.projects[idx] = json.data;
+        }
+      }
+      renderDedicatedProjectPhotosGrid();
+      updatePhotoModalProjectSelect();
+      filterAndRenderProjects();
+    } else {
+      showAdminToast(json.message || 'Failed to set cover photo.', 'error');
+    }
+  } catch (err) {
+    if (err.message !== 'Authentication required') {
+      showAdminToast('Network error while updating cover photo.', 'error');
+    }
+  }
+};
 
 // =============================================================================
 // Clients & Brand Partnerships CRUD (Change & Delete)
@@ -1508,62 +1835,285 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Project Image File Upload
-  const btnUploadImage = document.getElementById('btnUploadImage');
-  const fileInput = document.getElementById('projImageFile');
+  // ==============================================================
+  // PROJECT PHOTO GALLERY MANAGEMENT (IN ADD/EDIT MODAL & DEDICATED MODAL)
+  // ==============================================================
+
+  // 1. Photo management for Add/Edit Project Modal
+  const multiFileInput = document.getElementById('projMultiImageFile');
+  const btnUploadMulti = document.getElementById('btnUploadMultipleImages');
   const uploadStatus = document.getElementById('uploadStatusText');
+  const addUrlInput = document.getElementById('projAddUrlInput');
+  const btnAddUrlToGallery = document.getElementById('btnAddUrlToGallery');
 
-  const projImageUrlInput = document.getElementById('projImageUrl');
-  if (projImageUrlInput) {
-    projImageUrlInput.addEventListener('input', () => {
-      updateProjectImagePreview(projImageUrlInput.value);
-    });
-  }
-
-  if (fileInput) {
-    fileInput.addEventListener('change', () => {
-      if (fileInput.files && fileInput.files.length > 0) {
-        if (btnUploadImage) btnUploadImage.click();
+  if (multiFileInput) {
+    multiFileInput.addEventListener('change', () => {
+      if (multiFileInput.files && multiFileInput.files.length > 0 && btnUploadMulti) {
+        btnUploadMulti.click();
       }
     });
   }
 
-  if (btnUploadImage && fileInput) {
-    btnUploadImage.addEventListener('click', async () => {
-      if (!fileInput.files || fileInput.files.length === 0) {
-        uploadStatus.textContent = 'Please choose an image file first.';
-        uploadStatus.style.color = '#ef4444';
+  if (btnUploadMulti && multiFileInput) {
+    btnUploadMulti.addEventListener('click', async () => {
+      if (!multiFileInput.files || multiFileInput.files.length === 0) {
+        if (uploadStatus) {
+          uploadStatus.textContent = 'Please select 1 or more photo files first.';
+          uploadStatus.style.color = '#ef4444';
+        }
         return;
       }
 
-      const file = fileInput.files[0];
+      const files = Array.from(multiFileInput.files);
       const formData = new FormData();
-      formData.append('image', file);
+      files.forEach((file) => formData.append('images', file));
 
-      uploadStatus.textContent = 'Uploading image...';
-      uploadStatus.style.color = 'var(--gold)';
+      if (uploadStatus) {
+        uploadStatus.textContent = `Uploading ${files.length} photo(s)...`;
+        uploadStatus.style.color = 'var(--gold)';
+      }
 
       try {
-        const res = await adminFetch('/api/admin/upload', {
+        const res = await adminFetch('/api/admin/upload-multiple', {
           method: 'POST',
           body: formData,
         });
 
         const json = await res.json();
-        if (res.ok && json.success) {
-          document.getElementById('projImageUrl').value = json.url;
-          updateProjectImagePreview(json.url);
-          uploadStatus.textContent = `Upload successful: ${json.filename}`;
-          uploadStatus.style.color = '#10b981';
-          showAdminToast('Project image uploaded.');
+        if (res.ok && json.success && Array.isArray(json.urls)) {
+          let currentCover = document.getElementById('projImageUrl').value.trim();
+          let gallery = [];
+          try {
+            gallery = JSON.parse(document.getElementById('projGallery').value || '[]');
+          } catch (_) {
+            gallery = [];
+          }
+
+          json.urls.forEach((url) => {
+            if (!currentCover) {
+              currentCover = url;
+            } else if (!gallery.includes(url) && url !== currentCover) {
+              gallery.push(url);
+            }
+          });
+
+          document.getElementById('projImageUrl').value = currentCover;
+          document.getElementById('projGallery').value = JSON.stringify(gallery);
+          renderModalProjectPhotosGrid();
+
+          multiFileInput.value = '';
+          if (uploadStatus) {
+            uploadStatus.textContent = `Uploaded ${json.urls.length} photo(s) successfully!`;
+            uploadStatus.style.color = '#10b981';
+          }
+          showAdminToast(`${json.urls.length} photo(s) uploaded to project.`);
         } else {
-          uploadStatus.textContent = json.message || 'Upload failed.';
-          uploadStatus.style.color = '#ef4444';
+          if (uploadStatus) {
+            uploadStatus.textContent = json.message || 'Upload failed.';
+            uploadStatus.style.color = '#ef4444';
+          }
         }
       } catch (err) {
-        if (err.message !== 'Authentication required') {
-          uploadStatus.textContent = 'Upload network error.';
+        if (err.message !== 'Authentication required' && uploadStatus) {
+          uploadStatus.textContent = 'Network error during upload.';
           uploadStatus.style.color = '#ef4444';
+        }
+      }
+    });
+  }
+
+  if (btnAddUrlToGallery && addUrlInput) {
+    btnAddUrlToGallery.addEventListener('click', () => {
+      const url = addUrlInput.value.trim();
+      if (!url) {
+        showAdminToast('Please enter an image URL.', 'error');
+        return;
+      }
+
+      let currentCover = document.getElementById('projImageUrl').value.trim();
+      let gallery = [];
+      try {
+        gallery = JSON.parse(document.getElementById('projGallery').value || '[]');
+      } catch (_) {
+        gallery = [];
+      }
+
+      if (!currentCover) {
+        currentCover = url;
+      } else if (!gallery.includes(url) && url !== currentCover) {
+        gallery.push(url);
+      }
+
+      document.getElementById('projImageUrl').value = currentCover;
+      document.getElementById('projGallery').value = JSON.stringify(gallery);
+      renderModalProjectPhotosGrid();
+      addUrlInput.value = '';
+      showAdminToast('Photo added to project gallery.');
+    });
+  }
+
+  // 2. Dedicated Project Photo Modal Event Listeners
+  const btnBrowseMulti = document.getElementById('btnBrowseMultiPhotos');
+  const multiPhotoInput = document.getElementById('multiPhotoFileInput');
+  const dropzone = document.getElementById('photoDropzone');
+  const photoFeedback = document.getElementById('photoUploadFeedback');
+  const inputPhotoUrl = document.getElementById('inputPhotoUrl');
+  const btnAddPhotoUrl = document.getElementById('btnAddPhotoUrl');
+
+  if (btnBrowseMulti && multiPhotoInput) {
+    btnBrowseMulti.addEventListener('click', (e) => {
+      e.stopPropagation();
+      multiPhotoInput.click();
+    });
+  }
+
+  if (dropzone && multiPhotoInput) {
+    dropzone.addEventListener('click', () => multiPhotoInput.click());
+
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+
+    ['dragleave', 'dragend'].forEach((type) => {
+      dropzone.addEventListener(type, () => dropzone.classList.remove('dragover'));
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        uploadFilesToDedicatedProject(Array.from(e.dataTransfer.files));
+      }
+    });
+  }
+
+  if (multiPhotoInput) {
+    multiPhotoInput.addEventListener('change', () => {
+      if (multiPhotoInput.files && multiPhotoInput.files.length > 0) {
+        uploadFilesToDedicatedProject(Array.from(multiPhotoInput.files));
+      }
+    });
+  }
+
+  async function uploadFilesToDedicatedProject(files) {
+    const p = state.activePhotoProject;
+    if (!p) return;
+
+    if (photoFeedback) {
+      photoFeedback.textContent = `Uploading ${files.length} photo(s)...`;
+      photoFeedback.style.color = 'var(--gold)';
+    }
+
+    const formData = new FormData();
+    files.forEach((file) => formData.append('images', file));
+
+    try {
+      const uploadRes = await adminFetch('/api/admin/upload-multiple', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const uploadJson = await uploadRes.json();
+      if (!uploadRes.ok || !uploadJson.success || !Array.isArray(uploadJson.urls)) {
+        if (photoFeedback) {
+          photoFeedback.textContent = uploadJson.message || 'Photo upload failed.';
+          photoFeedback.style.color = '#ef4444';
+        }
+        return;
+      }
+
+      // Now add to project photos in database
+      const addRes = await adminFetch(`/api/admin/projects/${p.id}/photos`, {
+        method: 'POST',
+        body: JSON.stringify({ urls: uploadJson.urls }),
+      });
+
+      const addJson = await addRes.json();
+      if (addRes.ok && addJson.success && addJson.data) {
+        state.activePhotoProject = addJson.data;
+        const idx = (state.projects || []).findIndex((item) => item.id.toString() === p.id.toString());
+        if (idx !== -1) {
+          state.projects[idx] = addJson.data;
+        }
+
+        renderDedicatedProjectPhotosGrid();
+        updatePhotoModalProjectSelect();
+        filterAndRenderProjects();
+
+        if (multiPhotoInput) multiPhotoInput.value = '';
+        if (photoFeedback) {
+          photoFeedback.textContent = `Successfully added ${uploadJson.urls.length} photo(s)!`;
+          photoFeedback.style.color = '#10b981';
+        }
+        showAdminToast(`${uploadJson.urls.length} photo(s) added to "${p.title}".`);
+      } else {
+        if (photoFeedback) {
+          photoFeedback.textContent = addJson.message || 'Failed to link photos to project.';
+          photoFeedback.style.color = '#ef4444';
+        }
+      }
+    } catch (err) {
+      if (err.message !== 'Authentication required' && photoFeedback) {
+        photoFeedback.textContent = 'Network error uploading photos.';
+        photoFeedback.style.color = '#ef4444';
+      }
+    }
+  }
+
+  if (btnAddPhotoUrl && inputPhotoUrl) {
+    btnAddPhotoUrl.addEventListener('click', async () => {
+      const p = state.activePhotoProject;
+      if (!p) return;
+
+      const url = inputPhotoUrl.value.trim();
+      if (!url) {
+        if (photoFeedback) {
+          photoFeedback.textContent = 'Please enter an image URL.';
+          photoFeedback.style.color = '#ef4444';
+        }
+        return;
+      }
+
+      if (photoFeedback) {
+        photoFeedback.textContent = 'Adding photo to project...';
+        photoFeedback.style.color = 'var(--gold)';
+      }
+
+      try {
+        const res = await adminFetch(`/api/admin/projects/${p.id}/photos`, {
+          method: 'POST',
+          body: JSON.stringify({ url }),
+        });
+
+        const json = await res.json();
+        if (res.ok && json.success && json.data) {
+          state.activePhotoProject = json.data;
+          const idx = (state.projects || []).findIndex((item) => item.id.toString() === p.id.toString());
+          if (idx !== -1) {
+            state.projects[idx] = json.data;
+          }
+
+          renderDedicatedProjectPhotosGrid();
+          updatePhotoModalProjectSelect();
+          filterAndRenderProjects();
+
+          inputPhotoUrl.value = '';
+          if (photoFeedback) {
+            photoFeedback.textContent = 'Photo added successfully!';
+            photoFeedback.style.color = '#10b981';
+          }
+          showAdminToast(`Photo added to "${p.title}".`);
+        } else {
+          if (photoFeedback) {
+            photoFeedback.textContent = json.message || 'Failed to add photo.';
+            photoFeedback.style.color = '#ef4444';
+          }
+        }
+      } catch (err) {
+        if (err.message !== 'Authentication required' && photoFeedback) {
+          photoFeedback.textContent = 'Network error while adding photo.';
+          photoFeedback.style.color = '#ef4444';
         }
       }
     });

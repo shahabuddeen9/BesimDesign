@@ -19,10 +19,13 @@ import {
   updateFaq,
 } from '../controllers/faq.controller.js';
 import {
+  addProjectPhotos,
   createProject,
   deleteProject,
+  deleteProjectPhoto,
   getAllProjects,
   reorderProjects,
+  setProjectCoverPhoto,
   updateProject,
 } from '../controllers/project.controller.js';
 import { getStats } from '../controllers/stats.controller.js';
@@ -58,11 +61,14 @@ adminRouter.patch('/enquiries/:id', updateEnquiry);
 adminRouter.delete('/enquiries/:id', deleteEnquiry);
 
 // ==========================================
-// 2. PORTFOLIO PROJECTS CRUD
+// 2. PORTFOLIO PROJECTS CRUD & PHOTOS
 // ==========================================
 adminRouter.get('/projects', getAllProjects);
 adminRouter.post('/projects', createProject);
 adminRouter.post('/projects/reorder', reorderProjects);
+adminRouter.post('/projects/:id/photos', addProjectPhotos);
+adminRouter.delete('/projects/:id/photos', deleteProjectPhoto);
+adminRouter.patch('/projects/:id/photos/cover', setProjectCoverPhoto);
 adminRouter.patch('/projects/:id', updateProject);
 adminRouter.delete('/projects/:id', deleteProject);
 
@@ -91,7 +97,7 @@ adminRouter.patch('/faqs/:id', updateFaq);
 adminRouter.delete('/faqs/:id', deleteFaq);
 
 // ==========================================
-// 5. ASSET IMAGE UPLOAD (Multer: 5MB, JPG/PNG/WebP)
+// 5. ASSET IMAGE UPLOAD (Single & Multiple: 10MB max, JPG/PNG/WebP)
 // ==========================================
 adminRouter.post('/upload', uploadImage.single('image'), (req, res, next) => {
   try {
@@ -107,6 +113,30 @@ adminRouter.post('/upload', uploadImage.single('image'), (req, res, next) => {
       filename: req.file.filename,
       size: req.file.size,
       mimetype: req.file.mimetype,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.post('/upload-multiple', uploadImage.array('images', 10), (req, res, next) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      throw new AppError('No image files uploaded or files rejected by validator.', 400);
+    }
+
+    const uploaded = req.files.map((f) => ({
+      url: `/uploads/${f.filename}`,
+      filename: f.filename,
+      size: f.size,
+      mimetype: f.mimetype,
+    }));
+
+    return res.status(200).json({
+      success: true,
+      message: `${uploaded.length} image(s) uploaded successfully.`,
+      files: uploaded,
+      urls: uploaded.map((u) => u.url),
     });
   } catch (error) {
     next(error);

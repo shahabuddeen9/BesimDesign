@@ -529,33 +529,41 @@
           <textarea id="projDesc" class="form-control" placeholder="Describe the spatial concept, materials, and engineering solution..." required></textarea>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Cover Image (URL or Upload File) *</label>
-          <div style="display: flex; gap: 10px; margin-bottom: 8px;">
-            <input type="url" id="projImageUrl" class="form-control" placeholder="https://images.unsplash.com/... or upload below" required>
+        <div class="form-group" style="background: rgba(14, 19, 30, 0.7); border: 1px solid var(--admin-border); border-radius: 8px; padding: 18px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+            <label class="form-label" style="margin-bottom: 0; font-size: 0.95rem; font-weight: 700; color: #fff;">
+              📸 Project Photos (4-5 Photos Recommended) *
+            </label>
+            <span id="editProjPhotoCountBadge" style="font-size: 0.78rem; color: var(--gold); background: rgba(197, 168, 128, 0.15); padding: 3px 10px; border-radius: 12px; border: 1px solid var(--border-gold);">0 Photos</span>
           </div>
-          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-            <input type="file" id="projImageFile" accept="image/jpeg,image/png,image/webp" style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer;">
-            <button type="button" id="btnUploadImage" class="btn btn-outline btn-sm">Upload to Server</button>
+          <p style="font-size: 0.78rem; color: var(--text-dim); margin-bottom: 12px;">Add 4-5 photos for this project. Delete any photo with the red delete button, or set any photo as the primary cover.</p>
+
+          <!-- Hidden inputs holding current state -->
+          <input type="hidden" id="projImageUrl" required>
+          <input type="hidden" id="projGallery">
+
+          <!-- Current Photos Grid inside Edit Form -->
+          <div id="modalProjPhotosGrid" class="photo-gallery-grid" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px;">
+            <!-- Rendered by admin.js -->
           </div>
-          <span id="uploadStatusText" style="font-size: 0.8rem; color: var(--gold); margin-top: 4px; display: block;"></span>
-          <div id="projImagePreviewContainer" style="margin-top: 10px; display: none; align-items: center; gap: 14px; background: rgba(0,0,0,0.35); border: 1px solid var(--border-gold); padding: 8px 12px; border-radius: 6px;">
-            <img id="projImagePreview" src="" alt="Project Cover Preview" style="width: 80px; height: 56px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2);">
-            <div>
-              <span style="font-size: 0.82rem; color: #fff; font-weight: 600; display: block;">Live Cover Preview</span>
-              <span style="font-size: 0.72rem; color: var(--text-dim);" id="projImagePreviewMeta">Preview ready</span>
+
+          <!-- Add Photo Controls -->
+          <div style="display: flex; flex-direction: column; gap: 10px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; border: 1px dashed var(--admin-border);">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <input type="file" id="projMultiImageFile" multiple accept="image/jpeg,image/png,image/webp" style="font-size: 0.82rem; color: var(--text-muted); cursor: pointer;">
+              <button type="button" id="btnUploadMultipleImages" class="btn btn-outline btn-sm">Upload Photo(s)</button>
             </div>
+            <div style="display: flex; gap: 8px;">
+              <input type="url" id="projAddUrlInput" class="form-control" placeholder="Or paste image URL (https://...)" style="font-size: 0.82rem;">
+              <button type="button" id="btnAddUrlToGallery" class="btn btn-gold btn-sm" style="white-space: nowrap;">+ Add URL</button>
+            </div>
+            <span id="uploadStatusText" style="font-size: 0.8rem; color: var(--gold); display: block;"></span>
           </div>
         </div>
 
         <div class="form-group">
           <label class="form-label" for="projScope">Scope Deliverables (Comma-separated)</label>
           <input type="text" id="projScope" class="form-control" placeholder="Space Planning, Kitchen MEP, Acoustic Ceiling, Brass Craft">
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="projGallery">Gallery Images (Comma-separated URLs)</label>
-          <input type="text" id="projGallery" class="form-control" placeholder="https://image1.jpg, https://image2.jpg">
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
@@ -585,6 +593,82 @@
           <button type="submit" class="btn btn-gold" id="btnSaveProject">Save Project</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL: DEDICATED PROJECT PHOTO GALLERY MANAGER -->
+  <!-- ============================================================== -->
+  <div class="admin-modal-overlay" id="modalProjectPhotos">
+    <div class="admin-modal admin-modal-lg" style="max-width: 860px;">
+      <button class="admin-modal-close" data-close="modalProjectPhotos">&times;</button>
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <span id="photoModalProjectCat" style="text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 4px; background: rgba(197, 168, 128, 0.15); color: var(--gold); border: 1px solid rgba(197, 168, 128, 0.3);">SECTOR</span>
+          <h3 style="font-family: var(--font-serif); font-size: 1.45rem; color: #fff; margin-top: 6px;" id="photoModalProjectTitle">Project Photos & Gallery</h3>
+          <p style="font-size: 0.82rem; color: var(--text-dim); margin-top: 2px;">Manage 4-5 high resolution photos for this project. Delete any photo with one click, set primary cover, or upload new images.</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span id="photoModalCountBadge" style="font-size: 0.82rem; color: var(--gold); font-weight: 700; background: rgba(0,0,0,0.4); padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border-gold);">0 Photos</span>
+        </div>
+      </div>
+
+      <!-- Quick Project Selector to easily choose any project and delete/manage its photos -->
+      <div style="background: rgba(20, 27, 44, 0.85); border: 1px solid var(--border-gold, #c5a880); border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 280px;">
+          <label for="selectActiveProjectPhotos" style="color: var(--gold); font-size: 0.85rem; font-weight: 700; white-space: nowrap; margin: 0;">
+            🎯 Selected Project:
+          </label>
+          <select id="selectActiveProjectPhotos" class="form-control" style="background: #0f1422; color: #fff; font-size: 0.9rem; font-weight: 600; padding: 7px 12px; border: 1px solid var(--border-gold); border-radius: 6px; cursor: pointer;">
+            <!-- Populated dynamically with all projects -->
+          </select>
+        </div>
+        <span style="font-size: 0.78rem; color: var(--text-dim);">Switch selected project above to manage or delete its photos</span>
+      </div>
+
+      <!-- Add / Upload New Photos Container -->
+      <div style="background: rgba(15, 20, 30, 0.75); border: 1px solid var(--admin-border); border-radius: 8px; padding: 18px; margin-bottom: 22px;">
+        <h4 style="font-size: 0.88rem; color: #fff; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          <span>➕ Add Photos to this Project (Upload 4-5 Photos or Paste URL)</span>
+        </h4>
+        
+        <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px;">
+          <!-- Multi-file Upload Option -->
+          <div class="photo-upload-dropzone" id="photoDropzone">
+            <input type="file" id="multiPhotoFileInput" multiple accept="image/jpeg,image/png,image/webp" style="display: none;">
+            <div style="font-size: 1.6rem; margin-bottom: 6px;">📁</div>
+            <strong style="color: #fff; font-size: 0.88rem; display: block;">Click to browse or drop photos</strong>
+            <span style="font-size: 0.74rem; color: var(--text-dim); display: block; margin-top: 2px;">Select 1 or multiple photos (JPG, PNG, WebP)</span>
+            <button type="button" class="btn btn-outline btn-sm" id="btnBrowseMultiPhotos" style="margin-top: 10px;">Select Photo Files</button>
+          </div>
+
+          <!-- URL Input Option -->
+          <div style="display: flex; flex-direction: column; justify-content: center; gap: 8px;">
+            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 0;">Or Add Photo by Direct Image URL:</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="url" id="inputPhotoUrl" class="form-control" placeholder="https://images.unsplash.com/..." style="font-size: 0.84rem;">
+              <button type="button" class="btn btn-gold btn-sm" id="btnAddPhotoUrl" style="white-space: nowrap;">+ Add URL</button>
+            </div>
+            <span id="photoUploadFeedback" style="font-size: 0.78rem; color: var(--gold); min-height: 18px;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grid of current photos with DELETE buttons -->
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h4 style="font-size: 0.92rem; color: #fff; font-weight: 600;">Current Project Photos</h4>
+          <span style="font-size: 0.76rem; color: var(--text-dim);">Click <strong>🗑️ Delete</strong> on any photo of this selected project to remove it</span>
+        </div>
+        
+        <div class="photo-gallery-grid" id="projectPhotosGrid">
+          <!-- Dynamically populated photo cards with Delete button -->
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--admin-border);">
+        <button type="button" class="btn btn-outline" data-close="modalProjectPhotos">Close Gallery</button>
+      </div>
     </div>
   </div>
 

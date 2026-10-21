@@ -4,10 +4,16 @@
  * Provides public read endpoints and authenticated administrative CRUD operations.
  */
 
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { z } from 'zod';
 import { db } from '../db/index.js';
 import AppError from '../utils/AppError.js';
 import { stripHtml } from '../utils/sanitize.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Safely parses JSON strings into arrays, falling back to comma-split or default array.
@@ -227,23 +233,28 @@ export function updateProject(req, res, next) {
       throw new AppError(`Project #${id} not found`, 404);
     }
 
-    const validated = projectSchema.partial().parse(req.body);
+    const b = req.body || {};
+    const title = b.title !== undefined ? stripHtml(String(b.title).trim()) : existing.title;
+    const slug = b.slug !== undefined ? String(b.slug).trim().toLowerCase() : existing.slug;
+    const category = b.category !== undefined ? String(b.category).trim() : existing.category;
+    const client_name = b.client_name !== undefined ? stripHtml(String(b.client_name).trim()) : (existing.client_name || '');
+    const location = b.location !== undefined ? stripHtml(String(b.location).trim()) : (existing.location || '');
+    const area_sqft = b.area_sqft !== undefined ? Number(b.area_sqft) || 0 : (existing.area_sqft || 0);
+    const description = b.description !== undefined ? String(b.description).trim() : existing.description;
+    const image_url = b.image_url !== undefined ? String(b.image_url).trim() : existing.image_url;
+    const is_featured = b.is_featured !== undefined ? (Number(b.is_featured) ? 1 : 0) : existing.is_featured;
+    const sort_order = b.sort_order !== undefined ? Number(b.sort_order) || 0 : (existing.sort_order || 0);
+    const is_published = b.is_published !== undefined ? (Number(b.is_published) ? 1 : 0) : existing.is_published;
 
-    const {
-      title,
-      slug,
-      category,
-      client_name,
-      location,
-      area_sqft,
-      description,
-      scope,
-      image_url,
-      gallery,
-      is_featured,
-      sort_order,
-      is_published,
-    } = validated;
+    let scopeJson = existing.scope;
+    if (b.scope !== undefined) {
+      scopeJson = Array.isArray(b.scope) ? JSON.stringify(b.scope) : String(b.scope);
+    }
+
+    let galleryJson = existing.gallery;
+    if (b.gallery !== undefined) {
+      galleryJson = Array.isArray(b.gallery) ? JSON.stringify(b.gallery) : String(b.gallery);
+    }
 
     if (slug && slug !== existing.slug) {
       const slugCheck = db.prepare('SELECT id FROM projects WHERE slug = ? AND id != ? AND id != ?').get(slug, id, numId);
@@ -252,9 +263,6 @@ export function updateProject(req, res, next) {
       }
     }
 
-    const scopeJson = scope !== undefined ? (Array.isArray(scope) ? JSON.stringify(scope) : scope) : existing.scope;
-    const galleryJson = gallery !== undefined ? (Array.isArray(gallery) ? JSON.stringify(gallery) : gallery) : existing.gallery;
-
     db.prepare(`
       UPDATE projects
       SET title = ?, slug = ?, category = ?, client_name = ?, location = ?, area_sqft = ?,
@@ -262,19 +270,19 @@ export function updateProject(req, res, next) {
           is_published = ?, updated_at = datetime('now')
       WHERE id = ? OR id = ?
     `).run(
-      title ? stripHtml(title) : existing.title,
-      slug ? slug.toLowerCase() : existing.slug,
-      category || existing.category,
-      client_name !== undefined ? stripHtml(client_name) : (existing.client_name || ''),
-      location !== undefined ? stripHtml(location) : (existing.location || ''),
-      area_sqft !== undefined ? Number(area_sqft) : (existing.area_sqft || 0),
-      description || existing.description,
+      title,
+      slug,
+      category,
+      client_name,
+      location,
+      area_sqft,
+      description,
       scopeJson,
-      image_url || existing.image_url,
+      image_url,
       galleryJson,
-      is_featured !== undefined ? is_featured : existing.is_featured,
-      sort_order !== undefined ? sort_order : existing.sort_order,
-      is_published !== undefined ? is_published : existing.is_published,
+      is_featured,
+      sort_order,
+      is_published,
       id,
       numId
     );
@@ -346,6 +354,167 @@ export function reorderProjects(req, res, next) {
   }
 }
 
+/**
+ * Admin: Add photo(s) to a selected project's gallery
+ */
+export function addProjectPhotos(req, res, next) {
+  try {
+    const { id } = req.params;
+    const numId = parseInt(id, 10) || 0;
+    const project = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
+    if (!project) throw new AppError(`Project #${id} not found`, 404);
+
+    let incoming = req.body.urls || req.body.url || req.body.photos;
+    if (!incoming) throw new AppError('Please provide photo URL(s) to add', 400);
+    if (!Array.isArray(incoming)) incoming = [incoming];
+    incoming = incoming.map((s) => String(s).trim()).filter(Boolean);
+
+    if (incoming.length === 0) {
+      throw new AppError('No valid photo URLs provided', 400);
+    }
+
+    let gallery = safeJsonParse(project.gallery);
+    for (const url of incoming) {
+      if (!gallery.includes(url) && url !== project.image_url) {
+        gallery.push(url);
+      }
+    }
+
+    let imageUrl = project.image_url;
+    if (!imageUrl || imageUrl.includes('unsplash.com/photo-1600585154340') && incoming.length > 0) {
+      imageUrl = incoming[0];
+    }
+
+    db.prepare(`
+      UPDATE projects
+      SET gallery = ?, image_url = ?, updated_at = datetime('now')
+      WHERE id = ? OR id = ?
+    `).run(JSON.stringify(gallery), imageUrl, id, numId);
+
+    const updated = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
+    if (updated) {
+      updated.scope = safeJsonParse(updated.scope);
+      updated.gallery = safeJsonParse(updated.gallery);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `${incoming.length} photo(s) added successfully`,
+      data: updated,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Admin: Delete a photo from a selected project
+ */
+export function deleteProjectPhoto(req, res, next) {
+  try {
+    const { id } = req.params;
+    const numId = parseInt(id, 10) || 0;
+    const project = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
+    if (!project) throw new AppError(`Project #${id} not found`, 404);
+
+    const photoUrl = (req.body?.url || req.query?.url || '').trim();
+    if (!photoUrl) throw new AppError('Photo URL to delete is required', 400);
+
+    let gallery = safeJsonParse(project.gallery);
+    // Remove target photo from gallery
+    gallery = gallery.filter((item) => item !== photoUrl);
+
+    let imageUrl = (project.image_url || '').trim();
+
+    // Check if the photo to delete is the primary cover photo
+    if (imageUrl === photoUrl) {
+      if (gallery.length > 0) {
+        imageUrl = gallery[0];
+      } else {
+        imageUrl = 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80';
+      }
+    }
+
+    // If local uploaded file, safely remove from disk
+    if (photoUrl.startsWith('/uploads/')) {
+      try {
+        const filePath = path.resolve(__dirname, '../../uploads', path.basename(photoUrl));
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (err) {
+        console.warn('Could not remove file from disk:', err?.message);
+      }
+    }
+
+    db.prepare(`
+      UPDATE projects
+      SET gallery = ?, image_url = ?, updated_at = datetime('now')
+      WHERE id = ? OR id = ?
+    `).run(JSON.stringify(gallery), imageUrl, id, numId);
+
+    const updated = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
+    if (updated) {
+      updated.scope = safeJsonParse(updated.scope);
+      updated.gallery = safeJsonParse(updated.gallery);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Photo deleted successfully from project',
+      data: updated,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Admin: Set a specific photo as primary cover for selected project
+ */
+export function setProjectCoverPhoto(req, res, next) {
+  try {
+    const { id } = req.params;
+    const numId = parseInt(id, 10) || 0;
+    const project = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
+    if (!project) throw new AppError(`Project #${id} not found`, 404);
+
+    const { url } = req.body;
+    if (!url) throw new AppError('Cover photo URL is required', 400);
+
+    let gallery = safeJsonParse(project.gallery);
+    const oldCover = project.image_url;
+
+    // Remove new cover from gallery if present
+    gallery = gallery.filter((item) => item !== url);
+
+    // If old cover was valid and different, preserve in gallery
+    if (oldCover && oldCover !== url && !gallery.includes(oldCover)) {
+      gallery.unshift(oldCover);
+    }
+
+    db.prepare(`
+      UPDATE projects
+      SET image_url = ?, gallery = ?, updated_at = datetime('now')
+      WHERE id = ? OR id = ?
+    `).run(url, JSON.stringify(gallery), id, numId);
+
+    const updated = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
+    if (updated) {
+      updated.scope = safeJsonParse(updated.scope);
+      updated.gallery = safeJsonParse(updated.gallery);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Cover photo updated successfully',
+      data: updated,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export default {
   getPublishedProjects,
   getProjectBySlug,
@@ -354,4 +523,7 @@ export default {
   updateProject,
   deleteProject,
   reorderProjects,
+  addProjectPhotos,
+  deleteProjectPhoto,
+  setProjectCoverPhoto,
 };

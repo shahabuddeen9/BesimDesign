@@ -160,20 +160,36 @@ function openBlueprintModal(project) {
   if (!modal || !modalBody) return;
 
   const scopes = Array.isArray(project.scope) ? project.scope : [];
-  const gallery = Array.isArray(project.gallery) ? project.gallery : [];
+  let rawGallery = [];
+  if (Array.isArray(project.gallery)) {
+    rawGallery = project.gallery;
+  } else if (typeof project.gallery === 'string') {
+    try { rawGallery = JSON.parse(project.gallery); } catch (_) { rawGallery = []; }
+  }
+
+  const allPhotos = [];
+  if (project.image_url) allPhotos.push(project.image_url);
+  rawGallery.forEach((img) => {
+    if (img && !allPhotos.includes(img)) allPhotos.push(img);
+  });
 
   let galleryHtml = '';
-  if (gallery.length > 0) {
+  if (allPhotos.length > 0) {
     galleryHtml = `
       <div style="margin-top: 24px;">
         <h4 style="font-family: var(--font-serif); font-size: 1.1rem; color: var(--accent-gold); margin-bottom: 12px;">
-          Architectural Gallery & Site Details
+          Architectural Gallery & Site Details (${allPhotos.length} Photos)
         </h4>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
-          ${gallery.map(img => `
-            <a href="${escapeHtml(img)}" target="_blank" rel="noopener noreferrer" style="border-radius: var(--radius-sm); overflow: hidden; display: block; border: 1px solid var(--border-subtle);">
-              <img src="${escapeHtml(img)}" alt="Gallery View" style="width: 100%; height: 130px; object-fit: cover; display: block; transition: transform 0.3s ease;">
-            </a>
+          ${allPhotos.map((img, idx) => `
+            <div style="border-radius: var(--radius-sm); overflow: hidden; position: relative; border: 1px solid var(--border-subtle); height: 130px; background: #000;">
+              <a href="${escapeHtml(img)}" target="_blank" rel="noopener noreferrer" title="Click to view high-resolution photo ${idx + 1}" style="display: block; width: 100%; height: 100%;">
+                <img src="${escapeHtml(img)}" alt="${escapeHtml(project.title)} - View ${idx + 1}" style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.3s ease;">
+              </a>
+              <span style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.75); color: var(--accent-gold); font-size: 0.65rem; font-weight: 600; padding: 2px 5px; border-radius: 3px; border: 1px solid rgba(197, 168, 128, 0.3);">
+                Photo ${idx + 1}
+              </span>
+            </div>
           `).join('')}
         </div>
       </div>

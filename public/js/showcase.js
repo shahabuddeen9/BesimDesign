@@ -305,15 +305,18 @@ function openProjectModal(project) {
   const modalBody = document.getElementById('modalBody');
   if (!modal || !modalBody) return;
 
-  let gallery = [];
+  let rawGallery = [];
   if (Array.isArray(project.gallery)) {
-    gallery = project.gallery;
+    rawGallery = project.gallery;
   } else if (typeof project.gallery === 'string') {
-    try { gallery = JSON.parse(project.gallery); } catch (_) { gallery = [project.image_url]; }
+    try { rawGallery = JSON.parse(project.gallery); } catch (_) { rawGallery = [project.image_url]; }
   }
-  if (gallery.length === 0 && project.image_url) {
-    gallery = [project.image_url];
-  }
+
+  const allPhotos = [];
+  if (project.image_url) allPhotos.push(project.image_url);
+  rawGallery.forEach((img) => {
+    if (img && !allPhotos.includes(img)) allPhotos.push(img);
+  });
 
   let scopes = [];
   if (Array.isArray(project.scope)) {
@@ -322,9 +325,14 @@ function openProjectModal(project) {
     try { scopes = JSON.parse(project.scope); } catch (_) { scopes = project.scope.split(',').map(s => s.trim()); }
   }
 
-  const galleryImagesHtml = gallery.map((img) => `
-    <div style="border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border-subtle); height: 180px;">
-      <img src="${escapeHtml(img)}" alt="Gallery Blueprint" style="width: 100%; height: 100%; object-fit: cover;">
+  const galleryImagesHtml = allPhotos.map((img, idx) => `
+    <div style="border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border-subtle); height: 180px; position: relative; background: #000;">
+      <a href="${escapeHtml(img)}" target="_blank" rel="noopener noreferrer" title="Click to view high-resolution photo ${idx + 1}" style="display: block; width: 100%; height: 100%;">
+        <img src="${escapeHtml(img)}" alt="${escapeHtml(project.title)} - Gallery ${idx + 1}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;">
+      </a>
+      <span style="position: absolute; bottom: 6px; right: 6px; background: rgba(0,0,0,0.75); color: var(--accent-gold); font-size: 0.7rem; font-weight: 600; padding: 2px 6px; border-radius: 3px; border: 1px solid rgba(197, 168, 128, 0.3);">
+        Photo ${idx + 1} of ${allPhotos.length}
+      </span>
     </div>
   `).join('');
 

@@ -413,7 +413,18 @@ async function openProjectModal(slug) {
   }
 
   const scopes = Array.isArray(project.scope) ? project.scope : [];
-  const gallery = Array.isArray(project.gallery) ? project.gallery : [];
+  let rawGallery = [];
+  if (Array.isArray(project.gallery)) {
+    rawGallery = project.gallery;
+  } else if (typeof project.gallery === 'string') {
+    try { rawGallery = JSON.parse(project.gallery); } catch (_) { rawGallery = [project.image_url]; }
+  }
+
+  const allPhotos = [];
+  if (project.image_url) allPhotos.push(project.image_url);
+  rawGallery.forEach((img) => {
+    if (img && !allPhotos.includes(img)) allPhotos.push(img);
+  });
 
   modalBody.innerHTML = `
     <div style="margin-bottom: 20px;">
@@ -421,8 +432,8 @@ async function openProjectModal(slug) {
       <h2 style="font-size: 1.8rem; margin-top: 8px; font-family: var(--font-serif);">${escapeHtml(project.title)}</h2>
     </div>
 
-    <div style="border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 24px;">
-      <img src="${escapeHtml(project.image_url)}" alt="${escapeHtml(project.title)}" style="width: 100%; height: 320px; object-fit: cover;" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80'">
+    <div style="border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 24px; position: relative; background: #000;">
+      <img id="mainModalHeroImg" src="${escapeHtml(project.image_url)}" alt="${escapeHtml(project.title)}" style="width: 100%; height: 340px; object-fit: cover; transition: opacity 0.25s ease;" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80'">
     </div>
 
     <p style="color: var(--text-muted); line-height: 1.7; margin-bottom: 24px; font-size: 1rem;">
@@ -436,11 +447,21 @@ async function openProjectModal(slug) {
       </div>
     </div>
 
-    ${gallery.length > 0 ? `
+    ${allPhotos.length > 0 ? `
       <div style="margin-bottom: 24px;">
-        <h4 style="font-size: 1rem; color: var(--accent-gold); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;">Photographic Walkthrough</h4>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
-          ${gallery.map((img) => `<img src="${escapeHtml(img)}" style="width: 100%; height: 140px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80'">`).join('')}
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
+          <h4 style="font-size: 1rem; color: var(--accent-gold); text-transform: uppercase; letter-spacing: 0.08em; margin: 0;">Photographic Walkthrough (${allPhotos.length} Photos)</h4>
+          <span style="font-size: 0.78rem; color: var(--text-dim);">Click any photo to preview</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;">
+          ${allPhotos.map((img, idx) => `
+            <div style="border-radius: var(--radius-sm); overflow: hidden; position: relative; border: 1px solid var(--border-subtle); height: 110px; cursor: pointer; background: #000;" onclick="const hero = document.getElementById('mainModalHeroImg'); if (hero) hero.src='${escapeHtml(img)}';">
+              <img src="${escapeHtml(img)}" alt="Photo ${idx + 1}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.25s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80'">
+              <span style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.75); color: var(--accent-gold); font-size: 0.65rem; font-weight: 600; padding: 1px 5px; border-radius: 3px;">
+                #${idx + 1}
+              </span>
+            </div>
+          `).join('')}
         </div>
       </div>
     ` : ''}
