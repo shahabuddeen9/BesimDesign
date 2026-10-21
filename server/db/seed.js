@@ -182,11 +182,11 @@ export async function runSeed() {
         area_sqft: 4800,
         description: 'Complete turnkey execution from bare shell to restaurant handover, delivered ahead of schedule. Bespoke banquette seating, brass-trimmed joinery, custom terrazzo flooring, and specialized kitchen exhaust balancing.',
         scope: JSON.stringify(['Bare-Shell to Handover', 'Kitchen MEP & Exhaust Scrubbers', 'Custom Brass & Millwork', 'Acoustic Ceiling Systems', 'Early Handover Protocol']),
-        image_url: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80',
+        image_url: '/assets/aistudio/Screenshot_2026-10-21_at_3.13.59_PM_47176ac5.png',
         gallery: JSON.stringify([
+          '/assets/aistudio/Screenshot_2026-10-21_at_3.13.59_PM_47176ac5.png',
           'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=800&q=80'
+          'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80'
         ]),
         is_featured: 1,
         sort_order: 5,
@@ -201,8 +201,9 @@ export async function runSeed() {
         area_sqft: 5500,
         description: 'Contemporary Asian dining destination featuring delicate fluted timber paneling, an interactive dim-sum culinary theatre, Japanese cherry blossom installations, and acoustic sound zoning.',
         scope: JSON.stringify(['Culinary Theatre Planning', 'DMX Lighting Programming', 'Acoustic Fluted Paneling', 'Heavy-Duty Kitchen Extraction', 'Custom Bar Layout']),
-        image_url: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=1200&q=80',
+        image_url: '/assets/aistudio/Screenshot_2026-10-21_at_3.13.59_PM_47176ac5.png',
         gallery: JSON.stringify([
+          '/assets/aistudio/Screenshot_2026-10-21_at_3.13.59_PM_47176ac5.png',
           'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1543007630-9710e4a00a20?auto=format&fit=crop&w=800&q=80'
         ]),
