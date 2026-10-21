@@ -350,8 +350,29 @@ function initHotelForm() {
         throw new Error(json.message || 'Submission failed');
       }
 
-      showToast('✓ Hotel development brief received! Our hospitality architecture team will contact you.', 'success');
+      const waPhone = '919892699850';
+      const formattedId = json.id ? `#MSF-${json.id.toString().padStart(4, '0')}` : '';
+      const waLines = [
+        `*🏛️ BESIM DESIGN - HOTEL DEVELOPMENT BRIEF* ${formattedId}`,
+        `*Client:* ${name}`,
+        `*Phone:* ${phone}`,
+        `*Email:* ${email}`,
+        `*Sector:* HOTELS & RESORTS`,
+        propertyName ? `*Hotel / Chain:* ${propertyName}` : '',
+        location ? `*Location:* ${location}` : '',
+        area ? `*Area / Keys:* ${area} sq.ft` : '',
+        scopes.length > 0 ? `*Required Scope:* ${scopes.join(', ')}` : '',
+        notes ? `\n*Specifications:*\n${notes}` : '',
+      ].filter(Boolean).join('\n');
+
+      const waUrl = json.whatsapp_url || `https://wa.me/${waPhone}?text=${encodeURIComponent(waLines)}`;
+
+      showToast('✓ Hotel development brief received! Opening WhatsApp...', 'success');
       form.reset();
+
+      setTimeout(() => {
+        window.location.href = waUrl;
+      }, 300);
 
     } catch (err) {
       showToast(err.message || 'Failed to submit. Please verify details.', 'error');

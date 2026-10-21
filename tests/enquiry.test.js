@@ -153,4 +153,28 @@ describe('Public Enquiries API (POST /api/enquiries)', () => {
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
   });
+
+  it('should return WhatsApp redirection details targeting +91 98926 99850', async () => {
+    const payload = {
+      name: 'Farhan Zaidi',
+      phone: '9892699850',
+      email: 'farhan@besimdesign.com',
+      business_type: 'hotels',
+      project_location: 'Colaba, Mumbai',
+      area_sqft: 8500,
+      message: 'Turnkey architectural renovation and bespoke factory furniture.',
+      consent: true,
+    };
+
+    const res = await request(app)
+      .post('/api/enquiries')
+      .send(payload);
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.whatsapp_number).toBe('+91 98926 99850');
+    expect(res.body.whatsapp_url).toBeDefined();
+    expect(res.body.whatsapp_url).toContain('919892699850');
+    expect(res.body.whatsapp_url).toContain(encodeURIComponent('Farhan Zaidi'));
+  });
 });

@@ -353,8 +353,29 @@ function initFeasibilityForm() {
         throw new Error(json.message || 'Submission failed');
       }
 
-      showToast('✓ Central Kitchen feasibility brief received! Our culinary engineering team will contact you.', 'success');
+      const waPhone = '919892699850';
+      const formattedId = json.id ? `#MSF-${json.id.toString().padStart(4, '0')}` : '';
+      const waLines = [
+        `*🏛️ BESIM DESIGN - CENTRAL KITCHEN BRIEF* ${formattedId}`,
+        `*Client:* ${name}`,
+        `*Phone:* ${phone}`,
+        `*Email:* ${email}`,
+        `*Sector:* CENTRAL KITCHEN & COMMISSARY`,
+        facilityName ? `*Brand / Entity:* ${facilityName}` : '',
+        location ? `*Location:* ${location}` : '',
+        area ? `*Area:* ${area} sq.ft` : '',
+        scopes.length > 0 ? `*Required Scope:* ${scopes.join(', ')}` : '',
+        notes ? `\n*Technical Specs:*\n${notes}` : '',
+      ].filter(Boolean).join('\n');
+
+      const waUrl = json.whatsapp_url || `https://wa.me/${waPhone}?text=${encodeURIComponent(waLines)}`;
+
+      showToast('✓ Central Kitchen brief received! Opening WhatsApp...', 'success');
       form.reset();
+
+      setTimeout(() => {
+        window.location.href = waUrl;
+      }, 300);
 
     } catch (err) {
       showToast(err.message || 'Failed to submit. Please verify details.', 'error');

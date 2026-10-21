@@ -5,6 +5,7 @@
  */
 
 import { z } from 'zod';
+import env from '../config/env.js';
 import { db } from '../db/index.js';
 import { generateEnquiriesCsv } from '../services/csvExport.js';
 import { sendEnquiryEmails } from '../services/mailer.js';
@@ -151,10 +152,27 @@ export async function createEnquiry(req, res, next) {
       logger.error('Background email dispatch failed for enquiry #' + savedId, err);
     });
 
+    const whatsappTarget = (env.WHATSAPP_NUMBER || '919892699850').replace(/[^0-9]/g, '');
+    const formattedId = `#MSF-${savedId.toString().padStart(4, '0')}`;
+    const waLines = [
+      `*🏛️ BESIM DESIGN - NEW PROJECT BRIEF* (${formattedId})`,
+      `*Client:* ${sanitizedName}`,
+      `*Phone:* ${sanitizedPhone}`,
+      `*Email:* ${sanitizedEmail}`,
+      `*Sector:* ${sanitizedBusinessType.replace(/_/g, ' ').toUpperCase()}`,
+      sanitizedLocation ? `*Location:* ${sanitizedLocation}` : '',
+      validated.area_sqft ? `*Area:* ${validated.area_sqft.toLocaleString()} sq.ft` : '',
+      sanitizedMessage ? `\n*Project Details:*\n${sanitizedMessage}` : '',
+    ].filter(Boolean).join('\n');
+
+    const whatsappUrl = `https://wa.me/${whatsappTarget}?text=${encodeURIComponent(waLines)}`;
+
     return res.status(201).json({
       success: true,
       id: savedId,
       message: 'Thank you! Your project enquiry has been submitted. Our architectural team will reach out shortly.',
+      whatsapp_number: '+91 98926 99850',
+      whatsapp_url: whatsappUrl,
     });
   } catch (error) {
     next(error);

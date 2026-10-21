@@ -459,10 +459,33 @@ ${message || 'Requesting architectural consultation and turnkey interior quotati
       const json = await response.json();
 
       if (response.ok && json.success) {
-        showToast('Your Luxury Residential Brief has been submitted! Our principal architect will contact you shortly.', 'success');
+        const waPhone = '919892699850';
+        const formattedId = json.id ? `#MSF-${json.id.toString().padStart(4, '0')}` : '';
+        const waLines = [
+          `*🏛️ BESIM DESIGN - LUXURY RESIDENTIAL BRIEF* ${formattedId}`,
+          `*Client:* ${name}`,
+          `*Phone:* ${phone}`,
+          `*Email:* ${email}`,
+          `*Sector:* LUXURY RESIDENTIAL`,
+          propertyType ? `*Property Type:* ${propertyType}` : '',
+          location ? `*Location:* ${location}` : '',
+          areaSqft ? `*Carpet Area:* ${areaSqft} sq.ft` : '',
+          timeline ? `*Timeline:* ${timeline}` : '',
+          selectedScopes.length > 0 ? `*Scope:* ${selectedScopes.join(', ')}` : '',
+          uploadedFileUrl ? `*Drawings:* ${CONFIG.API_BASE_URL}${uploadedFileUrl}` : '',
+          message ? `\n*Details:*\n${message}` : '',
+        ].filter(Boolean).join('\n');
+
+        const waUrl = json.whatsapp_url || `https://wa.me/${waPhone}?text=${encodeURIComponent(waLines)}`;
+
+        showToast('✓ Luxury Residential brief registered! Opening WhatsApp...', 'success');
         form.reset();
         const fileStatus = document.getElementById('residentialFileStatus');
         if (fileStatus) fileStatus.innerHTML = '';
+
+        setTimeout(() => {
+          window.location.href = waUrl;
+        }, 300);
       } else {
         throw new Error(json.message || 'Submission failed. Please check inputs.');
       }

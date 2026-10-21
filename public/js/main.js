@@ -638,12 +638,35 @@ function initContactForm() {
       const result = await response.json();
 
       if (response.ok && result.success) {
+        // Build WhatsApp URL
+        const waPhone = '919892699850';
+        const formattedId = `#MSF-${result.id.toString().padStart(4, '0')}`;
+        const waLines = [
+          `*🏛️ BESIM DESIGN - NEW PROJECT ENQUIRY* (${formattedId})`,
+          `*Client:* ${name}`,
+          `*Phone:* ${phone}`,
+          `*Email:* ${email}`,
+          `*Sector:* ${(businessType || '').toUpperCase()}`,
+          projectLocation ? `*Location:* ${projectLocation}` : '',
+          areaSqft ? `*Area:* ${areaSqft.toLocaleString()} sq.ft` : '',
+          message ? `\n*Message / Requirements:*\n${message}` : '',
+          calcData && calcData.estimated_budget ? `*Estimated Budget:* ${calcData.estimated_budget}` : '',
+        ].filter(Boolean).join('\n');
+
+        const waUrl = result.whatsapp_url || `https://wa.me/${waPhone}?text=${encodeURIComponent(waLines)}`;
+
         // Success state
         form.reset();
         displayFormSuccess(
-          `Thank you, ${name}! Your enquiry (#MSF-${result.id.toString().padStart(4, '0')}) has been registered. Our principal team will review your brief and contact you within 1 business day.`
+          `Thank you, ${name}! Your brief (${formattedId}) has been registered. Connecting you to WhatsApp...`,
+          waUrl
         );
-        showToast('Enquiry submitted successfully! Confirmation sent to your email.', 'success');
+        showToast('✓ Project brief registered! Opening WhatsApp...', 'success');
+
+        // Automatically take user to WhatsApp
+        setTimeout(() => {
+          window.location.href = waUrl;
+        }, 300);
       } else {
         // Server validation or rate limit error
         let errorMsg = result.message || 'Unable to submit enquiry. Please check your inputs and try again.';
@@ -676,7 +699,7 @@ function initContactForm() {
     alertBox.innerHTML = `<strong>Submission Error:</strong> ${msg}`;
   }
 
-  function displayFormSuccess(msg) {
+  function displayFormSuccess(msg, waUrl) {
     alertBox.style.display = 'block';
     alertBox.style.background = 'rgba(16, 185, 129, 0.12)';
     alertBox.style.border = '1px solid #10b981';
@@ -685,7 +708,17 @@ function initContactForm() {
     alertBox.style.borderRadius = 'var(--radius-sm)';
     alertBox.style.fontSize = '0.95rem';
     alertBox.style.lineHeight = '1.6';
-    alertBox.innerHTML = `<strong>Enquiry Confirmed ✓</strong><br>${msg}`;
+    alertBox.innerHTML = `
+      <div style="font-size: 1.4rem; margin-bottom: 6px;">💬 ✓</div>
+      <strong>Enquiry Confirmed</strong><br>${msg}
+      ${waUrl ? `
+        <div style="margin-top: 14px;">
+          <a href="${waUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp btn-sm" style="font-weight: 700; text-decoration: none;">
+            💬 Open Details in WhatsApp (+91 98926 99850) →
+          </a>
+        </div>
+      ` : ''}
+    `;
   }
 }
 

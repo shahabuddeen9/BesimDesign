@@ -586,7 +586,40 @@ function initUploadSystem() {
           throw new Error(json.message || 'Failed to submit project brief');
         }
 
-        showToast('✓ Project brief and drawings received! Our senior architect will review and contact you.', 'success');
+        // WhatsApp integration for +91 98926 99850
+        const waPhone = '919892699850';
+        const formattedId = json.id ? `#MSF-${json.id.toString().padStart(4, '0')}` : '';
+        const waLines = [
+          `*🏛️ BESIM DESIGN - PROJECT BRIEF SUBMISSION* ${formattedId}`,
+          `*Client:* ${name}`,
+          `*Phone:* ${phone}`,
+          `*Email:* ${email}`,
+          projectTitle ? `*Project Title:* ${projectTitle}` : '',
+          clientFirm ? `*Client / Firm:* ${clientFirm}` : '',
+          `*Sector:* ${(sector === 'all' ? 'Hospitality & Turnkey Fit-out' : sector).toUpperCase()}`,
+          location ? `*Location:* ${location}` : '',
+          area ? `*Area:* ${area.toLocaleString()} sq.ft` : '',
+          checkedScopes.length > 0 ? `*Scope Required:* ${checkedScopes.join(', ')}` : '',
+          uploadedFileUrl ? `*Uploaded Document/Drawings:* ${CONFIG.API_BASE_URL}${uploadedFileUrl}` : '',
+          notes ? `\n*Project Brief & Notes:*\n${notes}` : '',
+        ].filter(Boolean).join('\n');
+
+        const waUrl = json.whatsapp_url || `https://wa.me/${waPhone}?text=${encodeURIComponent(waLines)}`;
+
+        // Show clean minimal confirmation message
+        const resultContainer = document.getElementById('uploadResultContainer');
+        if (resultContainer) {
+          resultContainer.innerHTML = `
+            <div style="margin-top: 20px; padding: 18px; background: rgba(197, 168, 128, 0.08); border: 1px solid var(--border-gold); border-radius: var(--radius-sm); text-align: center;">
+              <h4 style="font-family: var(--font-serif); color: #fff; margin-bottom: 6px;">Brief Submitted (${formattedId})</h4>
+              <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 12px;">Connecting you automatically to WhatsApp (+91 98926 99850)...</p>
+              <a href="${waUrl}" class="btn btn-primary btn-sm">Click here if not redirected automatically →</a>
+            </div>
+          `;
+          resultContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        showToast('✓ Brief submitted! Opening WhatsApp...', 'success');
 
         form.reset();
         state.uploadedFile = null;
@@ -594,6 +627,11 @@ function initUploadSystem() {
 
         // Re-select current category
         setCategory(state.activeCategory, false);
+
+        // Automatically take user to WhatsApp
+        setTimeout(() => {
+          window.location.href = waUrl;
+        }, 300);
 
       } catch (err) {
         showToast(err.message || 'Failed to submit. Please check your network.', 'error');
