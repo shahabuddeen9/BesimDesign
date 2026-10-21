@@ -29,14 +29,14 @@ function safeJsonParse(val, fallback = []) {
 // Project Zod Schema
 export const projectSchema = z.object({
   title: z.string().min(2, 'Title must be at least 2 characters').max(150),
-  slug: z.string().min(2).max(150).regex(/^[a-z0-9-]+$/, 'Slug must only contain lowercase letters, numbers, and hyphens'),
-  category: z.string().min(2).max(50),
+  slug: z.string().min(1).max(150).regex(/^[a-z0-9-]+$/, 'Slug must only contain lowercase letters, numbers, and hyphens').optional(),
+  category: z.string().min(2).max(50).default('commercial'),
   client_name: z.string().max(100).default(''),
   location: z.string().max(100).default(''),
   area_sqft: z.coerce.number().default(0),
   description: z.string().min(2, 'Description must be at least 2 characters'),
   scope: z.union([z.array(z.string()), z.string()]).default([]),
-  image_url: z.string().min(1, 'Cover image URL or upload path is required'),
+  image_url: z.string().default('https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80'),
   gallery: z.union([z.array(z.string()), z.string()]).default([]),
   is_featured: z.coerce.number().min(0).max(1).default(0),
   sort_order: z.coerce.number().default(0),
@@ -152,16 +152,26 @@ export function getAllProjects(req, res, next) {
  */
 export function createProject(req, res, next) {
   try {
-    const validated = projectSchema.parse(req.body);
-
-    // Check slug collision
-    const existing = db.prepare('SELECT id FROM projects WHERE slug = ?').get(validated.slug);
-    if (existing) {
-      throw new AppError(`A project with the slug "${validated.slug}" already exists.`, 400);
+    const rawBody = { ...req.body };
+    if (!rawBody.slug && rawBody.title) {
+      rawBody.slug = rawBody.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || `proj-${Date.now()}`;
     }
 
-    const scopeJson = Array.isArray(validated.scope) ? JSON.stringify(validated.scope) : validated.scope;
-    const galleryJson = Array.isArray(validated.gallery) ? JSON.stringify(validated.gallery) : validated.gallery;
+    const validated = projectSchema.parse(rawBody);
+
+    // Auto-resolve slug collision by appending timestamp or counter
+    let finalSlug = (validated.slug || validated.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')).replace(/^-+|-+$/g, '') || `proj-${Date.now()}`;
+    let counter = 1;
+    const baseSlug = finalSlug;
+    while (db.prepare('SELECT id FROM projects WHERE slug = ?').get(finalSlug)) {
+      finalSlug = `${baseSlug}-${counter++}`;
+    }
+
+    const scopeJson = Array.isArray(validated.scope) ? JSON.stringify(validated.scope) : (validated.scope || '[]');
+    const galleryJson = Array.isArray(validated.gallery) ? JSON.stringify(validated.gallery) : (validated.gallery || '[]');
 
     const result = db.prepare(`
       INSERT INTO projects (
@@ -175,7 +185,7 @@ export function createProject(req, res, next) {
       )
     `).run(
       stripHtml(validated.title),
-      validated.slug.toLowerCase(),
+      finalSlug.toLowerCase(),
       validated.category,
       stripHtml(validated.client_name || ''),
       stripHtml(validated.location || ''),
@@ -190,6 +200,10 @@ export function createProject(req, res, next) {
     );
 
     const saved = db.prepare('SELECT * FROM projects WHERE id = ?').get(result.lastInsertRowid);
+    if (saved) {
+      saved.scope = safeJsonParse(saved.scope);
+      saved.gallery = safeJsonParse(saved.gallery);
+    }
 
     return res.status(201).json({
       success: true,

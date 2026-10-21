@@ -30,7 +30,7 @@ function persistDb() {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    const tempPath = `${env.DB_PATH}.tmp`;
+    const tempPath = `${env.DB_PATH}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
     fs.writeFileSync(tempPath, buffer);
     fs.renameSync(tempPath, env.DB_PATH);
   } catch (err) {

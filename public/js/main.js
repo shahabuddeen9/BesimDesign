@@ -694,20 +694,79 @@ function initContactForm() {
 // =============================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. Mobile navigation toggle
+  // 1. Mobile navigation toggle & smooth dropdown handling
   const navToggle = document.getElementById('navToggle');
   const navLinks = document.getElementById('navLinks');
+  const navbarEl = document.getElementById('navbar');
+
   if (navToggle && navLinks) {
-    navToggle.addEventListener('click', () => {
-      navLinks.classList.toggle('active');
+    navToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = navLinks.classList.toggle('active');
+      navToggle.textContent = isOpen ? '✕' : '☰';
+      navToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     });
 
-    document.querySelectorAll('.nav-link').forEach((link) => {
-      link.addEventListener('click', () => {
-        navLinks.classList.remove('active');
+    // Handle mobile dropdown toggle on "Project"
+    document.querySelectorAll('.nav-item-dropdown > .nav-link').forEach((dropdownLink) => {
+      dropdownLink.addEventListener('click', (e) => {
+        if (window.innerWidth <= 992) {
+          e.preventDefault();
+          const parent = dropdownLink.closest('.nav-item-dropdown');
+          if (parent) parent.classList.toggle('open');
+        }
       });
     });
+
+    // Close mobile menu when clicking regular links or dropdown items
+    document.querySelectorAll('.nav-link:not(.nav-item-dropdown > .nav-link), .dropdown-item').forEach((link) => {
+      link.addEventListener('click', () => {
+        navLinks.classList.remove('active');
+        if (navToggle) {
+          navToggle.textContent = '☰';
+          navToggle.setAttribute('aria-expanded', 'false');
+        }
+      });
+    });
+
+    // Close mobile menu if clicked outside
+    document.addEventListener('click', (e) => {
+      if (navbarEl && !navbarEl.contains(e.target) && navLinks.classList.contains('active')) {
+        navLinks.classList.remove('active');
+        if (navToggle) {
+          navToggle.textContent = '☰';
+          navToggle.setAttribute('aria-expanded', 'false');
+        }
+      }
+    });
   }
+
+  // Smooth in-page anchor scrolling with fixed header offset
+  document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+    anchor.addEventListener('click', function(e) {
+      const targetId = this.getAttribute('href');
+      if (!targetId || targetId === '#') return;
+      
+      // If on mobile and tapping dropdown parent, allow dropdown toggle above to handle
+      if (window.innerWidth <= 992 && this.classList.contains('nav-link') && this.closest('.nav-item-dropdown')) {
+        return;
+      }
+
+      const targetElement = document.querySelector(targetId);
+      if (targetElement) {
+        e.preventDefault();
+        const headerHeight = 80;
+        const targetPos = targetElement.getBoundingClientRect().top + window.pageYOffset - headerHeight;
+        window.scrollTo({
+          top: targetPos,
+          behavior: 'smooth'
+        });
+        if (window.history.pushState) {
+          window.history.pushState(null, null, targetId);
+        }
+      }
+    });
+  });
 
   // 2. Portfolio Category Filter Buttons
   const filterBtns = document.querySelectorAll('.filter-btn');

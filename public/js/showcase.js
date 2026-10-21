@@ -644,12 +644,39 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') closeModal();
   });
 
-  // 5. Setup mobile nav toggle
+  // 5. Setup mobile nav toggle & smooth dropdown handling
   const navToggle = document.getElementById('navToggle');
   const navLinks = document.getElementById('navLinks');
+  const navbarEl = document.getElementById('navbar');
   if (navToggle && navLinks) {
-    navToggle.addEventListener('click', () => {
-      navLinks.classList.toggle('active');
+    navToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = navLinks.classList.toggle('active');
+      navToggle.textContent = isOpen ? '✕' : '☰';
+    });
+
+    document.querySelectorAll('.nav-item-dropdown > .nav-link').forEach((dropdownLink) => {
+      dropdownLink.addEventListener('click', (e) => {
+        if (window.innerWidth <= 992) {
+          e.preventDefault();
+          const parent = dropdownLink.closest('.nav-item-dropdown');
+          if (parent) parent.classList.toggle('open');
+        }
+      });
+    });
+
+    document.querySelectorAll('.nav-link:not(.nav-item-dropdown > .nav-link), .dropdown-item').forEach((link) => {
+      link.addEventListener('click', () => {
+        navLinks.classList.remove('active');
+        if (navToggle) navToggle.textContent = '☰';
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (navbarEl && !navbarEl.contains(e.target) && navLinks.classList.contains('active')) {
+        navLinks.classList.remove('active');
+        if (navToggle) navToggle.textContent = '☰';
+      }
     });
   }
 

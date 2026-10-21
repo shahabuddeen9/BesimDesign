@@ -80,6 +80,18 @@ if (fs.existsSync(distPath)) {
 }
 app.use(express.static(publicPath));
 
+// Smooth Admin Portal Entry Routes
+app.get(['/admin', '/admin/'], (req, res) => {
+  const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+  return res.redirect(302, `/admin/dashboard.html${query}`);
+});
+
+app.get('/admin/projects', (req, res) => {
+  const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+  const sep = query ? '&' : '?';
+  return res.redirect(302, `/admin/dashboard.html${query}${sep}tab=projects`);
+});
+
 // Clean routes for dedicated showcase experiences
 app.get(['/about', '/about.html'], (req, res) => {
   const distFile = path.resolve(distPath, 'about.html');

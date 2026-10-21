@@ -754,48 +754,96 @@ function filterAndRenderProjects() {
   renderAdminProjectsTable(list);
 }
 
+function updateProjectImagePreview(url) {
+  const container = document.getElementById('projImagePreviewContainer');
+  const img = document.getElementById('projImagePreview');
+  const meta = document.getElementById('projImagePreviewMeta');
+  if (!container || !img) return;
+
+  if (url && url.trim()) {
+    img.src = url.trim();
+    img.onload = () => {
+      container.style.display = 'flex';
+      if (meta) meta.textContent = 'Preview active';
+    };
+    img.onerror = () => {
+      container.style.display = 'none';
+    };
+  } else {
+    container.style.display = 'none';
+  }
+}
+
+function getProjectPublicUrl(category, slug) {
+  const cat = (category || '').toLowerCase();
+  if (cat === 'hotels') return `/hotels.html#${slug || ''}`;
+  if (cat === 'hospitality') return `/hospitality.html#${slug || ''}`;
+  if (cat === 'residential') return `/residential.html#${slug || ''}`;
+  if (cat === 'central_kitchen' || cat === 'central-kitchen') return `/central-kitchen.html#${slug || ''}`;
+  return `/showcase.html#${slug || ''}`;
+}
+
 function renderAdminProjectsTable(projects) {
   const tbody = document.getElementById('projectsTableBody');
   if (!tbody) return;
 
+  const countBadge = document.getElementById('projectsCountBadge');
+  if (countBadge) {
+    countBadge.textContent = `${projects.length} Project${projects.length === 1 ? '' : 's'}`;
+  }
+
   if (projects.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 32px; color: var(--text-dim);">No matching projects found. Click "+ Add Architecture Project" above.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 36px; color: var(--text-dim);">
+      <div style="font-size: 1.8rem; margin-bottom: 8px;">🏛️</div>
+      No projects found for this filter.<br>
+      <button class="btn btn-gold btn-sm" onclick="document.getElementById('btnNewProject').click()" style="margin-top: 12px;">+ Add New Project</button>
+    </td></tr>`;
     return;
   }
 
-  tbody.innerHTML = projects.map((p) => `
-    <tr>
+  tbody.innerHTML = projects.map((p) => {
+    const publicUrl = getProjectPublicUrl(p.category, p.slug);
+    return `
+    <tr id="proj-row-${p.id}" style="transition: all 0.25s ease;">
       <td style="width: 80px;">
-        <img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.title)}" style="width: 64px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid var(--admin-border);" onerror="this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80'">
+        <img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.title)}" style="width: 68px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid var(--admin-border);" onerror="this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80'">
       </td>
       <td>
-        <strong style="color: #fff; font-size: 0.95rem;">${escapeHtml(p.title)}</strong>
-        ${p.client_name ? `<div style="font-size: 0.78rem; color: var(--gold);">Client: ${escapeHtml(p.client_name)}</div>` : ''}
-        <div style="font-size: 0.75rem; color: var(--text-dim);">slug: ${escapeHtml(p.slug)} • ${escapeHtml(p.location || 'Mumbai')}</div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <strong style="color: #fff; font-size: 0.95rem;">${escapeHtml(p.title)}</strong>
+          <a href="${publicUrl}" target="_blank" title="View live on website" style="color: var(--gold); font-size: 0.78rem; text-decoration: none; opacity: 0.85;">↗ View</a>
+        </div>
+        ${p.client_name ? `<div style="font-size: 0.78rem; color: var(--gold); margin-top: 2px;">Client: ${escapeHtml(p.client_name)}</div>` : ''}
+        <div style="font-size: 0.74rem; color: var(--text-dim); margin-top: 2px;">slug: <code>${escapeHtml(p.slug)}</code> • ${escapeHtml(p.location || 'Mumbai')}</div>
       </td>
-      <td style="text-transform: uppercase; font-size: 0.8rem; color: var(--gold); font-weight: 600;">${escapeHtml(p.category)}</td>
-      <td style="font-size: 0.8rem; color: var(--text-muted); max-width: 250px;">
+      <td>
+        <span style="display: inline-block; padding: 3px 8px; border-radius: 4px; background: rgba(197, 168, 128, 0.12); color: var(--gold); text-transform: uppercase; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; border: 1px solid rgba(197, 168, 128, 0.25);">
+          ${escapeHtml(p.category)}
+        </span>
+      </td>
+      <td style="font-size: 0.8rem; color: var(--text-muted); max-width: 240px;">
         ${(Array.isArray(p.scope) ? p.scope : []).slice(0, 3).map(escapeHtml).join(', ')}
       </td>
-      <td>${Number(p.sort_order || 0)}</td>
+      <td><span style="color: var(--text-muted); font-size: 0.85rem;">${Number(p.sort_order || 0)}</span></td>
       <td>
         <span class="badge-status ${p.is_published ? 'badge-won' : 'badge-lost'}">
           ${p.is_published ? 'Live' : 'Draft'}
         </span>
-        ${p.is_featured ? '<span style="color: var(--gold); margin-left: 6px;">★</span>' : ''}
+        ${p.is_featured ? '<span style="color: var(--gold); margin-left: 6px; font-size: 1rem;" title="Featured on Homepage">★</span>' : ''}
       </td>
       <td>
-        <div style="display: flex; gap: 8px;">
-          <button class="btn btn-outline btn-sm btn-edit-proj" data-id="${escapeHtml(p.id)}" style="padding: 5px 12px; font-weight: 500;">
-            ✏️ Change
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="btn btn-outline btn-sm btn-edit-proj" data-id="${escapeHtml(p.id)}" style="padding: 6px 12px; font-weight: 600;">
+            ✏️ Edit
           </button>
-          <button class="btn btn-danger btn-sm btn-del-proj" data-id="${escapeHtml(p.id)}" style="padding: 5px 12px; font-weight: 500;">
+          <button class="btn btn-danger btn-sm btn-del-proj" data-id="${escapeHtml(p.id)}" style="padding: 6px 12px; font-weight: 600;">
             🗑️ Delete
           </button>
         </div>
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 
   document.querySelectorAll('.btn-edit-proj').forEach((b) => {
     b.onclick = () => editProject(b.dataset.id);
@@ -809,10 +857,15 @@ function editProject(id) {
   const p = state.projects.find((item) => item.id.toString() === id.toString());
   if (!p) return;
 
-  document.getElementById('modalProjectTitle').textContent = `Change / Edit Project: ${p.title}`;
+  document.getElementById('modalProjectTitle').textContent = `Edit Architecture Project: ${p.title}`;
   document.getElementById('editProjectId').value = p.id;
   document.getElementById('projTitle').value = p.title;
-  document.getElementById('projSlug').value = p.slug;
+  
+  const slugInput = document.getElementById('projSlug');
+  if (slugInput) {
+    slugInput.value = p.slug;
+    slugInput.dataset.manual = 'true';
+  }
 
   const categorySelect = document.getElementById('projCategory');
   if (categorySelect) {
@@ -833,7 +886,13 @@ function editProject(id) {
   const areaInput = document.getElementById('projAreaSqft');
   if (areaInput) areaInput.value = p.area_sqft || 0;
   document.getElementById('projDesc').value = p.description || '';
-  document.getElementById('projImageUrl').value = p.image_url || '';
+  
+  const imageUrlInput = document.getElementById('projImageUrl');
+  if (imageUrlInput) {
+    imageUrlInput.value = p.image_url || '';
+    updateProjectImagePreview(p.image_url || '');
+  }
+
   document.getElementById('projScope').value = Array.isArray(p.scope) ? p.scope.join(', ') : (p.scope || '');
   document.getElementById('projGallery').value = Array.isArray(p.gallery) ? p.gallery.join(', ') : (p.gallery || '');
   document.getElementById('projSort').value = p.sort_order ?? 0;
@@ -859,17 +918,33 @@ async function deleteProject(id) {
 
   if (!confirmed) return;
 
+  const row = document.getElementById(`proj-row-${id}`);
+  if (row) {
+    row.style.transition = 'all 0.3s ease';
+    row.style.opacity = '0.3';
+    row.style.transform = 'translateX(20px)';
+  }
+
   try {
     const res = await adminFetch(`/api/admin/projects/${id}`, { method: 'DELETE' });
     const json = await res.json().catch(() => ({}));
 
     if (res.ok && json.success) {
       showAdminToast(`Project ${title} deleted successfully.`);
-      loadAdminProjects();
+      state.projects = (state.projects || []).filter((item) => item.id.toString() !== id.toString());
+      filterAndRenderProjects();
     } else {
+      if (row) {
+        row.style.opacity = '1';
+        row.style.transform = 'none';
+      }
       showAdminToast(json.message || 'Failed to delete project.', 'error');
     }
   } catch (err) {
+    if (row) {
+      row.style.opacity = '1';
+      row.style.transform = 'none';
+    }
     if (err.message !== 'Authentication required') {
       console.error('Failed to delete project:', err);
       showAdminToast('Network error while deleting project.', 'error');
@@ -1438,6 +1513,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   const fileInput = document.getElementById('projImageFile');
   const uploadStatus = document.getElementById('uploadStatusText');
 
+  const projImageUrlInput = document.getElementById('projImageUrl');
+  if (projImageUrlInput) {
+    projImageUrlInput.addEventListener('input', () => {
+      updateProjectImagePreview(projImageUrlInput.value);
+    });
+  }
+
+  if (fileInput) {
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files && fileInput.files.length > 0) {
+        if (btnUploadImage) btnUploadImage.click();
+      }
+    });
+  }
+
   if (btnUploadImage && fileInput) {
     btnUploadImage.addEventListener('click', async () => {
       if (!fileInput.files || fileInput.files.length === 0) {
@@ -1462,6 +1552,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const json = await res.json();
         if (res.ok && json.success) {
           document.getElementById('projImageUrl').value = json.url;
+          updateProjectImagePreview(json.url);
           uploadStatus.textContent = `Upload successful: ${json.filename}`;
           uploadStatus.style.color = '#10b981';
           showAdminToast('Project image uploaded.');
@@ -1478,6 +1569,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+
   // Add / Edit Project Form
   const btnNewProject = document.getElementById('btnNewProject');
   const formProject = document.getElementById('formProject');
@@ -1486,10 +1578,79 @@ document.addEventListener('DOMContentLoaded', async () => {
       formProject.reset();
       document.getElementById('editProjectId').value = '';
       document.getElementById('modalProjectTitle').textContent = 'Add Architecture Project';
+      if (projSlugInput) projSlugInput.dataset.manual = '';
       if (uploadStatus) uploadStatus.textContent = '';
+      updateProjectImagePreview('');
       openModal('modalProject');
+      setTimeout(() => {
+        if (projTitleInput) projTitleInput.focus();
+      }, 150);
     });
   }
+
+  // Top Bar "➕ Add Project" Button
+  const topBtnAddProject = document.getElementById('topBtnAddProject');
+  if (topBtnAddProject) {
+    topBtnAddProject.addEventListener('click', () => {
+      switchTab('projects');
+      if (btnNewProject) btnNewProject.click();
+    });
+  }
+
+  // Sector Tab Filter Pills
+  document.querySelectorAll('.sector-tab-pill').forEach((pill) => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('.sector-tab-pill').forEach((p) => p.classList.remove('active'));
+      pill.classList.add('active');
+      const cat = pill.dataset.cat;
+      state.filters.projectCategory = cat;
+      const catSelect = document.getElementById('filterProjectCategory');
+      if (catSelect) catSelect.value = cat;
+      filterAndRenderProjects();
+    });
+  });
+
+  const filterProjCat = document.getElementById('filterProjectCategory');
+  if (filterProjCat) {
+    filterProjCat.addEventListener('change', (e) => {
+      const cat = e.target.value;
+      state.filters.projectCategory = cat;
+      document.querySelectorAll('.sector-tab-pill').forEach((p) => {
+        p.classList.toggle('active', p.dataset.cat === cat);
+      });
+      filterAndRenderProjects();
+    });
+  }
+
+  // Sidebar Subnav Sector Links & Quick Add Buttons
+  document.querySelectorAll('.subnav-sector-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const cat = btn.dataset.cat;
+      switchTab('projects');
+      if (cat) {
+        state.filters.projectCategory = cat;
+        const catSelect = document.getElementById('filterProjectCategory');
+        if (catSelect) catSelect.value = cat;
+        document.querySelectorAll('.sector-tab-pill').forEach((p) => {
+          p.classList.toggle('active', p.dataset.cat === cat);
+        });
+        filterAndRenderProjects();
+      }
+    });
+  });
+
+  document.querySelectorAll('.subnav-quick-add').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const cat = btn.dataset.cat;
+      switchTab('projects');
+      if (btnNewProject) btnNewProject.click();
+      if (cat) {
+        const catSelect = document.getElementById('projCategory');
+        if (catSelect) catSelect.value = cat;
+      }
+    });
+  });
 
   if (formProject) {
     formProject.addEventListener('submit', async (e) => {
@@ -1497,20 +1658,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       const id = document.getElementById('editProjectId').value;
       const title = document.getElementById('projTitle').value.trim();
       let slug = document.getElementById('projSlug').value.trim().toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-');
+      if (!slug && title) {
+        slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      }
       const category = document.getElementById('projCategory').value;
       const client_name = document.getElementById('projClientName')?.value.trim() || '';
       const location = document.getElementById('projLocation')?.value.trim() || '';
       const area_sqft = parseInt(document.getElementById('projAreaSqft')?.value, 10) || 0;
       const description = document.getElementById('projDesc').value.trim();
-      const image_url = document.getElementById('projImageUrl').value.trim();
+      const image_url = document.getElementById('projImageUrl').value.trim() || 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80';
       const rawScope = document.getElementById('projScope').value.trim();
       const rawGallery = document.getElementById('projGallery').value.trim();
       const sort_order = parseInt(document.getElementById('projSort').value, 10) || 0;
       const is_featured = parseInt(document.getElementById('projFeatured').value, 10) || 0;
       const is_published = parseInt(document.getElementById('projPublished').value, 10) || 1;
 
-      if (!title || !slug || !description || !image_url) {
-        showAdminToast('Please fill all required project fields (*).', 'error');
+      if (!title || !description) {
+        showAdminToast('Please provide a project title and narrative description.', 'error');
         return;
       }
 
