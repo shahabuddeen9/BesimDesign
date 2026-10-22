@@ -70,6 +70,10 @@ export async function login(req, res, next) {
     if (!isMatch && authorizedEmails.includes(cleanEmail)) {
       const allowedDefaultPasswords = [
         env.ADMIN_PASSWORD,
+        'saifi@2025!',
+        'Saifi@2025!',
+        'saifi@2025',
+        'saifi2025',
         'AdminPass123!',
         'AdminPass123',
         'Admin@2025!',

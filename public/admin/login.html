@@ -175,14 +175,15 @@
 
         const text = await res.text();
         let data = {};
+        let isJson = false;
         try {
           data = JSON.parse(text);
-        } catch (parseErr) {
-          console.error('Failed to parse login response JSON:', text);
-          throw new Error('Server returned an unparseable response. Please refresh the page and retry.');
+          isJson = true;
+        } catch (_) {
+          isJson = false;
         }
 
-        if (res.ok && data.success) {
+        if (res.ok && isJson && data.success) {
           // Persist token in localStorage, sessionStorage, and client cookie for total iframe resiliency
           if (data.token) {
             try {
@@ -214,7 +215,19 @@
             window.location.replace(dest);
           }, 200);
         } else {
-          alertBox.textContent = data.message || 'Invalid administrator credentials.';
+          let errorMsg = data.message;
+          if (!errorMsg) {
+            if (res.status === 401) {
+              errorMsg = 'Invalid administrator credentials.';
+            } else if (res.status === 404) {
+              errorMsg = 'Backend API is currently offline on this host (/api/auth/login 404).';
+            } else if (res.status === 502 || res.status === 503) {
+              errorMsg = 'Server is currently restarting. Please wait 5 seconds and retry.';
+            } else {
+              errorMsg = 'Invalid credentials or server unavailable.';
+            }
+          }
+          alertBox.textContent = errorMsg;
           alertBox.style.background = 'rgba(239, 68, 68, 0.15)';
           alertBox.style.borderColor = '#ef4444';
           alertBox.style.color = '#fca5a5';
