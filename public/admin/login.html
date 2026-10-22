@@ -21,30 +21,12 @@
       <div class="login-sub">Commercial Architecture • Admin Portal</div>
     </div>
 
-    <!-- Quick Administrator Access -->
-    <div style="background: rgba(197, 168, 128, 0.08); border: 1px solid var(--border-gold, rgba(197, 168, 128, 0.35)); border-radius: 6px; padding: 12px 14px; margin-bottom: 20px;">
-      <div style="font-size: 0.72rem; color: #c5a880; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
-        ⚡ 1-Click Instant Login
-      </div>
-      <div style="display: flex; flex-direction: column; gap: 8px;">
-        <button type="button" class="btn btn-gold btn-sm" id="btnQuickLoginUser" style="width: 100%; justify-content: center; font-size: 0.8rem; padding: 8px;">
-          🔑 Login as mdshahabuddeen9@gmail.com
-        </button>
-        <button type="button" class="btn btn-gold btn-sm" id="btnQuickLoginUser48" style="width: 100%; justify-content: center; font-size: 0.8rem; padding: 8px; background: rgba(197, 168, 128, 0.2); border-color: rgba(197, 168, 128, 0.5); color: #f5eedf;">
-          🔑 Login as mdshahabuddeen48@gmail.com
-        </button>
-        <button type="button" class="btn btn-outline btn-sm" id="btnQuickLoginAdmin" style="width: 100%; justify-content: center; font-size: 0.78rem; padding: 6px; color: var(--text-muted); border-color: rgba(255,255,255,0.15);">
-          🔑 Login as admin@besimdesign.com
-        </button>
-      </div>
-    </div>
-
     <form id="loginForm" novalidate>
       <div id="loginAlert" style="display: none; padding: 12px 14px; background: rgba(239,68,68,0.15); border: 1px solid #ef4444; color: #fca5a5; font-size: 0.85rem; border-radius: 4px; margin-bottom: 20px;"></div>
 
       <div class="form-group">
         <label class="form-label" for="adminEmail">User ID / Email</label>
-        <input type="text" id="adminEmail" name="email" class="form-control" placeholder="Enter User ID or Email" required autocomplete="username" value="mdshahabuddeen9@gmail.com">
+        <input type="text" id="adminEmail" name="email" class="form-control" placeholder="Enter User ID or Email" required autocomplete="username">
       </div>
 
       <div class="form-group">
@@ -54,7 +36,7 @@
             Show Password
           </button>
         </div>
-        <input type="password" id="adminPassword" name="password" class="form-control" placeholder="Enter Password" required autocomplete="current-password" value="AdminPass123!">
+        <input type="password" id="adminPassword" name="password" class="form-control" placeholder="Enter Password" required autocomplete="current-password">
       </div>
 
       <button type="submit" class="btn btn-gold" id="btnLoginSubmit" style="width: 100%; justify-content: center; margin-top: 10px;">
@@ -76,9 +58,6 @@
     const btnSubmit = document.getElementById('btnLoginSubmit');
     const btnText = document.getElementById('btnLoginText');
     const btnSpinner = document.getElementById('btnLoginSpinner');
-    const btnQuickLoginUser = document.getElementById('btnQuickLoginUser');
-    const btnQuickLoginUser48 = document.getElementById('btnQuickLoginUser48');
-    const btnQuickLoginAdmin = document.getElementById('btnQuickLoginAdmin');
     const btnTogglePassword = document.getElementById('btnTogglePassword');
     const passwordInput = document.getElementById('adminPassword');
 
@@ -92,24 +71,6 @@
           btnTogglePassword.textContent = 'Show Password';
         }
       });
-    }
-
-    function fillAndSubmit(email, password) {
-      document.getElementById('adminEmail').value = email;
-      document.getElementById('adminPassword').value = password;
-      form.requestSubmit();
-    }
-
-    if (btnQuickLoginUser) {
-      btnQuickLoginUser.addEventListener('click', () => fillAndSubmit('mdshahabuddeen9@gmail.com', 'AdminPass123!'));
-    }
-
-    if (btnQuickLoginUser48) {
-      btnQuickLoginUser48.addEventListener('click', () => fillAndSubmit('mdshahabuddeen48@gmail.com', 'AdminPass123!'));
-    }
-
-    if (btnQuickLoginAdmin) {
-      btnQuickLoginAdmin.addEventListener('click', () => fillAndSubmit('admin@besimdesign.com', 'AdminPass123!'));
     }
 
     // Check URL parameters for gentle status banners
