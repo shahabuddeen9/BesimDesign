@@ -50,14 +50,24 @@ app.use(
   })
 );
 
-// 3. CORS Configuration
-const corsOptions = {
-  origin: env.ALLOWED_ORIGIN === '*' ? true : env.ALLOWED_ORIGIN.split(',').map((o) => o.trim()),
-  credentials: true,
-  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-};
-app.use(cors(corsOptions));
+// 3. CORS Configuration (Resilient to AI Studio preview iframes, sandboxed origins, and cross-origin tools)
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (!origin || origin === 'null') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range');
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
 
 // 4. Request Logging (morgan)
 if (env.NODE_ENV !== 'test') {
@@ -69,19 +79,8 @@ app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
 
-// 6. Static Asset Hosting
-const uploadsPath = path.resolve(projectRoot, 'uploads');
-const publicPath = path.resolve(projectRoot, 'public');
-const distPath = path.resolve(projectRoot, 'dist');
-
-app.use('/uploads', express.static(uploadsPath));
-if (fs.existsSync(distPath)) {
-  app.use(express.static(distPath));
-}
-app.use(express.static(publicPath));
-
-// Smooth Admin Portal Entry Routes
-app.get(['/admin', '/admin/'], (req, res) => {
+// 6. Admin Portal Entry Routes (Must precede static middleware)
+app.get(['/admin', '/admin/', '/admin/index.html'], (req, res) => {
   const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
   return res.redirect(302, `/admin/dashboard.html${query}`);
 });
@@ -91,6 +90,17 @@ app.get('/admin/projects', (req, res) => {
   const sep = query ? '&' : '?';
   return res.redirect(302, `/admin/dashboard.html${query}${sep}tab=projects`);
 });
+
+// 7. Static Asset Hosting
+const uploadsPath = path.resolve(projectRoot, 'uploads');
+const publicPath = path.resolve(projectRoot, 'public');
+const distPath = path.resolve(projectRoot, 'dist');
+
+app.use('/uploads', express.static(uploadsPath));
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+}
+app.use(express.static(publicPath));
 
 // Clean routes for dedicated showcase experiences
 app.get(['/about', '/about.html'], (req, res) => {

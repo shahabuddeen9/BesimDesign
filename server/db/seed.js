@@ -31,7 +31,13 @@ export async function runSeed() {
   `);
 
   // 2. Seed Admin Users
-  const adminEmails = [env.ADMIN_EMAIL, 'besimdesigne@gmail.com', 'admin@besimdesign.com'];
+  const adminEmails = [
+    env.ADMIN_EMAIL,
+    'besimdesigne@gmail.com',
+    'admin@besimdesign.com',
+    'mdshahabuddeen9@gmail.com',
+    'mdshahabuddeen48@gmail.com',
+  ];
   const passwordToHash = env.ADMIN_PASSWORD || 'Admin@2025!';
   const passwordHash = await bcrypt.hash(passwordToHash, 10);
   for (const email of adminEmails) {

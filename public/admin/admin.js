@@ -144,11 +144,19 @@ async function adminFetch(url, options = {}) {
     fetchUrl = `${url}${sep}auth_token=${encodeURIComponent(token)}`;
   }
 
-  const res = await fetch(fetchUrl, {
-    ...options,
-    headers,
-    credentials: 'include',
-  });
+  let res;
+  try {
+    res = await fetch(fetchUrl, {
+      ...options,
+      headers,
+      credentials: 'same-origin',
+    });
+  } catch (err) {
+    res = await fetch(fetchUrl, {
+      ...options,
+      headers,
+    });
+  }
 
   return res;
 }
@@ -178,8 +186,10 @@ async function checkSession() {
       await new Promise((r) => setTimeout(r, 250));
       res = await fetch(`/api/auth/me?auth_token=${encodeURIComponent(token)}`, {
         headers: { 'Authorization': `Bearer ${token}` },
-        credentials: 'include',
-      });
+        credentials: 'same-origin',
+      }).catch(() => fetch(`/api/auth/me?auth_token=${encodeURIComponent(token)}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      }));
     }
 
     if (!res.ok) {
