@@ -20,5 +20,11 @@ export default async function handler(req, res) {
       console.error('Failed to initialize database in serverless function:', err);
     }
   }
+
+  // Ensure path prefix matches Express route mountpoints
+  if (req.url && !req.url.startsWith('/api') && !req.url.startsWith('/uploads')) {
+    req.url = `/api${req.url}`;
+  }
+
   return app(req, res);
 }

@@ -8,6 +8,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import initSqlJs from 'sql.js';
 import env from '../config/env.js';
 import logger from '../utils/logger.js';
@@ -48,7 +49,36 @@ export async function initDb() {
 
   initPromise = (async () => {
     try {
-      SQL = await initSqlJs();
+      const currentDir = path.dirname(fileURLToPath(import.meta.url));
+      SQL = await initSqlJs({
+        locateFile: (file) => {
+          const candidates = [
+            path.resolve(process.cwd(), 'node_modules/sql.js/dist', file),
+            path.resolve(currentDir, '../../node_modules/sql.js/dist', file),
+          ];
+          for (const c of candidates) {
+            if (fs.existsSync(c)) return c;
+          }
+          return file;
+        },
+      });
+
+      // On serverless environments (e.g. Vercel), copy packaged DB to writable path if needed
+      if (!fs.existsSync(env.DB_PATH)) {
+        const packagedDb = path.resolve(currentDir, 'fusion.db');
+        const projectDb = path.resolve(process.cwd(), 'server/db/fusion.db');
+        const sourceDb = fs.existsSync(packagedDb) ? packagedDb : (fs.existsSync(projectDb) ? projectDb : null);
+        if (sourceDb) {
+          try {
+            const destDir = path.dirname(env.DB_PATH);
+            if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+            fs.copyFileSync(sourceDb, env.DB_PATH);
+            logger.info(`Copied packaged SQLite database from ${sourceDb} to ${env.DB_PATH}`);
+          } catch (copyErr) {
+            logger.warn('Could not copy packaged database file, will load in-memory:', copyErr);
+          }
+        }
+      }
 
       if (fs.existsSync(env.DB_PATH)) {
         const fileBuffer = fs.readFileSync(env.DB_PATH);
@@ -59,9 +89,14 @@ export async function initDb() {
         logger.info(`Initialized fresh in-memory SQLite database for ${env.DB_PATH}`);
       }
 
-      // Run schema migrations
-      const schemaPath = path.resolve(path.dirname(env.DB_PATH), 'schema.sql');
-      if (fs.existsSync(schemaPath)) {
+      // Run schema migrations from potential paths
+      const schemaCandidates = [
+        path.resolve(path.dirname(env.DB_PATH), 'schema.sql'),
+        path.resolve(currentDir, 'schema.sql'),
+        path.resolve(process.cwd(), 'server/db/schema.sql'),
+      ];
+      const schemaPath = schemaCandidates.find((p) => fs.existsSync(p));
+      if (schemaPath) {
         const schemaSql = fs.readFileSync(schemaPath, 'utf8');
         rawDb.run(schemaSql);
         persistDb();

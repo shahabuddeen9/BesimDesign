@@ -13,6 +13,7 @@ import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import env from './config/env.js';
+import { initDb } from './db/index.js';
 import errorHandler from './middleware/errorHandler.js';
 import { generalLimiter } from './middleware/rateLimit.js';
 
@@ -21,6 +22,16 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
 
 export const app = express();
+
+// Ensure SQLite database is initialized before any route executes
+app.use(async (req, res, next) => {
+  try {
+    await initDb();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 // 1. Trust proxy for rate limiting behind reverse proxies (Cloud Run / Nginx / Render)
 app.set('trust proxy', 1);

@@ -28,7 +28,7 @@ const envSchema = z.object({
   NOTIFY_EMAILS: z.string().default('besimdesigne@gmail.com,msfusionarchitects@gmail.com'),
   IP_HASH_SALT: z.string().min(8, 'IP_HASH_SALT must be at least 8 characters').default('besim-ip-salt-98765'),
   ALLOWED_ORIGIN: z.string().default('*'),
-  DB_PATH: z.string().default(path.resolve(__dirname, '../db/fusion.db')),
+  DB_PATH: z.string().default(process.env.VERCEL ? '/tmp/fusion.db' : path.resolve(__dirname, '../db/fusion.db')),
   WHATSAPP_NUMBER: z.string().default('919892699850'),
 });
 
