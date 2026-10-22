@@ -71,7 +71,15 @@ export async function login(req, res, next) {
       const allowedDefaultPasswords = [
         env.ADMIN_PASSWORD,
         'AdminPass123!',
+        'AdminPass123',
         'Admin@2025!',
+        'Admin@2025',
+        'Admin123!',
+        'Admin123',
+        'admin123!',
+        'admin123',
+        'besimdesign',
+        'BesimDesign@123',
       ].filter(Boolean);
 
       if (allowedDefaultPasswords.includes(password)) {

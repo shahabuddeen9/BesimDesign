@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Admin Portal Login | Besim Design</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,11 +24,14 @@
     <!-- Quick Administrator Access -->
     <div style="background: rgba(197, 168, 128, 0.08); border: 1px solid var(--border-gold, rgba(197, 168, 128, 0.35)); border-radius: 6px; padding: 12px 14px; margin-bottom: 20px;">
       <div style="font-size: 0.72rem; color: #c5a880; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
-        Quick Admin Access
+        ⚡ 1-Click Instant Login
       </div>
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <button type="button" class="btn btn-gold btn-sm" id="btnQuickLoginUser" style="width: 100%; justify-content: center; font-size: 0.8rem; padding: 8px;">
-          🔑 1-Click Login as mdshahabuddeen9@gmail.com
+          🔑 Login as mdshahabuddeen9@gmail.com
+        </button>
+        <button type="button" class="btn btn-gold btn-sm" id="btnQuickLoginUser48" style="width: 100%; justify-content: center; font-size: 0.8rem; padding: 8px; background: rgba(197, 168, 128, 0.2); border-color: rgba(197, 168, 128, 0.5); color: #f5eedf;">
+          🔑 Login as mdshahabuddeen48@gmail.com
         </button>
         <button type="button" class="btn btn-outline btn-sm" id="btnQuickLoginAdmin" style="width: 100%; justify-content: center; font-size: 0.78rem; padding: 6px; color: var(--text-muted); border-color: rgba(255,255,255,0.15);">
           🔑 Login as admin@besimdesign.com
@@ -37,13 +43,18 @@
       <div id="loginAlert" style="display: none; padding: 12px 14px; background: rgba(239,68,68,0.15); border: 1px solid #ef4444; color: #fca5a5; font-size: 0.85rem; border-radius: 4px; margin-bottom: 20px;"></div>
 
       <div class="form-group">
-        <label class="form-label" for="adminEmail">User ID</label>
-        <input type="text" id="adminEmail" name="email" class="form-control" placeholder="Enter User ID or Email" required autocomplete="username" value="admin@besimdesign.com">
+        <label class="form-label" for="adminEmail">User ID / Email</label>
+        <input type="text" id="adminEmail" name="email" class="form-control" placeholder="Enter User ID or Email" required autocomplete="username" value="mdshahabuddeen9@gmail.com">
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="adminPassword">Security Password</label>
-        <input type="password" id="adminPassword" name="password" class="form-control" placeholder="••••••••••••" required autocomplete="current-password" value="AdminPass123!">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <label class="form-label" for="adminPassword" style="margin-bottom: 0;">Security Password</label>
+          <button type="button" id="btnTogglePassword" style="background: none; border: none; color: var(--gold, #c5a880); font-size: 0.75rem; cursor: pointer; padding: 0 4px; text-decoration: underline;">
+            Show Password
+          </button>
+        </div>
+        <input type="password" id="adminPassword" name="password" class="form-control" placeholder="Enter Password" required autocomplete="current-password" value="AdminPass123!">
       </div>
 
       <button type="submit" class="btn btn-gold" id="btnLoginSubmit" style="width: 100%; justify-content: center; margin-top: 10px;">
@@ -52,7 +63,7 @@
       </button>
 
       <div style="text-align: center; margin-top: 24px; font-size: 0.8rem; color: var(--text-dim);">
-        Protected by IP rate-limiting & JWT httpOnly sessions.
+        Protected by IP rate-limiting & JWT session tokens.
         <br>
         <a href="/" style="color: var(--gold); text-decoration: underline; margin-top: 8px; display: inline-block;">← Return to Main Studio Website</a>
       </div>
@@ -66,22 +77,39 @@
     const btnText = document.getElementById('btnLoginText');
     const btnSpinner = document.getElementById('btnLoginSpinner');
     const btnQuickLoginUser = document.getElementById('btnQuickLoginUser');
+    const btnQuickLoginUser48 = document.getElementById('btnQuickLoginUser48');
     const btnQuickLoginAdmin = document.getElementById('btnQuickLoginAdmin');
+    const btnTogglePassword = document.getElementById('btnTogglePassword');
+    const passwordInput = document.getElementById('adminPassword');
 
-    if (btnQuickLoginUser) {
-      btnQuickLoginUser.addEventListener('click', () => {
-        document.getElementById('adminEmail').value = 'mdshahabuddeen9@gmail.com';
-        document.getElementById('adminPassword').value = 'AdminPass123!';
-        form.requestSubmit();
+    if (btnTogglePassword && passwordInput) {
+      btnTogglePassword.addEventListener('click', () => {
+        if (passwordInput.type === 'password') {
+          passwordInput.type = 'text';
+          btnTogglePassword.textContent = 'Hide Password';
+        } else {
+          passwordInput.type = 'password';
+          btnTogglePassword.textContent = 'Show Password';
+        }
       });
     }
 
+    function fillAndSubmit(email, password) {
+      document.getElementById('adminEmail').value = email;
+      document.getElementById('adminPassword').value = password;
+      form.requestSubmit();
+    }
+
+    if (btnQuickLoginUser) {
+      btnQuickLoginUser.addEventListener('click', () => fillAndSubmit('mdshahabuddeen9@gmail.com', 'AdminPass123!'));
+    }
+
+    if (btnQuickLoginUser48) {
+      btnQuickLoginUser48.addEventListener('click', () => fillAndSubmit('mdshahabuddeen48@gmail.com', 'AdminPass123!'));
+    }
+
     if (btnQuickLoginAdmin) {
-      btnQuickLoginAdmin.addEventListener('click', () => {
-        document.getElementById('adminEmail').value = 'admin@besimdesign.com';
-        document.getElementById('adminPassword').value = 'AdminPass123!';
-        form.requestSubmit();
-      });
+      btnQuickLoginAdmin.addEventListener('click', () => fillAndSubmit('admin@besimdesign.com', 'AdminPass123!'));
     }
 
     // Check URL parameters for gentle status banners
@@ -155,29 +183,42 @@
 
       try {
         let res;
+        const targetUrl = '/api/auth/login';
+        const payload = JSON.stringify({ email, password });
+
+        // Resilient fetch strategy for standard browser and cross-origin iframes
         try {
-          res = await fetch('/api/auth/login', {
+          res = await fetch(targetUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
-            body: JSON.stringify({ email, password }),
+            body: payload,
           });
-        } catch (fetchErr) {
-          console.warn('Primary fetch with same-origin credentials failed, retrying fallback:', fetchErr);
-          res = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
-          });
+        } catch (fetchErr1) {
+          console.warn('Attempt 1 (same-origin credentials) failed, retrying without credentials:', fetchErr1);
+          try {
+            res = await fetch(targetUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: payload,
+            });
+          } catch (fetchErr2) {
+            console.warn('Attempt 2 (relative URL) failed, retrying with window origin:', fetchErr2);
+            res = await fetch(window.location.origin + targetUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: payload,
+            });
+          }
         }
 
         const text = await res.text();
-        let data;
+        let data = {};
         try {
           data = JSON.parse(text);
         } catch (parseErr) {
           console.error('Failed to parse login response JSON:', text);
-          throw new Error('Server returned an unexpected response. Please retry.');
+          throw new Error('Server returned an unparseable response. Please refresh the page and retry.');
         }
 
         if (res.ok && data.success) {
@@ -210,7 +251,7 @@
           const dest = `/admin/dashboard.html?${redirectParams.toString()}`;
           setTimeout(() => {
             window.location.replace(dest);
-          }, 250);
+          }, 200);
         } else {
           alertBox.textContent = data.message || 'Invalid administrator credentials.';
           alertBox.style.background = 'rgba(239, 68, 68, 0.15)';
@@ -220,7 +261,7 @@
         }
       } catch (err) {
         console.error('Admin login error:', err);
-        alertBox.textContent = err.message || 'Network or server communication error. Please try again.';
+        alertBox.innerHTML = `${err.message || 'Network communication error.'} <a href="/admin/login.html?t=${Date.now()}" style="color: #fff; text-decoration: underline; margin-left: 8px;">Refresh Login</a>`;
         alertBox.style.background = 'rgba(239, 68, 68, 0.15)';
         alertBox.style.borderColor = '#ef4444';
         alertBox.style.color = '#fca5a5';

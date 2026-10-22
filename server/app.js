@@ -85,6 +85,20 @@ app.get(['/admin', '/admin/', '/admin/index.html'], (req, res) => {
   return res.redirect(302, `/admin/dashboard.html${query}`);
 });
 
+app.get(['/admin/login', '/admin/login.html'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  return res.sendFile(path.resolve(publicPath, 'admin/login.html'));
+});
+
+app.get(['/admin/dashboard', '/admin/dashboard.html'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  return res.sendFile(path.resolve(publicPath, 'admin/dashboard.html'));
+});
+
 app.get('/admin/projects', (req, res) => {
   const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
   const sep = query ? '&' : '?';
@@ -100,7 +114,15 @@ app.use('/uploads', express.static(uploadsPath));
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
 }
-app.use(express.static(publicPath));
+app.use(express.static(publicPath, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html') || filePath.includes('/admin/')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  },
+}));
 
 // Clean routes for dedicated showcase experiences
 app.get(['/about', '/about.html'], (req, res) => {
