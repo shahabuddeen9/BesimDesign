@@ -383,6 +383,7 @@ function openProjectModal(project) {
   `;
 
   modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
 
   const closeBtn = document.getElementById('modalCloseAction');
   if (closeBtn) closeBtn.onclick = closeModal;
@@ -412,7 +413,10 @@ function openProjectModal(project) {
 
 function closeModal() {
   const modal = document.getElementById('projectModal');
-  if (modal) modal.classList.remove('active');
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
 }
 
 // =============================================================================

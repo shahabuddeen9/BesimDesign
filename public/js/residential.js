@@ -259,14 +259,19 @@ function openBlueprintModal(project) {
   `;
 
   modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
 
   const closeBtn = document.getElementById('closeResidentialModalBtn');
-  if (closeBtn) closeBtn.onclick = () => modal.classList.remove('active');
+  if (closeBtn) closeBtn.onclick = () => {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  };
 
   const planBtn = document.getElementById('modalPlanResidentialBtn');
   if (planBtn) {
     planBtn.onclick = () => {
       modal.classList.remove('active');
+      document.body.style.overflow = '';
       const formSection = document.getElementById('residentialBriefSection');
       if (formSection) formSection.scrollIntoView({ behavior: 'smooth' });
 
@@ -527,12 +532,21 @@ document.addEventListener('DOMContentLoaded', () => {
   // Modal backdrop close
   const modal = document.getElementById('residentialModal');
   const modalClose = document.getElementById('residentialModalClose');
+  function closeResModal() {
+    if (modal) {
+      modal.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+  }
   if (modalClose && modal) {
-    modalClose.addEventListener('click', () => modal.classList.remove('active'));
+    modalClose.addEventListener('click', closeResModal);
   }
   if (modal) {
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.classList.remove('active');
+      if (e.target === modal) closeResModal();
     });
   }
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeResModal();
+  });
 });

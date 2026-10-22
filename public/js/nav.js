@@ -1,8 +1,8 @@
 /**
  * @file /public/js/nav.js
  * @description Universal, pristine navigation controller for Besim Design.
- * Handles fixed header offset scrolling, mobile menu toggle, smooth dropdown interaction,
- * scrollspy active state tracking, and cross-page anchor positioning.
+ * Handles fixed header offset scrolling, mobile menu toggle with smooth backdrop & scroll-locking,
+ * accessible mobile dropdown interaction, scrollspy active state tracking, and cross-page anchor positioning.
  */
 
 (function () {
@@ -13,21 +13,65 @@
     const navToggle = document.getElementById('navToggle');
     const navLinks = document.getElementById('navLinks');
 
-    // 1. Mobile Menu Toggle
+    // Helper: Close mobile navigation drawer
+    function closeMobileNav() {
+      if (navLinks && navLinks.classList.contains('active')) {
+        navLinks.classList.remove('active');
+        if (navToggle) {
+          navToggle.textContent = '☰';
+          navToggle.setAttribute('aria-expanded', 'false');
+        }
+        const backdrop = document.getElementById('navBackdrop');
+        if (backdrop) backdrop.classList.remove('active');
+        document.body.classList.remove('nav-open');
+        document.body.style.overflow = '';
+      }
+    }
+
+    // Helper: Open mobile navigation drawer
+    function openMobileNav() {
+      if (navLinks) {
+        navLinks.classList.add('active');
+        if (navToggle) {
+          navToggle.textContent = '✕';
+          navToggle.setAttribute('aria-expanded', 'true');
+        }
+        let backdrop = document.getElementById('navBackdrop');
+        if (!backdrop) {
+          backdrop = document.createElement('div');
+          backdrop.id = 'navBackdrop';
+          backdrop.className = 'nav-backdrop';
+          document.body.appendChild(backdrop);
+          backdrop.addEventListener('click', closeMobileNav);
+        }
+        backdrop.classList.add('active');
+        document.body.classList.add('nav-open');
+        document.body.style.overflow = 'hidden';
+      }
+    }
+
+    // 1. Mobile Menu Toggle button
     if (navToggle && navLinks) {
       navToggle.addEventListener('click', (e) => {
         e.stopPropagation();
-        const isOpen = navLinks.classList.toggle('active');
-        navToggle.textContent = isOpen ? '✕' : '☰';
-        navToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        if (navLinks.classList.contains('active')) {
+          closeMobileNav();
+        } else {
+          openMobileNav();
+        }
       });
 
-      // Close mobile menu when clicking outside
+      // Close mobile menu when clicking outside navbar
       document.addEventListener('click', (e) => {
         if (navbar && !navbar.contains(e.target) && navLinks.classList.contains('active')) {
-          navLinks.classList.remove('active');
-          navToggle.textContent = '☰';
-          navToggle.setAttribute('aria-expanded', 'false');
+          closeMobileNav();
+        }
+      });
+
+      // Auto close on window resize above 992px
+      window.addEventListener('resize', () => {
+        if (window.innerWidth > 992 && navLinks.classList.contains('active')) {
+          closeMobileNav();
         }
       });
     }
@@ -36,11 +80,10 @@
     document.querySelectorAll('.nav-item-dropdown > .nav-link').forEach((dropdownLink) => {
       dropdownLink.addEventListener('click', (e) => {
         if (window.innerWidth <= 992) {
-          const href = dropdownLink.getAttribute('href') || '';
-          // If on same page and clicking parent, or clicking dropdown toggler
           const parent = dropdownLink.closest('.nav-item-dropdown');
           if (parent) {
             e.preventDefault();
+            e.stopPropagation();
             parent.classList.toggle('open');
           }
         }
@@ -61,15 +104,7 @@
         const target = document.querySelector(hash);
         if (target) {
           e.preventDefault();
-
-          // Close mobile menu if open
-          if (navLinks && navLinks.classList.contains('active')) {
-            navLinks.classList.remove('active');
-            if (navToggle) {
-              navToggle.textContent = '☰';
-              navToggle.setAttribute('aria-expanded', 'false');
-            }
-          }
+          closeMobileNav();
 
           const topPos = target.getBoundingClientRect().top + window.pageYOffset - HEADER_OFFSET;
           window.scrollTo({
@@ -87,13 +122,7 @@
     // Also close mobile menu on clicking any regular link or dropdown item
     document.querySelectorAll('.nav-link:not(.nav-item-dropdown > .nav-link), .dropdown-item').forEach((link) => {
       link.addEventListener('click', () => {
-        if (navLinks && navLinks.classList.contains('active')) {
-          navLinks.classList.remove('active');
-          if (navToggle) {
-            navToggle.textContent = '☰';
-            navToggle.setAttribute('aria-expanded', 'false');
-          }
-        }
+        closeMobileNav();
       });
     });
 
@@ -148,18 +177,14 @@
       }
     }
 
-    // 6. Stealth Admin shortcut (Alt+A or Ctrl+Shift+A)
+    // 6. Stealth Admin shortcut (Alt+A or Ctrl+Shift+A) & Escape key listener
     window.addEventListener('keydown', (e) => {
       if ((e.altKey && e.key.toLowerCase() === 'a') || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a')) {
         e.preventDefault();
         window.location.href = '/admin/dashboard.html?tab=projects';
       }
-      if (e.key === 'Escape' && navLinks && navLinks.classList.contains('active')) {
-        navLinks.classList.remove('active');
-        if (navToggle) {
-          navToggle.textContent = '☰';
-          navToggle.setAttribute('aria-expanded', 'false');
-        }
+      if (e.key === 'Escape') {
+        closeMobileNav();
       }
     });
   }

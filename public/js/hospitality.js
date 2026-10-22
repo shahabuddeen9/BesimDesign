@@ -184,6 +184,17 @@ function openHospitalityModal(project) {
     </div>
   `).join('');
 
+  let scopes = [];
+  if (Array.isArray(project.scope)) {
+    scopes = project.scope;
+  } else if (typeof project.scope === 'string') {
+    try {
+      scopes = JSON.parse(project.scope);
+    } catch (_) {
+      scopes = project.scope.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+  }
+
   const scopesHtml = scopes.map((s) => `
     <li style="margin-bottom: 8px; display: flex; align-items: baseline; gap: 8px;">
       <span style="color: var(--accent-gold);">✓</span>
@@ -246,6 +257,7 @@ function openHospitalityModal(project) {
   `;
 
   modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
 
   const closeBtn = document.getElementById('modalCloseAction');
   if (closeBtn) closeBtn.onclick = closeHospitalityModal;
@@ -273,7 +285,10 @@ function openHospitalityModal(project) {
 
 function closeHospitalityModal() {
   const modal = document.getElementById('hospitalityModal');
-  if (modal) modal.classList.remove('active');
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
 }
 
 // =============================================================================
