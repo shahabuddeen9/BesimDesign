@@ -197,8 +197,8 @@ import adminRoutes from './routes/admin.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import publicRoutes from './routes/public.routes.js';
 
-// Mount API Routers
-app.use('/api/auth', authRoutes);
+// Mount API Routers (supporting both /api/ prefix and Vercel serverless / prefix)
+app.use(['/api/auth', '/auth'], authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api', publicRoutes);
 
