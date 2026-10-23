@@ -117,11 +117,17 @@ app.get('/admin/projects', (req, res) => {
 });
 
 // 7. Static Asset Hosting
-const uploadsPath = path.resolve(projectRoot, 'uploads');
+const uploadsPath = process.env.VERCEL ? '/tmp/uploads' : path.resolve(projectRoot, 'uploads');
+const projectUploadsPath = path.resolve(projectRoot, 'uploads');
 const publicPath = path.resolve(projectRoot, 'public');
 const distPath = path.resolve(projectRoot, 'dist');
 
-app.use('/uploads', express.static(uploadsPath));
+if (fs.existsSync(uploadsPath)) {
+  app.use('/uploads', express.static(uploadsPath));
+}
+if (process.env.VERCEL && fs.existsSync(projectUploadsPath)) {
+  app.use('/uploads', express.static(projectUploadsPath));
+}
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
 }

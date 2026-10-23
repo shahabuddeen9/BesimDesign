@@ -55,6 +55,10 @@ export async function initDb() {
           const candidates = [
             path.resolve(process.cwd(), 'node_modules/sql.js/dist', file),
             path.resolve(currentDir, '../../node_modules/sql.js/dist', file),
+            path.resolve(currentDir, '../node_modules/sql.js/dist', file),
+            path.resolve(currentDir, file),
+            path.resolve(process.cwd(), 'server/db', file),
+            path.resolve(process.cwd(), file),
           ];
           for (const c of candidates) {
             if (fs.existsSync(c)) return c;
@@ -101,6 +105,93 @@ export async function initDb() {
         rawDb.run(schemaSql);
         persistDb();
         logger.info('Database schema verified and synced successfully.');
+      } else {
+        const fallbackSchema = `
+          CREATE TABLE IF NOT EXISTS enquiries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            phone TEXT NOT NULL,
+            email TEXT NOT NULL,
+            business_type TEXT NOT NULL,
+            project_location TEXT DEFAULT '',
+            area_sqft INTEGER NOT NULL DEFAULT 0,
+            message TEXT DEFAULT '',
+            source TEXT NOT NULL DEFAULT 'contact_form',
+            calculator_data TEXT DEFAULT NULL,
+            status TEXT NOT NULL DEFAULT 'new',
+            admin_notes TEXT DEFAULT '',
+            consent_given INTEGER NOT NULL DEFAULT 1,
+            ip_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+          );
+          CREATE TABLE IF NOT EXISTS projects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            slug TEXT UNIQUE NOT NULL,
+            category TEXT NOT NULL,
+            client_name TEXT DEFAULT '',
+            location TEXT DEFAULT '',
+            area_sqft INTEGER DEFAULT 0,
+            description TEXT NOT NULL,
+            scope TEXT NOT NULL DEFAULT '[]',
+            image_url TEXT NOT NULL,
+            gallery TEXT NOT NULL DEFAULT '[]',
+            is_featured INTEGER NOT NULL DEFAULT 0,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_published INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+          );
+          CREATE TABLE IF NOT EXISTS clients (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            category TEXT DEFAULT '',
+            logo_url TEXT DEFAULT '',
+            website_url TEXT DEFAULT '',
+            description TEXT DEFAULT '',
+            is_featured INTEGER NOT NULL DEFAULT 1,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+          );
+          CREATE TABLE IF NOT EXISTS testimonials (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_name TEXT NOT NULL,
+            business_type TEXT NOT NULL,
+            rating INTEGER NOT NULL,
+            review TEXT NOT NULL,
+            is_published INTEGER NOT NULL DEFAULT 1,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+          );
+          CREATE TABLE IF NOT EXISTS faqs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            question TEXT NOT NULL,
+            answer TEXT NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_published INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+          );
+          CREATE TABLE IF NOT EXISTS admins (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            last_login_at TEXT DEFAULT NULL
+          );
+          CREATE TABLE IF NOT EXISTS downloads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            file_key TEXT NOT NULL,
+            ip_hash TEXT DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+          );
+        `;
+        rawDb.run(fallbackSchema);
+        persistDb();
+        logger.info('Database schema initialized from fallback definitions.');
       }
 
       return rawDb;

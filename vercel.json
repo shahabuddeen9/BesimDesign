@@ -4,8 +4,28 @@
   "trailingSlash": false,
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api"
+      "source": "/api",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/api/:match*",
+      "destination": "/api/[...slug].js"
+    },
+    {
+      "source": "/admin/projects",
+      "destination": "/admin/dashboard.html?tab=projects"
+    },
+    {
+      "source": "/admin/enquiries",
+      "destination": "/admin/dashboard.html?tab=enquiries"
+    },
+    {
+      "source": "/admin/clients",
+      "destination": "/admin/dashboard.html?tab=clients"
+    },
+    {
+      "source": "/admin/testimonials",
+      "destination": "/admin/dashboard.html?tab=testimonials"
     }
   ],
   "functions": {
