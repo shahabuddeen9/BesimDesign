@@ -39,6 +39,11 @@ export async function runSeed(force = false) {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_clients_featured ON clients(is_featured, sort_order);
+    CREATE TABLE IF NOT EXISTS deleted_clients (
+      client_name TEXT PRIMARY KEY,
+      client_id INTEGER,
+      deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   // 2. Ensure Administrator accounts exist without altering user records
@@ -80,8 +85,11 @@ export async function runSeed(force = false) {
 
   logger.info('Starting initial database seeding for fresh installation...');
 
-  // 3. Seed Initial Clients
+  // 3. Seed Initial Clients (Excluding any client recorded in deleted_clients tombstone)
   if (clientCount === 0) {
+    const deletedRows = db.prepare('SELECT client_name FROM deleted_clients').all();
+    const deletedNames = new Set(deletedRows.map((r) => r.client_name));
+
     const sampleClients = [
       { name: 'The Nutcracker', category: 'Hospitality & F&B', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/Nutcracker.jpg', is_featured: 1, sort_order: 1 },
       { name: 'HDFC Bank', category: 'Corporate & Banking', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/HDFC.jpg', is_featured: 1, sort_order: 2 },
@@ -90,19 +98,17 @@ export async function runSeed(force = false) {
       { name: 'Royal China', category: 'Fine Dining', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/Royal-China.jpg', is_featured: 1, sort_order: 5 },
       { name: 'SAZ American Brasserie', category: 'Hospitality', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/SAZ.jpg', is_featured: 1, sort_order: 6 },
       { name: 'RSVP', category: 'Hospitality & Lounges', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/RSVP.jpg', is_featured: 1, sort_order: 7 },
-      { name: 'Saudia Airlines', category: 'Aviation & Lounges', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/saudia.jpg', is_featured: 1, sort_order: 8 },
       { name: 'Parinee Group', category: 'Luxury Real Estate', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/PARINEE.jpg', is_featured: 1, sort_order: 9 },
       { name: 'The Silver Train', category: 'Hospitality', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/The-silver-train.jpg', is_featured: 1, sort_order: 10 },
       { name: 'Ping’s Orient', category: 'Asian Dining', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/Pings.jpg', is_featured: 1, sort_order: 11 },
       { name: 'SEA-Yah', category: 'Coastal Dining', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/SEA-Yah.jpg', is_featured: 1, sort_order: 12 },
-      { name: 'White Oak', category: 'Hospitality & Living', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/White-OAK.jpg', is_featured: 1, sort_order: 13 },
       { name: 'LAPOZ', category: 'Nightlife & Lounge', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/LAPOZ.jpg', is_featured: 1, sort_order: 14 },
       { name: 'HOM', category: 'Hospitality', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/HOM.jpg', is_featured: 1, sort_order: 15 },
       { name: 'IGI', category: 'Corporate & Retail', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/IGI.jpg', is_featured: 1, sort_order: 16 },
       { name: 'CDC', category: 'Corporate Fit-out', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/CDC.jpg', is_featured: 1, sort_order: 17 },
       { name: 'Nikita', category: 'Retail & Commercial', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/Nikita.jpg', is_featured: 1, sort_order: 18 },
       { name: 'Otoki', category: 'Culinary Retail', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/Otoki.jpg', is_featured: 1, sort_order: 19 },
-    ];
+    ].filter((c) => !deletedNames.has(c.name));
 
     const insertClient = db.prepare(`
       INSERT INTO clients (name, category, logo_url, is_featured, sort_order, created_at, updated_at)

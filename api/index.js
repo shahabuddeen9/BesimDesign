@@ -14,9 +14,6 @@ export default async function handler(req, res) {
   if (!initialized) {
     try {
       await initDb();
-      if (typeof runSeed === 'function') {
-        await runSeed();
-      }
       initialized = true;
     } catch (err) {
       console.error('Failed to initialize database in serverless function:', err);

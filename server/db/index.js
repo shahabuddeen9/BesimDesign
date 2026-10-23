@@ -199,7 +199,7 @@ export async function initDb() {
         logger.info('Database schema initialized from fallback definitions.');
       }
 
-      // Ensure _system_meta table exists in all environments
+      // Ensure _system_meta and deleted_clients tables exist in all environments
       try {
         rawDb.run(`
           CREATE TABLE IF NOT EXISTS _system_meta (
@@ -207,7 +207,34 @@ export async function initDb() {
             value TEXT NOT NULL,
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
           );
+          CREATE TABLE IF NOT EXISTS deleted_clients (
+            client_name TEXT PRIMARY KEY,
+            client_id INTEGER,
+            deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
+          );
         `);
+
+        // Sync tombstone records from deleted_clients.json
+        const jsonCandidates = [
+          path.resolve(currentDir, 'deleted_clients.json'),
+          path.resolve(process.cwd(), 'server/db/deleted_clients.json'),
+        ];
+        const jsonPath = jsonCandidates.find((p) => fs.existsSync(p));
+        if (jsonPath) {
+          try {
+            const rawList = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+            if (Array.isArray(rawList)) {
+              for (const name of rawList) {
+                if (typeof name === 'string' && name.trim()) {
+                  rawDb.run("INSERT OR IGNORE INTO deleted_clients (client_name, deleted_at) VALUES (?, datetime('now'))", [name.trim()]);
+                }
+              }
+            }
+          } catch (_) {}
+        }
+
+        // Enforce deletion: permanently remove any clients recorded in deleted_clients
+        rawDb.run('DELETE FROM clients WHERE name IN (SELECT client_name FROM deleted_clients);');
         persistDb();
       } catch (_) {}
 
@@ -387,4 +414,39 @@ export const db = {
   }
 };
 
+/**
+ * Persists the current deleted_clients list from SQLite to deleted_clients.json
+ */
+export function syncDeletedClientsFile() {
+  if (!rawDb) return;
+  try {
+    const currentDir = path.dirname(fileURLToPath(import.meta.url));
+    const paths = [
+      path.resolve(currentDir, 'deleted_clients.json'),
+      path.resolve(process.cwd(), 'server/db/deleted_clients.json'),
+    ];
+    const stmt = rawDb.prepare('SELECT client_name FROM deleted_clients ORDER BY client_name ASC');
+    const list = [];
+    try {
+      while (stmt.step()) {
+        const obj = stmt.getAsObject();
+        if (obj.client_name) list.push(obj.client_name);
+      }
+    } finally {
+      stmt.free();
+    }
+    const content = JSON.stringify(list, null, 2);
+    for (const p of paths) {
+      try {
+        const dir = path.dirname(p);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(p, content, 'utf8');
+      } catch (_) {}
+    }
+  } catch (err) {
+    logger.warn('Failed to sync deleted_clients.json:', err);
+  }
+}
+
 export default db;
+

@@ -1326,7 +1326,12 @@ async function loadAdminClients() {
   tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 32px; color: var(--text-dim);">Loading clients...</td></tr>`;
 
   try {
-    const res = await adminFetch('/api/admin/clients');
+    const res = await adminFetch(`/api/admin/clients?_t=${Date.now()}`, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+      },
+    });
     const json = await res.json();
 
     if (json.success) {
@@ -1462,12 +1467,14 @@ async function deleteClient(id) {
   if (!confirmed) return;
 
   try {
-    const res = await adminFetch(`/api/admin/clients/${id}`, { method: 'DELETE' });
+    const res = await adminFetch(`/api/admin/clients/${id}?_t=${Date.now()}`, { method: 'DELETE' });
     const json = await res.json().catch(() => ({}));
 
     if (res.ok && json.success) {
-      showAdminToast(`Client ${name} deleted successfully.`);
-      loadAdminClients();
+      showAdminToast(`Client ${name} deleted permanently.`);
+      state.clients = (state.clients || []).filter((item) => item.id.toString() !== id.toString());
+      filterAndRenderClients();
+      await loadAdminClients();
     } else {
       showAdminToast(json.message || 'Failed to delete client.', 'error');
     }

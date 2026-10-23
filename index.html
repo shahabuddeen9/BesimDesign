@@ -411,68 +411,10 @@
           </p>
         </div>
 
-        <!-- Dynamic Clients Grid from /api/clients + fallback -->
+        <!-- Dynamic Clients Grid loaded from /api/clients -->
         <div class="clients-grid" id="clientsGrid">
-          <!-- Fallback Client Logos -->
-          <div class="client-logo-card">
-            <img src="https://green-square.co.in/wp-content/uploads/2025/07/Nutcracker.jpg" alt="The Nutcracker" class="client-logo-img" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';">
-            <span class="client-name-label">The Nutcracker</span>
-            <span class="client-cat-label">Hospitality & F&B</span>
-          </div>
-          <div class="client-logo-card">
-            <img src="https://green-square.co.in/wp-content/uploads/2025/07/HDFC.jpg" alt="HDFC Bank" class="client-logo-img" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';">
-            <span class="client-name-label">HDFC Bank</span>
-            <span class="client-cat-label">Corporate & Banking</span>
-          </div>
-          <div class="client-logo-card">
-            <img src="https://green-square.co.in/wp-content/uploads/2025/07/Dave-Busters.jpg" alt="Dave & Buster's" class="client-logo-img" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';">
-            <span class="client-name-label">Dave & Buster’s</span>
-            <span class="client-cat-label">Dining & Entertainment</span>
-          </div>
-          <div class="client-logo-card">
-            <img src="https://green-square.co.in/wp-content/uploads/2022/05/FOO.jpg" alt="FOO Asian Tapas" class="client-logo-img" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';">
-            <span class="client-name-label">FOO Asian Tapas</span>
-            <span class="client-cat-label">Fine Dining</span>
-          </div>
-          <div class="client-logo-card">
-            <img src="https://green-square.co.in/wp-content/uploads/2022/05/Royal-China.jpg" alt="Royal China" class="client-logo-img" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';">
-            <span class="client-name-label">Royal China</span>
-            <span class="client-cat-label">Fine Dining</span>
-          </div>
-          <div class="client-logo-card">
-            <img src="https://green-square.co.in/wp-content/uploads/2022/05/SAZ.jpg" alt="SAZ American Brasserie" class="client-logo-img" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';">
-            <span class="client-name-label">SAZ American Brasserie</span>
-            <span class="client-cat-label">Hospitality</span>
-          </div>
-          <div class="client-logo-card">
-            <img src="https://green-square.co.in/wp-content/uploads/2022/05/RSVP.jpg" alt="RSVP" class="client-logo-img" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';">
-            <span class="client-name-label">RSVP</span>
-            <span class="client-cat-label">Hospitality & Lounges</span>
-          </div>
-          <div class="client-logo-card">
-            <img src="https://green-square.co.in/wp-content/uploads/2025/07/saudia.jpg" alt="Saudia Airlines" class="client-logo-img" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';">
-            <span class="client-name-label">Saudia Airlines</span>
-            <span class="client-cat-label">Aviation & Lounges</span>
-          </div>
-          <div class="client-logo-card">
-            <img src="https://green-square.co.in/wp-content/uploads/2022/05/PARINEE.jpg" alt="Parinee Group" class="client-logo-img" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';">
-            <span class="client-name-label">Parinee Group</span>
-            <span class="client-cat-label">Luxury Real Estate</span>
-          </div>
-          <div class="client-logo-card">
-            <img src="https://green-square.co.in/wp-content/uploads/2025/07/The-silver-train.jpg" alt="The Silver Train" class="client-logo-img" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';">
-            <span class="client-name-label">The Silver Train</span>
-            <span class="client-cat-label">Hospitality</span>
-          </div>
-          <div class="client-logo-card">
-            <img src="https://green-square.co.in/wp-content/uploads/2022/05/Pings.jpg" alt="Ping's Orient" class="client-logo-img" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';">
-            <span class="client-name-label">Ping’s Orient</span>
-            <span class="client-cat-label">Asian Dining</span>
-          </div>
-          <div class="client-logo-card">
-            <img src="https://green-square.co.in/wp-content/uploads/2022/05/White-OAK.jpg" alt="White Oak" class="client-logo-img" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';">
-            <span class="client-name-label">White Oak</span>
-            <span class="client-cat-label">Hospitality & Living</span>
+          <div class="client-loading-placeholder" style="grid-column: 1 / -1; text-align: center; padding: 24px; color: var(--text-dim); font-size: 0.88rem;">
+            Loading partner clients...
           </div>
         </div>
 

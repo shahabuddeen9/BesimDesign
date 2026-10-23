@@ -69,6 +69,13 @@ CREATE TABLE IF NOT EXISTS clients (
 
 CREATE INDEX IF NOT EXISTS idx_clients_featured ON clients(is_featured, sort_order);
 
+-- 2.6 DELETED CLIENTS TOMBSTONE TABLE
+CREATE TABLE IF NOT EXISTS deleted_clients (
+  client_name TEXT PRIMARY KEY,
+  client_id INTEGER,
+  deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- 3. TESTIMONIALS TABLE
 CREATE TABLE IF NOT EXISTS testimonials (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

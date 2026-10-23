@@ -5,7 +5,7 @@
  */
 
 import { z } from 'zod';
-import { db } from '../db/index.js';
+import { db, syncDeletedClientsFile } from '../db/index.js';
 import AppError from '../utils/AppError.js';
 import { stripHtml } from '../utils/sanitize.js';
 
@@ -25,7 +25,12 @@ export const clientSchema = z.object({
  */
 export function getPublishedClients(req, res, next) {
   try {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store',
+    });
     const clients = db.prepare(`
       SELECT id, name, category, logo_url, website_url, description, is_featured, sort_order, created_at
       FROM clients
@@ -47,7 +52,12 @@ export function getPublishedClients(req, res, next) {
  */
 export function getAllClients(req, res, next) {
   try {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store',
+    });
     const clients = db.prepare(`
       SELECT id, name, category, logo_url, website_url, description, is_featured, sort_order, created_at, updated_at
       FROM clients
@@ -72,6 +82,12 @@ export function createClient(req, res, next) {
     const sanitizedName = stripHtml(validated.name);
     const sanitizedCat = stripHtml(validated.category);
     const sanitizedDesc = stripHtml(validated.description);
+
+    // If re-adding a previously deleted client, remove from tombstone table
+    try {
+      db.prepare('DELETE FROM deleted_clients WHERE client_name = ?').run(sanitizedName);
+      syncDeletedClientsFile();
+    } catch (_) {}
 
     const result = db.prepare(`
       INSERT INTO clients (name, category, logo_url, website_url, description, is_featured, sort_order, created_at, updated_at)
@@ -146,14 +162,31 @@ export function deleteClient(req, res, next) {
     const rawId = req.params.id;
     const numId = parseInt(rawId, 10) || 0;
 
-    const existing = db.prepare('SELECT id FROM clients WHERE id = ? OR id = ?').get(rawId, numId);
+    const existing = db.prepare('SELECT id, name FROM clients WHERE id = ? OR id = ?').get(rawId, numId);
     if (!existing) throw new AppError('Client not found', 404);
 
+    // 1. Permanently record in tombstone table so seed or DB recreation never resurrects it
+    try {
+      db.prepare(`
+        INSERT OR REPLACE INTO deleted_clients (client_name, client_id, deleted_at)
+        VALUES (?, ?, datetime('now'))
+      `).run(existing.name, existing.id);
+    } catch (_) {}
+
+    // 2. Permanently delete from clients table
     db.prepare('DELETE FROM clients WHERE id = ? OR id = ?').run(rawId, numId);
+
+    // 3. Immediately persist database to disk
+    db.persist();
+
+    // 4. Update the tombstone JSON file for cross-deployment persistence
+    syncDeletedClientsFile();
 
     return res.status(200).json({
       success: true,
-      message: 'Client deleted successfully',
+      message: `Client "${existing.name}" permanently deleted.`,
+      deletedId: existing.id,
+      deletedName: existing.name,
     });
   } catch (error) {
     next(error);

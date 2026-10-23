@@ -342,6 +342,10 @@ async function loadClients() {
   try {
     const res = await fetch(`${CONFIG.API_BASE_URL}/api/clients?_t=${Date.now()}`, {
       cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+      },
     });
     if (!res.ok) throw new Error('Clients API offline');
     const json = await res.json();
@@ -364,7 +368,12 @@ async function loadClients() {
       }
     }
   } catch (err) {
-    console.warn('Clients API unavailable; keeping static fallback.', err);
+    console.warn('Clients API unavailable:', err);
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 24px; color: var(--text-dim); font-size: 0.88rem;">
+        <p>Client partnerships are being updated.</p>
+      </div>
+    `;
   }
 }
 
