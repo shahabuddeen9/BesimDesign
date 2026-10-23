@@ -91,19 +91,6 @@ CREATE TABLE IF NOT EXISTS testimonials (
 
 CREATE INDEX IF NOT EXISTS idx_testimonials_published ON testimonials(is_published, sort_order);
 
--- 4. FAQS TABLE
-CREATE TABLE IF NOT EXISTS faqs (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  question TEXT NOT NULL,
-  answer TEXT NOT NULL,
-  sort_order INTEGER NOT NULL DEFAULT 0,
-  is_published INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_faqs_published ON faqs(is_published, sort_order);
-
 -- 5. ADMINS TABLE
 CREATE TABLE IF NOT EXISTS admins (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -2,7 +2,7 @@
  * @file /tests/persistence-lifecycle.test.js
  * @description Comprehensive persistence, synchronization, and re-seed protection test suite.
  * Verifies that Create, Edit, Unpublish, Publish, and Delete operations for
- * Projects, Clients, Testimonials, and FAQs correctly persist and synchronize
+ * Projects, Clients, and Testimonials correctly persist and synchronize
  * between the admin API and public website endpoints, and that re-seeding/server-restarts
  * NEVER overwrite user changes or restore deleted items.
  */
@@ -291,67 +291,5 @@ describe('Admin-to-Website Persistence and Lifecycle Verification', () => {
       expect(found).toBeUndefined();
     });
   });
-
-  // =========================================================================
-  // 4. ARCHITECTURAL FAQS LIFECYCLE & PERSISTENCE
-  // =========================================================================
-  describe('Architectural FAQs: Full Lifecycle & Visibility Filtering', () => {
-    let testFaqId = null;
-    const questionText = `What are the fire clearance guidelines for central commissary kitchens? ${Date.now()}`;
-
-    it('1. Admin creates published FAQ -> visible publicly', async () => {
-      const res = await request(app)
-        .post('/api/admin/faqs')
-        .set('Cookie', [authCookie])
-        .send({
-          question: questionText,
-          answer: 'All central commissaries require Class-K wet chemical suppression systems and dedicated fresh air makeup hoods.',
-          sort_order: 1,
-          is_published: 1,
-        });
-
-      expect(res.status).toBe(201);
-      testFaqId = res.body.data.id;
-
-      const pubRes = await request(app).get('/api/faqs');
-      const found = pubRes.body.data.find((f) => f.id === testFaqId);
-      expect(found).toBeDefined();
-      expect(found.question).toBe(questionText);
-    });
-
-    it('2. Admin unpublishes FAQ (is_published: 0) -> hidden from public, retained in admin', async () => {
-      const res = await request(app)
-        .patch(`/api/admin/faqs/${testFaqId}`)
-        .set('Cookie', [authCookie])
-        .send({ is_published: 0 });
-
-      expect(res.status).toBe(200);
-
-      const pubRes = await request(app).get('/api/faqs');
-      const foundPublic = pubRes.body.data.find((f) => f.id === testFaqId);
-      expect(foundPublic).toBeUndefined();
-
-      const adminRes = await request(app)
-        .get('/api/admin/faqs')
-        .set('Cookie', [authCookie]);
-      const foundAdmin = adminRes.body.data.find((f) => f.id === testFaqId);
-      expect(foundAdmin).toBeDefined();
-      expect(foundAdmin.is_published).toBe(0);
-    });
-
-    it('3. Admin deletes FAQ -> permanently removed and protected across re-seeds', async () => {
-      const delRes = await request(app)
-        .delete(`/api/admin/faqs/${testFaqId}`)
-        .set('Cookie', [authCookie]);
-      expect(delRes.status).toBe(200);
-
-      await runSeed();
-
-      const adminRes = await request(app)
-        .get('/api/admin/faqs')
-        .set('Cookie', [authCookie]);
-      const found = adminRes.body.data.find((f) => f.id === testFaqId);
-      expect(found).toBeUndefined();
-    });
-  });
 });
+

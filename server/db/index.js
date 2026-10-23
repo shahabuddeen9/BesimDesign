@@ -166,15 +166,6 @@ export async function initDb() {
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
           );
-          CREATE TABLE IF NOT EXISTS faqs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            question TEXT NOT NULL,
-            answer TEXT NOT NULL,
-            sort_order INTEGER NOT NULL DEFAULT 0,
-            is_published INTEGER NOT NULL DEFAULT 1,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-          );
           CREATE TABLE IF NOT EXISTS admins (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE NOT NULL,
@@ -212,6 +203,7 @@ export async function initDb() {
             client_id INTEGER,
             deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
           );
+          DROP TABLE IF EXISTS faqs;
         `);
 
         // Sync tombstone records from deleted_clients.json

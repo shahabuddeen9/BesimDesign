@@ -7,7 +7,6 @@
 import { Router } from 'express';
 import { createEnquiry } from '../controllers/enquiry.controller.js';
 import { getPublishedClients } from '../controllers/client.controller.js';
-import { getPublishedFaqs } from '../controllers/faq.controller.js';
 import { getProjectBySlug, getPublishedProjects } from '../controllers/project.controller.js';
 import { downloadCompanyProfile } from '../controllers/stats.controller.js';
 import { getPublishedTestimonials } from '../controllers/testimonial.controller.js';
@@ -27,9 +26,6 @@ publicRouter.get('/clients', getPublishedClients);
 
 // 3. Client Testimonials
 publicRouter.get('/testimonials', getPublishedTestimonials);
-
-// 4. Studio FAQs
-publicRouter.get('/faqs', getPublishedFaqs);
 
 import { uploadImage } from '../middleware/upload.js';
 import AppError from '../utils/AppError.js';

@@ -67,11 +67,10 @@ export function getStats(req, res, next) {
     // 6. Downloads count
     const totalDownloads = db.prepare('SELECT COUNT(*) as count FROM downloads').get()?.count ?? 0;
 
-    // 7. Total Projects, Clients, Testimonials, FAQs
+    // 7. Total Projects, Clients, Testimonials
     const totalProjects = db.prepare('SELECT COUNT(*) as count FROM projects').get()?.count ?? 0;
     const totalClients = db.prepare('SELECT COUNT(*) as count FROM clients').get()?.count ?? 0;
     const totalTestimonials = db.prepare('SELECT COUNT(*) as count FROM testimonials').get()?.count ?? 0;
-    const totalFaqs = db.prepare('SELECT COUNT(*) as count FROM faqs').get()?.count ?? 0;
 
     return res.status(200).json({
       success: true,
@@ -82,7 +81,6 @@ export function getStats(req, res, next) {
         totalProjects,
         totalClients,
         totalTestimonials,
-        totalFaqs,
         bySource,
         byBusinessType,
         byStatus,

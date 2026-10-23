@@ -11,7 +11,6 @@ const state = {
   projects: [],
   clients: [],
   testimonials: [],
-  faqs: [],
   pagination: {
     page: 1,
     limit: 20,
@@ -352,9 +351,6 @@ function switchTab(tabName) {
   } else if (tabName === 'testimonials') {
     if (pageTitle) pageTitle.textContent = 'Client Reviews & Testimonials';
     loadAdminTestimonials();
-  } else if (tabName === 'faqs') {
-    if (pageTitle) pageTitle.textContent = 'Architectural FAQs (Manage & Visibility)';
-    loadAdminFaqs();
   }
 
   // Sync URL hash without jumping page
@@ -381,7 +377,7 @@ function initTabs() {
   // Support direct URL query or hash navigation: e.g. ?tab=projects or #projects
   const params = new URLSearchParams(window.location.search);
   const targetTab = params.get('tab') || window.location.hash.replace('#', '');
-  if (['projects', 'clients', 'enquiries', 'testimonials', 'faqs'].includes(targetTab)) {
+  if (['projects', 'clients', 'enquiries', 'testimonials'].includes(targetTab)) {
     switchTab(targetTab);
   } else {
     loadEnquiries();
@@ -1617,137 +1613,6 @@ async function toggleTestimonialPublish(id, newStatus) {
 }
 
 // =============================================================================
-// FAQs CRUD (Architectural & Statutory Clearances)
-// =============================================================================
-
-async function loadAdminFaqs() {
-  const tbody = document.getElementById('faqsTableBody');
-  if (!tbody) return;
-
-  tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 32px; color: var(--text-dim);">Loading FAQs...</td></tr>`;
-
-  try {
-    const res = await adminFetch('/api/admin/faqs');
-    const json = await res.json();
-
-    if (json.success) {
-      state.faqs = json.data;
-      renderAdminFaqs(json.data);
-    }
-  } catch (err) {
-    if (err.message !== 'Authentication required') {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 24px; color: #f87171;">Failed to load FAQs.</td></tr>`;
-    }
-  }
-}
-
-function renderAdminFaqs(faqs) {
-  const tbody = document.getElementById('faqsTableBody');
-  if (!tbody) return;
-
-  if (faqs.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 32px; color: var(--text-dim);">No FAQs created yet.<br><button class="btn btn-gold btn-sm" onclick="document.getElementById('btnNewFaq').click()" style="margin-top: 12px;">+ Add New FAQ</button></td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = faqs.map((f) => `
-    <tr>
-      <td><strong style="color: #fff; font-size: 0.92rem;">${escapeHtml(f.question)}</strong></td>
-      <td style="font-size: 0.82rem; color: var(--text-muted); max-width: 400px; line-height: 1.5;">${escapeHtml(f.answer)}</td>
-      <td>${Number(f.sort_order || 0)}</td>
-      <td>
-        <span class="badge-status ${f.is_published ? 'badge-won' : 'badge-lost'}">
-          ${f.is_published ? 'Published' : 'Hidden'}
-        </span>
-      </td>
-      <td>
-        <div style="display: flex; gap: 8px;">
-          <button class="btn btn-outline btn-sm btn-toggle-faq" data-id="${f.id}" data-pub="${f.is_published ? 0 : 1}" style="padding: 5px 10px; font-weight: 500;">
-            ${f.is_published ? '👁️ Unpublish' : '🚀 Publish'}
-          </button>
-          <button class="btn btn-outline btn-sm btn-edit-faq" data-id="${f.id}" style="padding: 5px 12px; font-weight: 500;">✏️ Edit</button>
-          <button class="btn btn-danger btn-sm btn-del-faq" data-id="${f.id}" style="padding: 5px 12px; font-weight: 500;">🗑️ Delete</button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-
-  document.querySelectorAll('.btn-toggle-faq').forEach((b) => {
-    b.onclick = () => toggleFaqPublish(b.dataset.id, parseInt(b.dataset.pub, 10));
-  });
-
-  document.querySelectorAll('.btn-edit-faq').forEach((b) => {
-    b.onclick = () => editFaq(b.dataset.id);
-  });
-
-  document.querySelectorAll('.btn-del-faq').forEach((b) => {
-    b.onclick = () => deleteFaq(b.dataset.id);
-  });
-}
-
-async function toggleFaqPublish(id, newStatus) {
-  try {
-    const res = await adminFetch(`/api/admin/faqs/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ is_published: newStatus }),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (res.ok && json.success) {
-      showAdminToast(`FAQ is now ${newStatus ? 'Published (Live)' : 'Hidden (Draft)'}.`);
-      loadAdminFaqs();
-    } else {
-      showAdminToast(json.message || 'Failed to update FAQ status.', 'error');
-    }
-  } catch (err) {
-    if (err.message !== 'Authentication required') {
-      showAdminToast('Network error updating FAQ.', 'error');
-    }
-  }
-}
-
-function editFaq(id) {
-  const f = state.faqs.find((item) => item.id.toString() === id.toString());
-  if (!f) return;
-
-  document.getElementById('editFaqId').value = f.id;
-  document.getElementById('faqQuestion').value = f.question;
-  document.getElementById('faqAnswer').value = f.answer;
-  document.getElementById('faqSort').value = f.sort_order ?? 0;
-  document.getElementById('faqPublished').value = f.is_published !== undefined ? f.is_published : 1;
-  document.getElementById('modalFaqTitle').textContent = `Edit FAQ #${f.id}`;
-  openModal('modalFaq');
-}
-
-async function deleteFaq(id) {
-  const f = state.faqs.find((item) => item.id.toString() === id.toString());
-  const qPreview = f ? `"${f.question.slice(0, 50)}..."` : `FAQ #${id}`;
-
-  const confirmed = await confirmDialog({
-    title: 'Delete Architectural FAQ',
-    message: `Are you sure you want to permanently delete ${qPreview}?\n\nThis will remove it from the live website immediately.`,
-    proceedText: 'Delete FAQ 🗑️',
-    isDanger: true,
-  });
-
-  if (!confirmed) return;
-
-  try {
-    const res = await adminFetch(`/api/admin/faqs/${id}`, { method: 'DELETE' });
-    const json = await res.json().catch(() => ({}));
-    if (res.ok && json.success) {
-      showAdminToast('FAQ deleted successfully.');
-      loadAdminFaqs();
-    } else {
-      showAdminToast(json.message || 'Failed to delete FAQ.', 'error');
-    }
-  } catch (err) {
-    if (err.message !== 'Authentication required') {
-      showAdminToast('Network error while deleting FAQ.', 'error');
-    }
-  }
-}
-
-// =============================================================================
 // DOM Initialization & Event Wiring
 // =============================================================================
 
@@ -2592,60 +2457,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (err.message !== 'Authentication required') {
           console.error('Testimonial save error:', err);
           showAdminToast('Failed to save testimonial.', 'error');
-        }
-      }
-    });
-  }
-
-  // Add / Edit FAQ Form
-  const btnNewFaq = document.getElementById('btnNewFaq');
-  const formFaq = document.getElementById('formFaq');
-  if (btnNewFaq && formFaq) {
-    btnNewFaq.addEventListener('click', () => {
-      formFaq.reset();
-      document.getElementById('editFaqId').value = '';
-      if (document.getElementById('faqSort')) document.getElementById('faqSort').value = '0';
-      if (document.getElementById('faqPublished')) document.getElementById('faqPublished').value = '1';
-      document.getElementById('modalFaqTitle').textContent = 'Add Architectural FAQ';
-      openModal('modalFaq');
-    });
-  }
-
-  if (formFaq) {
-    formFaq.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const id = document.getElementById('editFaqId').value;
-      const question = document.getElementById('faqQuestion').value.trim();
-      const answer = document.getElementById('faqAnswer').value.trim();
-      const sort_order = parseInt(document.getElementById('faqSort')?.value, 10) || 0;
-      const is_published = document.getElementById('faqPublished')?.value === '0' ? 0 : 1;
-
-      if (!question || !answer) {
-        showAdminToast('Please provide both question and answer (*).', 'error');
-        return;
-      }
-
-      const payload = { question, answer, sort_order, is_published };
-      const url = id ? `/api/admin/faqs/${id}` : '/api/admin/faqs';
-      const method = id ? 'PATCH' : 'POST';
-
-      try {
-        const res = await adminFetch(url, {
-          method,
-          body: JSON.stringify(payload),
-        });
-        const json = await res.json().catch(() => ({}));
-        if (res.ok && json.success) {
-          closeModal('modalFaq');
-          showAdminToast(id ? 'FAQ updated successfully.' : 'New FAQ added successfully.');
-          loadAdminFaqs();
-        } else {
-          showAdminToast(json.message || 'Failed to save FAQ.', 'error');
-        }
-      } catch (err) {
-        if (err.message !== 'Authentication required') {
-          console.error('FAQ save error:', err);
-          showAdminToast('Network error while saving FAQ.', 'error');
         }
       }
     });

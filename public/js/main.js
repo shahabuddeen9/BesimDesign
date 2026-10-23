@@ -2,7 +2,7 @@
  * @file /public/js/main.js
  * @description Client-side controller for Besim Design.
  * Handles API data fetching with static HTML fallbacks, interactive space & budget calculator,
- * modal dialogs, FAQ accordions, toast alerts, and lead submission to /api/enquiries.
+ * modal dialogs, toast alerts, and lead submission to /api/enquiries.
  */
 
 // Global Configuration
@@ -491,7 +491,7 @@ async function openProjectModal(slug) {
 }
 
 // =============================================================================
-// Testimonials & FAQs Dynamic Loading
+// Testimonials Dynamic Loading
 // =============================================================================
 
 async function loadTestimonials() {
@@ -534,60 +534,6 @@ async function loadTestimonials() {
   } catch (err) {
     console.warn('API error loading testimonials:', err);
   }
-}
-
-async function loadFaqs() {
-  const container = document.getElementById('faqAccordion');
-  if (!container) return;
-
-  try {
-    const res = await fetch(`${CONFIG.API_BASE_URL}/api/faqs?_t=${Date.now()}`, {
-      cache: 'no-store',
-    });
-    if (!res.ok) throw new Error('FAQs API offline');
-    const json = await res.json();
-
-    if (json.success && Array.isArray(json.data)) {
-      if (json.data.length === 0) {
-        container.innerHTML = `
-          <div style="text-align: center; padding: 36px; color: var(--text-muted); background: var(--bg-card); border-radius: 8px;">
-            <p>No architectural FAQs are currently published.</p>
-          </div>
-        `;
-        return;
-      }
-
-      container.innerHTML = json.data.map((f, idx) => `
-        <div class="faq-item ${idx === 0 ? 'active' : ''}">
-          <button class="faq-question">
-            <span>${escapeHtml(f.question)}</span>
-            <span class="faq-icon">+</span>
-          </button>
-          <div class="faq-answer">
-            <p>${escapeHtml(f.answer)}</p>
-          </div>
-        </div>
-      `).join('');
-      attachFaqAccordion();
-    }
-  } catch (err) {
-    console.warn('API error loading FAQs:', err);
-    attachFaqAccordion();
-  }
-}
-
-function attachFaqAccordion() {
-  const questions = document.querySelectorAll('.faq-question');
-  questions.forEach((q) => {
-    q.onclick = () => {
-      const item = q.parentElement;
-      const wasActive = item.classList.contains('active');
-      document.querySelectorAll('.faq-item').forEach((i) => i.classList.remove('active'));
-      if (!wasActive) {
-        item.classList.add('active');
-      }
-    };
-  });
 }
 
 // =============================================================================
@@ -828,7 +774,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 3. Initialize Interactive Components
   attachProjectModalTriggers();
-  attachFaqAccordion();
   initCalculator();
   initContactForm();
 
@@ -836,6 +781,5 @@ document.addEventListener('DOMContentLoaded', () => {
   loadProjects();
   loadClients();
   loadTestimonials();
-  loadFaqs();
 });
 

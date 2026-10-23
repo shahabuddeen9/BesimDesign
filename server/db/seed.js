@@ -1,7 +1,7 @@
 /**
  * @file /server/db/seed.js
  * @description Seeds initial administrator account, clients, realistic portfolio projects,
- * client testimonials, and FAQs for Besim Design.
+ * and client testimonials for Besim Design.
  */
 
 import bcrypt from 'bcryptjs';
@@ -386,52 +386,6 @@ export async function runSeed(force = false) {
 
     for (const t of sampleTestimonials) {
       insertTestimonial.run(t.client_name, t.business_type, t.rating, t.review, t.is_published, t.sort_order);
-    }
-  }
-
-  // 6. Seed FAQs (with Besim Design Turnkey facts)
-  const faqCount = db.prepare('SELECT COUNT(*) as count FROM faqs').get()?.count ?? 0;
-  if (faqCount === 0) {
-    const sampleFaqs = [
-      {
-        question: 'What is Besim Design’s history and turnkey philosophy?',
-        answer: 'Besim Design was established 20+ years back as a design studio under Managing Director Sanjay Baikerikar (GD Arch, Academy of Architecture). We realized that unless there is a strong and dedicated team to execute, most designs remain dreams. We created our own dedicated teams to provide complete turnkey execution from design to handover.',
-        sort_order: 1,
-        is_published: 1,
-      },
-      {
-        question: 'Where is your furniture manufacturing facility located?',
-        answer: 'We operate our own state-of-the-art furniture manufacturing facility in Nalasopara, on the outskirts of Mumbai. We initiate the production of all loose and site-specific furniture items at the factory itself, accelerating project timelines while maintaining superior fit, finish, and structural quality.',
-        sort_order: 2,
-        is_published: 1,
-      },
-      {
-        question: 'What is your core USP in turnkey execution?',
-        answer: 'Our key USP is our ability to deliver complete turnkey solutions—including MEP services (Mechanical, Electrical, and Plumbing) and consultancy. This integrated approach enables us to streamline project timelines while maintaining the highest standards of quality and finish.',
-        sort_order: 3,
-        is_published: 1,
-      },
-      {
-        question: 'How do you ensure transparency in project costing and handover?',
-        answer: 'We make accurate upfront costings and continually update costings on any design or specification changes so clients can make conscious decisions on escalations. At project completion, we provide comprehensive site handover files with renovation details, work-in-progress photos, and emergency contact numbers.',
-        sort_order: 4,
-        is_published: 1,
-      },
-      {
-        question: 'What sectors do you execute projects in?',
-        answer: 'Our portfolio specializes in Central Kitchens & Commissaries, Hotels & Boutique Resorts, Hospitality (fine dining, cafes, lounges, bars), and Luxury Residential spaces across Mumbai, Pune, and India.',
-        sort_order: 5,
-        is_published: 1,
-      }
-    ];
-
-    const insertFaq = db.prepare(`
-      INSERT INTO faqs (question, answer, sort_order, is_published, created_at, updated_at)
-      VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-    `);
-
-    for (const f of sampleFaqs) {
-      insertFaq.run(f.question, f.answer, f.sort_order, f.is_published);
     }
   }
 

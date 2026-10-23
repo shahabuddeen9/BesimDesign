@@ -1,7 +1,7 @@
 /**
  * @file /server/routes/admin.routes.js
  * @description Authenticated administrative API routes for CRM leads,
- * portfolio management, reviews, FAQs, file uploads, and analytics.
+ * portfolio management, reviews, clients, file uploads, and analytics.
  */
 
 import { Router } from 'express';
@@ -12,12 +12,6 @@ import {
   getEnquiryById,
   updateEnquiry,
 } from '../controllers/enquiry.controller.js';
-import {
-  createFaq,
-  deleteFaq,
-  getAllFaqs,
-  updateFaq,
-} from '../controllers/faq.controller.js';
 import {
   addProjectPhotos,
   createProject,
@@ -87,14 +81,6 @@ adminRouter.get('/testimonials', getAllTestimonials);
 adminRouter.post('/testimonials', createTestimonial);
 adminRouter.patch('/testimonials/:id', updateTestimonial);
 adminRouter.delete('/testimonials/:id', deleteTestimonial);
-
-// ==========================================
-// 4. FAQS CRUD
-// ==========================================
-adminRouter.get('/faqs', getAllFaqs);
-adminRouter.post('/faqs', createFaq);
-adminRouter.patch('/faqs/:id', updateFaq);
-adminRouter.delete('/faqs/:id', deleteFaq);
 
 // ==========================================
 // 5. ASSET IMAGE UPLOAD (Single & Multiple: 10MB max, JPG/PNG/WebP)

@@ -56,7 +56,7 @@ cp .env.example .env
 Edit `.env` and configure your local settings.
 
 ### 3. Seed Database
-Run the seed script to initialize tables, create the administrator account, and load sample projects, testimonials, and FAQs:
+Run the seed script to initialize tables, create the administrator account, and load sample projects, clients, and testimonials:
 ```bash
 npm run seed
 ```
@@ -134,9 +134,9 @@ http://localhost:3000/admin/login.html
    - Add new architecture projects with title, auto-slug, sector category, architectural narrative, deliverables scope, and gallery URLs.
    - Upload cover photos directly from your computer (automatically stored in `/uploads/`).
    - Toggle visibility between `Live` and `Draft`.
-3. **Client Testimonials & FAQs**:
+3. **Client Testimonials & Brands**:
    - Manage commercial client reviews and star ratings.
-   - Add and update statutory clearance, MEP, and turnaround guidance.
+   - Manage client brand logos and sectoral partnerships.
 
 ---
 

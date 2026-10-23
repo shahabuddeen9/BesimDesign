@@ -1,6 +1,6 @@
 /**
  * @file /tests/backend_crud.test.js
- * @description Comprehensive test suite for clients, FAQs, testimonials,
+ * @description Comprehensive test suite for clients, testimonials,
  * company profile download, and CSV export filtering.
  */
 
@@ -13,7 +13,6 @@ import db from '../server/db/index.js';
 describe('Backend CRUD, Downloads & Filtered Export', () => {
   let authCookie = null;
   let clientId = null;
-  let faqId = null;
   let testimonialId = null;
 
   beforeAll(async () => {
@@ -74,55 +73,6 @@ describe('Backend CRUD, Downloads & Filtered Export', () => {
     it('DELETE /api/admin/clients/:id deletes client brand', async () => {
       const res = await request(app)
         .delete(`/api/admin/clients/${clientId}`)
-        .set('Cookie', [authCookie]);
-
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
-    });
-  });
-
-  // 2. FAQs API
-  describe('FAQs API', () => {
-    it('GET /api/faqs returns published FAQs', async () => {
-      const res = await request(app).get('/api/faqs');
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
-      expect(Array.isArray(res.body.data)).toBe(true);
-    });
-
-    it('POST /api/admin/faqs creates a new FAQ', async () => {
-      const res = await request(app)
-        .post('/api/admin/faqs')
-        .set('Cookie', [authCookie])
-        .send({
-          question: 'What is the standard turnaround time for preliminary drawings?',
-          answer: 'Preliminary architectural plans and layouts are typically prepared within 5 to 7 working days.',
-          sort_order: 10,
-          is_published: 1,
-        });
-
-      expect(res.status).toBe(201);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data.id).toBeDefined();
-      faqId = res.body.data.id;
-    });
-
-    it('PATCH /api/admin/faqs/:id updates FAQ', async () => {
-      const res = await request(app)
-        .patch(`/api/admin/faqs/${faqId}`)
-        .set('Cookie', [authCookie])
-        .send({
-          answer: 'Preliminary architectural plans and layouts are completed within 3 to 5 business days for expedited briefs.',
-        });
-
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data.answer).toContain('3 to 5 business days');
-    });
-
-    it('DELETE /api/admin/faqs/:id deletes FAQ', async () => {
-      const res = await request(app)
-        .delete(`/api/admin/faqs/${faqId}`)
         .set('Cookie', [authCookie]);
 
       expect(res.status).toBe(200);
@@ -207,33 +157,33 @@ describe('Backend CRUD, Downloads & Filtered Export', () => {
   // 6. DB Transaction Test
   describe('Database Transaction Support', () => {
     it('rolls back on error and commits on success', () => {
-      const initialCount = db.prepare('SELECT COUNT(*) as c FROM faqs').get().c;
+      const initialCount = db.prepare('SELECT COUNT(*) as c FROM testimonials').get().c;
 
       // Failed transaction
       expect(() => {
         const failingTx = db.transaction(() => {
-          db.prepare('INSERT INTO faqs (question, answer, created_at, updated_at) VALUES (?, ?, datetime("now"), datetime("now"))')
-            .run('Temporary Question', 'Temporary Answer');
+          db.prepare('INSERT INTO testimonials (client_name, business_type, rating, review, is_published, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, datetime("now"), datetime("now"))')
+            .run('Tx Temp Client', 'Hotels', 5, 'Temporary review', 1, 999);
           throw new Error('Forced rollback test');
         });
         failingTx();
       }).toThrow('Forced rollback test');
 
-      const countAfterRollback = db.prepare('SELECT COUNT(*) as c FROM faqs').get().c;
+      const countAfterRollback = db.prepare('SELECT COUNT(*) as c FROM testimonials').get().c;
       expect(countAfterRollback).toBe(initialCount);
 
       // Successful transaction
       const successTx = db.transaction(() => {
-        db.prepare('INSERT INTO faqs (question, answer, created_at, updated_at) VALUES (?, ?, datetime("now"), datetime("now"))')
-          .run('Tx Question Success', 'Tx Answer Success');
+        db.prepare('INSERT INTO testimonials (client_name, business_type, rating, review, is_published, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, datetime("now"), datetime("now"))')
+          .run('Tx Temp Client Success', 'Hotels', 5, 'Temporary review success', 1, 999);
       });
       successTx();
 
-      const countAfterCommit = db.prepare('SELECT COUNT(*) as c FROM faqs').get().c;
+      const countAfterCommit = db.prepare('SELECT COUNT(*) as c FROM testimonials').get().c;
       expect(countAfterCommit).toBe(initialCount + 1);
 
       // Clean up
-      db.prepare('DELETE FROM faqs WHERE question = ?').run('Tx Question Success');
+      db.prepare('DELETE FROM testimonials WHERE client_name = ?').run('Tx Temp Client Success');
     });
   });
 });
