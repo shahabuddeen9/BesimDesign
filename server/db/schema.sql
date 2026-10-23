@@ -115,3 +115,10 @@ CREATE TABLE IF NOT EXISTS downloads (
 );
 
 CREATE INDEX IF NOT EXISTS idx_downloads_file ON downloads(file_key);
+
+-- 7. SYSTEM METADATA TABLE (Tracks initialization and system state)
+CREATE TABLE IF NOT EXISTS _system_meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);

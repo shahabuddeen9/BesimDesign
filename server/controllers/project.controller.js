@@ -92,7 +92,7 @@ export function getPublishedProjects(req, res, next) {
       gallery: safeJsonParse(p.gallery),
     }));
 
-    res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     return res.status(200).json({
       success: true,
       data: projects,
@@ -121,6 +121,7 @@ export function getProjectBySlug(req, res, next) {
     project.scope = safeJsonParse(project.scope);
     project.gallery = safeJsonParse(project.gallery);
 
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     return res.status(200).json({
       success: true,
       data: project,
@@ -144,6 +145,7 @@ export function getAllProjects(req, res, next) {
       gallery: safeJsonParse(p.gallery),
     }));
 
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     return res.status(200).json({
       success: true,
       data: projects,

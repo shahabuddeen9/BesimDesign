@@ -22,6 +22,7 @@ export const testimonialSchema = z.object({
  */
 export function getPublishedTestimonials(req, res, next) {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const testimonials = db.prepare(`
       SELECT id, client_name, business_type, rating, review, sort_order, created_at
       FROM testimonials
@@ -43,6 +44,7 @@ export function getPublishedTestimonials(req, res, next) {
  */
 export function getAllTestimonials(req, res, next) {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const testimonials = db.prepare(`
       SELECT * FROM testimonials
       ORDER BY sort_order ASC, created_at DESC

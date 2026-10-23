@@ -103,6 +103,11 @@
             ⭐ Client Reviews
           </button>
         </li>
+        <li class="nav-item">
+          <button class="nav-btn" data-tab="faqs">
+            ❓ Architectural FAQs
+          </button>
+        </li>
       </ul>
 
       <div class="sidebar-footer">
@@ -137,6 +142,7 @@
             <button class="btn btn-outline btn-sm quick-tab-btn" data-target="enquiries">📋 Leads</button>
             <button class="btn btn-outline btn-sm quick-tab-btn" data-target="projects" style="font-weight: 600;">🏛️ Projects</button>
             <button class="btn btn-outline btn-sm quick-tab-btn" data-target="clients" style="font-weight: 600;">🤝 Clients</button>
+            <button class="btn btn-outline btn-sm quick-tab-btn" data-target="faqs" style="font-weight: 600;">❓ FAQs</button>
           </div>
           <button class="mobile-menu-btn" id="mobileMenuToggle">☰ Menu</button>
         </div>
@@ -371,6 +377,41 @@
               <tr>
                 <td colspan="6" style="text-align: center; padding: 32px; color: var(--text-dim);">
                   Loading testimonials...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- TAB 4: ARCHITECTURAL FAQS -->
+      <!-- ============================================================== -->
+      <div class="tab-pane" id="pane-faqs" style="display: none;">
+        <div class="filter-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Manage architectural, commercial kitchen, and statutory clearance FAQs shown on the website.</p>
+          </div>
+          <button id="btnNewFaq" class="btn btn-gold">
+            + Add New FAQ
+          </button>
+        </div>
+
+        <div class="table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th style="width: 280px;">Question</th>
+                <th>Answer</th>
+                <th style="width: 90px;">Sort Order</th>
+                <th style="width: 100px;">Status</th>
+                <th style="width: 220px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="faqsTableBody">
+              <tr>
+                <td colspan="5" style="text-align: center; padding: 32px; color: var(--text-dim);">
+                  Loading FAQs...
                 </td>
               </tr>
             </tbody>
@@ -667,9 +708,66 @@
           <textarea id="testReview" class="form-control" placeholder="Client remarks on design, execution, speed, or cost savings..." required></textarea>
         </div>
 
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label class="form-label" for="testSort">Sort Order</label>
+            <input type="number" id="testSort" class="form-control" value="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="testPublished">Visibility</label>
+            <select id="testPublished" class="form-control">
+              <option value="1">Published (Live)</option>
+              <option value="0">Hidden (Draft)</option>
+            </select>
+          </div>
+        </div>
+
         <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
           <button type="button" class="btn btn-outline" data-close="modalTestimonial">Cancel</button>
           <button type="submit" class="btn btn-gold">Save Testimonial</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL: ADD / EDIT FAQ -->
+  <!-- ============================================================== -->
+  <div class="admin-modal-overlay" id="modalFaq">
+    <div class="admin-modal">
+      <button class="admin-modal-close" data-close="modalFaq">&times;</button>
+      <h3 style="font-family: var(--font-serif); margin-bottom: 20px; font-size: 1.4rem;" id="modalFaqTitle">Add FAQ</h3>
+
+      <form id="formFaq" novalidate>
+        <input type="hidden" id="editFaqId">
+
+        <div class="form-group">
+          <label class="form-label" for="faqQuestion">Question *</label>
+          <input type="text" id="faqQuestion" class="form-control" placeholder="e.g. What statutory clearances are required for a commercial central kitchen?" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="faqAnswer">Answer *</label>
+          <textarea id="faqAnswer" class="form-control" placeholder="Detailed architectural and engineering guidance..." style="min-height: 120px;" required></textarea>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label class="form-label" for="faqSort">Sort Order</label>
+            <input type="number" id="faqSort" class="form-control" value="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="faqPublished">Visibility</label>
+            <select id="faqPublished" class="form-control">
+              <option value="1">Published (Live)</option>
+              <option value="0">Hidden (Draft)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+          <button type="button" class="btn btn-outline" data-close="modalFaq">Cancel</button>
+          <button type="submit" class="btn btn-gold" id="btnSaveFaq">Save FAQ</button>
         </div>
       </form>
     </div>

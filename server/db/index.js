@@ -188,11 +188,28 @@ export async function initDb() {
             ip_hash TEXT DEFAULT '',
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
           );
+          CREATE TABLE IF NOT EXISTS _system_meta (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+          );
         `;
         rawDb.run(fallbackSchema);
         persistDb();
         logger.info('Database schema initialized from fallback definitions.');
       }
+
+      // Ensure _system_meta table exists in all environments
+      try {
+        rawDb.run(`
+          CREATE TABLE IF NOT EXISTS _system_meta (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+          );
+        `);
+        persistDb();
+      } catch (_) {}
 
       return rawDb;
     } finally {

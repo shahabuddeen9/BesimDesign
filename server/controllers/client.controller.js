@@ -25,9 +25,11 @@ export const clientSchema = z.object({
  */
 export function getPublishedClients(req, res, next) {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const clients = db.prepare(`
       SELECT id, name, category, logo_url, website_url, description, is_featured, sort_order, created_at
       FROM clients
+      WHERE is_featured = 1
       ORDER BY sort_order ASC, name ASC
     `).all();
 
@@ -45,6 +47,7 @@ export function getPublishedClients(req, res, next) {
  */
 export function getAllClients(req, res, next) {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const clients = db.prepare(`
       SELECT id, name, category, logo_url, website_url, description, is_featured, sort_order, created_at, updated_at
       FROM clients

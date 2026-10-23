@@ -53,22 +53,34 @@ async function loadHospitalityProjects() {
   if (!grid) return;
 
   try {
-    const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects?category=hospitality`);
+    const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects?category=hospitality&_t=${Date.now()}`, {
+      cache: 'no-store',
+    });
     if (!res.ok) throw new Error('Failed to load hospitality projects');
     const json = await res.json();
 
-    if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+    if (json.success && Array.isArray(json.data)) {
       state.projects = json.data;
       renderProjects(state.projects);
     }
   } catch (err) {
-    console.warn('API unavailable or empty; retaining fallback hospitality landmarks.', err);
+    console.warn('API error loading hospitality projects:', err);
   }
 }
 
 function renderProjects(projectsList) {
   const grid = document.getElementById('hospitalityGrid');
   if (!grid) return;
+
+  if (projectsList.length === 0) {
+    grid.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--text-dim, #888); background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.1);">
+        <p style="font-size: 1.05rem; margin-bottom: 8px; color: #fff;">No hospitality & dining projects are currently published.</p>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">Check back soon or contact our architectural team for a bespoke restaurant or lounge brief.</p>
+      </div>
+    `;
+    return;
+  }
 
   grid.innerHTML = projectsList.map((p) => {
     let scopes = [];

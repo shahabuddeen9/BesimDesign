@@ -214,7 +214,9 @@ async function loadProjects() {
   if (!grid) return;
 
   try {
-    const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects`);
+    const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects?_t=${Date.now()}`, {
+      cache: 'no-store',
+    });
     if (!res.ok) throw new Error('Failed to fetch projects');
     const json = await res.json();
 
@@ -223,7 +225,7 @@ async function loadProjects() {
       renderProjects(state.projects);
     }
   } catch (err) {
-    console.warn('API unavailable; retaining static portfolio fallbacks.', err);
+    console.warn('API error loading portfolio projects:', err);
   }
 }
 
@@ -338,7 +340,9 @@ async function loadClients() {
   if (!container) return;
 
   try {
-    const res = await fetch(`${CONFIG.API_BASE_URL}/api/clients`);
+    const res = await fetch(`${CONFIG.API_BASE_URL}/api/clients?_t=${Date.now()}`, {
+      cache: 'no-store',
+    });
     if (!res.ok) throw new Error('Clients API offline');
     const json = await res.json();
 
@@ -486,11 +490,22 @@ async function loadTestimonials() {
   if (!container) return;
 
   try {
-    const res = await fetch(`${CONFIG.API_BASE_URL}/api/testimonials`);
+    const res = await fetch(`${CONFIG.API_BASE_URL}/api/testimonials?_t=${Date.now()}`, {
+      cache: 'no-store',
+    });
     if (!res.ok) throw new Error('Testimonials API offline');
     const json = await res.json();
 
-    if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+    if (json.success && Array.isArray(json.data)) {
+      if (json.data.length === 0) {
+        container.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center; padding: 36px; color: var(--text-muted);">
+            <p>Client reviews are currently being updated.</p>
+          </div>
+        `;
+        return;
+      }
+
       container.innerHTML = json.data.map((t) => {
         const ratingNum = Math.min(5, Math.max(1, parseInt(t.rating, 10) || 5));
         return `
@@ -508,7 +523,7 @@ async function loadTestimonials() {
       }).join('');
     }
   } catch (err) {
-    console.warn('API unavailable; retaining static testimonial fallbacks.', err);
+    console.warn('API error loading testimonials:', err);
   }
 }
 
@@ -517,11 +532,22 @@ async function loadFaqs() {
   if (!container) return;
 
   try {
-    const res = await fetch(`${CONFIG.API_BASE_URL}/api/faqs`);
+    const res = await fetch(`${CONFIG.API_BASE_URL}/api/faqs?_t=${Date.now()}`, {
+      cache: 'no-store',
+    });
     if (!res.ok) throw new Error('FAQs API offline');
     const json = await res.json();
 
-    if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+    if (json.success && Array.isArray(json.data)) {
+      if (json.data.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 36px; color: var(--text-muted); background: var(--bg-card); border-radius: 8px;">
+            <p>No architectural FAQs are currently published.</p>
+          </div>
+        `;
+        return;
+      }
+
       container.innerHTML = json.data.map((f, idx) => `
         <div class="faq-item ${idx === 0 ? 'active' : ''}">
           <button class="faq-question">
@@ -536,7 +562,7 @@ async function loadFaqs() {
       attachFaqAccordion();
     }
   } catch (err) {
-    console.warn('API unavailable; retaining static FAQ fallbacks.', err);
+    console.warn('API error loading FAQs:', err);
     attachFaqAccordion();
   }
 }

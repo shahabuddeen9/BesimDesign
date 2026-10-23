@@ -53,22 +53,34 @@ async function loadResidentialProjects() {
   if (!grid) return;
 
   try {
-    const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects?category=residential`);
+    const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects?category=residential&_t=${Date.now()}`, {
+      cache: 'no-store',
+    });
     if (!res.ok) throw new Error('Failed to load residential projects');
     const json = await res.json();
 
-    if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+    if (json.success && Array.isArray(json.data)) {
       state.projects = json.data;
       renderProjects(state.projects);
     }
   } catch (err) {
-    console.warn('API unavailable or empty; retaining fallback residential landmarks.', err);
+    console.warn('API error loading residential projects:', err);
   }
 }
 
 function renderProjects(projectsList) {
   const grid = document.getElementById('residentialGrid');
   if (!grid) return;
+
+  if (projectsList.length === 0) {
+    grid.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--text-dim, #888); background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.1);">
+        <p style="font-size: 1.05rem; margin-bottom: 8px; color: #fff;">No luxury residential projects are currently published.</p>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">Check back soon or contact our architectural team for a bespoke private villa or penthouse brief.</p>
+      </div>
+    `;
+    return;
+  }
 
   grid.innerHTML = projectsList.map((project) => {
     const scopes = Array.isArray(project.scope) ? project.scope : [];

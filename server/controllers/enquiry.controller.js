@@ -184,6 +184,7 @@ export async function createEnquiry(req, res, next) {
  */
 export function getEnquiries(req, res, next) {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const offset = (page - 1) * limit;
@@ -256,6 +257,7 @@ export function getEnquiries(req, res, next) {
  */
 export function getEnquiryById(req, res, next) {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const { id } = req.params;
     const enquiry = db.prepare('SELECT * FROM enquiries WHERE id = ?').get(id);
 

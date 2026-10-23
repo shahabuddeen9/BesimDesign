@@ -11,6 +11,7 @@ const state = {
   projects: [],
   clients: [],
   testimonials: [],
+  faqs: [],
   pagination: {
     page: 1,
     limit: 20,
@@ -351,6 +352,9 @@ function switchTab(tabName) {
   } else if (tabName === 'testimonials') {
     if (pageTitle) pageTitle.textContent = 'Client Reviews & Testimonials';
     loadAdminTestimonials();
+  } else if (tabName === 'faqs') {
+    if (pageTitle) pageTitle.textContent = 'Architectural FAQs (Manage & Visibility)';
+    loadAdminFaqs();
   }
 
   // Sync URL hash without jumping page
@@ -377,7 +381,7 @@ function initTabs() {
   // Support direct URL query or hash navigation: e.g. ?tab=projects or #projects
   const params = new URLSearchParams(window.location.search);
   const targetTab = params.get('tab') || window.location.hash.replace('#', '');
-  if (['projects', 'clients', 'enquiries', 'testimonials'].includes(targetTab)) {
+  if (['projects', 'clients', 'enquiries', 'testimonials', 'faqs'].includes(targetTab)) {
     switchTab(targetTab);
   } else {
     loadEnquiries();
@@ -844,6 +848,9 @@ function renderAdminProjectsTable(projects) {
       </td>
       <td>
         <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+          <button class="btn btn-outline btn-sm btn-toggle-proj" data-id="${escapeHtml(p.id)}" data-pub="${p.is_published ? 0 : 1}" style="padding: 5px 10px; font-weight: 600;" title="${p.is_published ? 'Unpublish from website' : 'Publish to website'}">
+            ${p.is_published ? '👁️ Unpublish' : '🚀 Publish'}
+          </button>
           <button class="btn btn-gold btn-sm btn-photos-proj" data-id="${escapeHtml(p.id)}" style="padding: 5px 10px; font-weight: 600; white-space: nowrap;" title="Manage and delete photos for this project">
             📸 Photos (${totalPhotos})
           </button>
@@ -859,6 +866,9 @@ function renderAdminProjectsTable(projects) {
   `;
   }).join('');
 
+  document.querySelectorAll('.btn-toggle-proj').forEach((b) => {
+    b.onclick = () => toggleProjectPublish(b.dataset.id, parseInt(b.dataset.pub, 10));
+  });
   document.querySelectorAll('.btn-photos-proj').forEach((b) => {
     b.onclick = () => openProjectPhotosModal(b.dataset.id);
   });
@@ -868,6 +878,26 @@ function renderAdminProjectsTable(projects) {
   document.querySelectorAll('.btn-del-proj').forEach((b) => {
     b.onclick = () => deleteProject(b.dataset.id);
   });
+}
+
+async function toggleProjectPublish(id, newStatus) {
+  try {
+    const res = await adminFetch(`/api/admin/projects/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_published: newStatus }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && json.success) {
+      showAdminToast(`Project is now ${newStatus ? 'Published (Live)' : 'Draft (Hidden)'}.`);
+      loadAdminProjects();
+    } else {
+      showAdminToast(json.message || 'Failed to update project status.', 'error');
+    }
+  } catch (err) {
+    if (err.message !== 'Authentication required') {
+      showAdminToast('Network error updating status.', 'error');
+    }
+  }
 }
 
 function editProject(id) {
@@ -1354,6 +1384,9 @@ function renderAdminClientsTable(clients) {
       <td>${Number(c.sort_order || 0)}</td>
       <td>
         <div style="display: flex; gap: 8px;">
+          <button class="btn btn-outline btn-sm btn-toggle-client" data-id="${escapeHtml(c.id)}" data-feat="${c.is_featured ? 0 : 1}" style="padding: 5px 10px; font-weight: 500;">
+            ${c.is_featured ? '👁️ Hide' : '⭐ Feature'}
+          </button>
           <button class="btn btn-outline btn-sm btn-edit-client" data-id="${escapeHtml(c.id)}" style="padding: 5px 12px; font-weight: 500;">
             ✏️ Change
           </button>
@@ -1365,12 +1398,35 @@ function renderAdminClientsTable(clients) {
     </tr>
   `).join('');
 
+  document.querySelectorAll('.btn-toggle-client').forEach((b) => {
+    b.onclick = () => toggleClientFeatured(b.dataset.id, parseInt(b.dataset.feat, 10));
+  });
   document.querySelectorAll('.btn-edit-client').forEach((b) => {
     b.onclick = () => editClient(b.dataset.id);
   });
   document.querySelectorAll('.btn-del-client').forEach((b) => {
     b.onclick = () => deleteClient(b.dataset.id);
   });
+}
+
+async function toggleClientFeatured(id, newStatus) {
+  try {
+    const res = await adminFetch(`/api/admin/clients/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_featured: newStatus }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && json.success) {
+      showAdminToast(`Client is now ${newStatus ? 'Featured in Showcase' : 'Hidden from Showcase'}.`);
+      loadAdminClients();
+    } else {
+      showAdminToast(json.message || 'Failed to update client status.', 'error');
+    }
+  } catch (err) {
+    if (err.message !== 'Authentication required') {
+      showAdminToast('Network error updating client.', 'error');
+    }
+  }
 }
 
 function editClient(id) {
@@ -1470,12 +1526,19 @@ function renderAdminTestimonials(reviews) {
       </td>
       <td>
         <div style="display: flex; gap: 8px;">
-          <button class="btn btn-outline btn-sm btn-edit-test" data-id="${t.id}">✏️ Change</button>
-          <button class="btn btn-danger btn-sm btn-del-test" data-id="${t.id}">🗑️ Delete</button>
+          <button class="btn btn-outline btn-sm btn-toggle-test" data-id="${t.id}" data-pub="${t.is_published ? 0 : 1}" style="padding: 5px 10px; font-weight: 500;">
+            ${t.is_published ? '👁️ Unpublish' : '🚀 Publish'}
+          </button>
+          <button class="btn btn-outline btn-sm btn-edit-test" data-id="${t.id}" style="padding: 5px 12px; font-weight: 500;">✏️ Change</button>
+          <button class="btn btn-danger btn-sm btn-del-test" data-id="${t.id}" style="padding: 5px 12px; font-weight: 500;">🗑️ Delete</button>
         </div>
       </td>
     </tr>
   `).join('');
+
+  document.querySelectorAll('.btn-toggle-test').forEach((b) => {
+    b.onclick = () => toggleTestimonialPublish(b.dataset.id, parseInt(b.dataset.pub, 10));
+  });
 
   document.querySelectorAll('.btn-edit-test').forEach((b) => {
     b.onclick = () => {
@@ -1486,6 +1549,12 @@ function renderAdminTestimonials(reviews) {
       document.getElementById('testBusiness').value = t.business_type;
       document.getElementById('testRating').value = t.rating;
       document.getElementById('testReview').value = t.review;
+      if (document.getElementById('testSort')) {
+        document.getElementById('testSort').value = t.sort_order ?? 0;
+      }
+      if (document.getElementById('testPublished')) {
+        document.getElementById('testPublished').value = t.is_published !== undefined ? t.is_published : 1;
+      }
       document.getElementById('modalTestimonialTitle').textContent = `Edit Testimonial: ${t.client_name}`;
       openModal('modalTestimonial');
     };
@@ -1495,7 +1564,7 @@ function renderAdminTestimonials(reviews) {
     b.onclick = async () => {
       const confirmed = await confirmDialog({
         title: 'Delete Client Review',
-        message: 'Are you sure you want to permanently delete this testimonial?',
+        message: 'Are you sure you want to permanently delete this testimonial?\n\nThis will remove it from the live website immediately.',
         proceedText: 'Delete Review 🗑️',
         isDanger: true,
       });
@@ -1503,12 +1572,172 @@ function renderAdminTestimonials(reviews) {
       if (!confirmed) return;
 
       try {
-        await adminFetch(`/api/admin/testimonials/${b.dataset.id}`, { method: 'DELETE' });
-        showAdminToast('Testimonial deleted successfully.');
-        loadAdminTestimonials();
-      } catch (_) {}
+        const res = await adminFetch(`/api/admin/testimonials/${b.dataset.id}`, { method: 'DELETE' });
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json.success) {
+          showAdminToast('Testimonial deleted successfully.');
+          loadAdminTestimonials();
+        } else {
+          showAdminToast(json.message || 'Failed to delete testimonial.', 'error');
+        }
+      } catch (err) {
+        if (err.message !== 'Authentication required') {
+          showAdminToast('Network error while deleting testimonial.', 'error');
+        }
+      }
     };
   });
+}
+
+async function toggleTestimonialPublish(id, newStatus) {
+  try {
+    const res = await adminFetch(`/api/admin/testimonials/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_published: newStatus }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && json.success) {
+      showAdminToast(`Testimonial is now ${newStatus ? 'Published' : 'Hidden'}.`);
+      loadAdminTestimonials();
+    } else {
+      showAdminToast(json.message || 'Failed to update testimonial status.', 'error');
+    }
+  } catch (err) {
+    if (err.message !== 'Authentication required') {
+      showAdminToast('Network error updating testimonial.', 'error');
+    }
+  }
+}
+
+// =============================================================================
+// FAQs CRUD (Architectural & Statutory Clearances)
+// =============================================================================
+
+async function loadAdminFaqs() {
+  const tbody = document.getElementById('faqsTableBody');
+  if (!tbody) return;
+
+  tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 32px; color: var(--text-dim);">Loading FAQs...</td></tr>`;
+
+  try {
+    const res = await adminFetch('/api/admin/faqs');
+    const json = await res.json();
+
+    if (json.success) {
+      state.faqs = json.data;
+      renderAdminFaqs(json.data);
+    }
+  } catch (err) {
+    if (err.message !== 'Authentication required') {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 24px; color: #f87171;">Failed to load FAQs.</td></tr>`;
+    }
+  }
+}
+
+function renderAdminFaqs(faqs) {
+  const tbody = document.getElementById('faqsTableBody');
+  if (!tbody) return;
+
+  if (faqs.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 32px; color: var(--text-dim);">No FAQs created yet.<br><button class="btn btn-gold btn-sm" onclick="document.getElementById('btnNewFaq').click()" style="margin-top: 12px;">+ Add New FAQ</button></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = faqs.map((f) => `
+    <tr>
+      <td><strong style="color: #fff; font-size: 0.92rem;">${escapeHtml(f.question)}</strong></td>
+      <td style="font-size: 0.82rem; color: var(--text-muted); max-width: 400px; line-height: 1.5;">${escapeHtml(f.answer)}</td>
+      <td>${Number(f.sort_order || 0)}</td>
+      <td>
+        <span class="badge-status ${f.is_published ? 'badge-won' : 'badge-lost'}">
+          ${f.is_published ? 'Published' : 'Hidden'}
+        </span>
+      </td>
+      <td>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-outline btn-sm btn-toggle-faq" data-id="${f.id}" data-pub="${f.is_published ? 0 : 1}" style="padding: 5px 10px; font-weight: 500;">
+            ${f.is_published ? '👁️ Unpublish' : '🚀 Publish'}
+          </button>
+          <button class="btn btn-outline btn-sm btn-edit-faq" data-id="${f.id}" style="padding: 5px 12px; font-weight: 500;">✏️ Edit</button>
+          <button class="btn btn-danger btn-sm btn-del-faq" data-id="${f.id}" style="padding: 5px 12px; font-weight: 500;">🗑️ Delete</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  document.querySelectorAll('.btn-toggle-faq').forEach((b) => {
+    b.onclick = () => toggleFaqPublish(b.dataset.id, parseInt(b.dataset.pub, 10));
+  });
+
+  document.querySelectorAll('.btn-edit-faq').forEach((b) => {
+    b.onclick = () => editFaq(b.dataset.id);
+  });
+
+  document.querySelectorAll('.btn-del-faq').forEach((b) => {
+    b.onclick = () => deleteFaq(b.dataset.id);
+  });
+}
+
+async function toggleFaqPublish(id, newStatus) {
+  try {
+    const res = await adminFetch(`/api/admin/faqs/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_published: newStatus }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && json.success) {
+      showAdminToast(`FAQ is now ${newStatus ? 'Published (Live)' : 'Hidden (Draft)'}.`);
+      loadAdminFaqs();
+    } else {
+      showAdminToast(json.message || 'Failed to update FAQ status.', 'error');
+    }
+  } catch (err) {
+    if (err.message !== 'Authentication required') {
+      showAdminToast('Network error updating FAQ.', 'error');
+    }
+  }
+}
+
+function editFaq(id) {
+  const f = state.faqs.find((item) => item.id.toString() === id.toString());
+  if (!f) return;
+
+  document.getElementById('editFaqId').value = f.id;
+  document.getElementById('faqQuestion').value = f.question;
+  document.getElementById('faqAnswer').value = f.answer;
+  document.getElementById('faqSort').value = f.sort_order ?? 0;
+  document.getElementById('faqPublished').value = f.is_published !== undefined ? f.is_published : 1;
+  document.getElementById('modalFaqTitle').textContent = `Edit FAQ #${f.id}`;
+  openModal('modalFaq');
+}
+
+async function deleteFaq(id) {
+  const f = state.faqs.find((item) => item.id.toString() === id.toString());
+  const qPreview = f ? `"${f.question.slice(0, 50)}..."` : `FAQ #${id}`;
+
+  const confirmed = await confirmDialog({
+    title: 'Delete Architectural FAQ',
+    message: `Are you sure you want to permanently delete ${qPreview}?\n\nThis will remove it from the live website immediately.`,
+    proceedText: 'Delete FAQ 🗑️',
+    isDanger: true,
+  });
+
+  if (!confirmed) return;
+
+  try {
+    const res = await adminFetch(`/api/admin/faqs/${id}`, { method: 'DELETE' });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && json.success) {
+      showAdminToast('FAQ deleted successfully.');
+      loadAdminFaqs();
+    } else {
+      showAdminToast(json.message || 'Failed to delete FAQ.', 'error');
+    }
+  } catch (err) {
+    if (err.message !== 'Authentication required') {
+      showAdminToast('Network error while deleting FAQ.', 'error');
+    }
+  }
 }
 
 // =============================================================================
@@ -2140,8 +2369,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const rawScope = document.getElementById('projScope').value.trim();
       const rawGallery = document.getElementById('projGallery').value.trim();
       const sort_order = parseInt(document.getElementById('projSort').value, 10) || 0;
-      const is_featured = parseInt(document.getElementById('projFeatured').value, 10) || 0;
-      const is_published = parseInt(document.getElementById('projPublished').value, 10) || 1;
+      const is_featured = document.getElementById('projFeatured').value === '1' ? 1 : 0;
+      const is_published = document.getElementById('projPublished').value === '0' ? 0 : 1;
 
       if (!title || !description) {
         showAdminToast('Please provide a project title and narrative description.', 'error');
@@ -2246,6 +2475,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       formClient.reset();
       document.getElementById('editClientId').value = '';
       document.getElementById('modalClientTitle').textContent = 'Add Brand Client';
+      if (document.getElementById('clientFeatured')) document.getElementById('clientFeatured').value = '1';
+      if (document.getElementById('clientSort')) document.getElementById('clientSort').value = '0';
       if (clientUploadStatus) clientUploadStatus.textContent = '';
       openModal('modalClient');
     });
@@ -2261,7 +2492,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const website_url = document.getElementById('clientWebsite').value.trim();
       const description = document.getElementById('clientDesc').value.trim();
       const sort_order = parseInt(document.getElementById('clientSort').value, 10) || 0;
-      const is_featured = parseInt(document.getElementById('clientFeatured').value, 10) || 1;
+      const is_featured = document.getElementById('clientFeatured').value === '0' ? 0 : 1;
 
       if (!name) {
         showAdminToast('Please provide a client brand name.', 'error');
@@ -2311,6 +2542,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnNewTestimonial.addEventListener('click', () => {
       formTestimonial.reset();
       document.getElementById('editTestimonialId').value = '';
+      if (document.getElementById('testSort')) document.getElementById('testSort').value = '0';
+      if (document.getElementById('testPublished')) document.getElementById('testPublished').value = '1';
       document.getElementById('modalTestimonialTitle').textContent = 'Add Client Testimonial';
       openModal('modalTestimonial');
     });
@@ -2324,13 +2557,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       const business_type = document.getElementById('testBusiness').value.trim();
       const rating = parseInt(document.getElementById('testRating').value, 10);
       const review = document.getElementById('testReview').value.trim();
+      const sort_order = parseInt(document.getElementById('testSort')?.value, 10) || 0;
+      const is_published = document.getElementById('testPublished')?.value === '0' ? 0 : 1;
 
       if (!client_name || !business_type || !review) {
         showAdminToast('Please fill all required testimonial fields (*).', 'error');
         return;
       }
 
-      const payload = { client_name, business_type, rating, review, is_published: 1 };
+      const payload = { client_name, business_type, rating, review, sort_order, is_published };
       const url = id ? `/api/admin/testimonials/${id}` : '/api/admin/testimonials';
       const method = id ? 'PATCH' : 'POST';
 
@@ -2350,6 +2585,60 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (err.message !== 'Authentication required') {
           console.error('Testimonial save error:', err);
           showAdminToast('Failed to save testimonial.', 'error');
+        }
+      }
+    });
+  }
+
+  // Add / Edit FAQ Form
+  const btnNewFaq = document.getElementById('btnNewFaq');
+  const formFaq = document.getElementById('formFaq');
+  if (btnNewFaq && formFaq) {
+    btnNewFaq.addEventListener('click', () => {
+      formFaq.reset();
+      document.getElementById('editFaqId').value = '';
+      if (document.getElementById('faqSort')) document.getElementById('faqSort').value = '0';
+      if (document.getElementById('faqPublished')) document.getElementById('faqPublished').value = '1';
+      document.getElementById('modalFaqTitle').textContent = 'Add Architectural FAQ';
+      openModal('modalFaq');
+    });
+  }
+
+  if (formFaq) {
+    formFaq.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('editFaqId').value;
+      const question = document.getElementById('faqQuestion').value.trim();
+      const answer = document.getElementById('faqAnswer').value.trim();
+      const sort_order = parseInt(document.getElementById('faqSort')?.value, 10) || 0;
+      const is_published = document.getElementById('faqPublished')?.value === '0' ? 0 : 1;
+
+      if (!question || !answer) {
+        showAdminToast('Please provide both question and answer (*).', 'error');
+        return;
+      }
+
+      const payload = { question, answer, sort_order, is_published };
+      const url = id ? `/api/admin/faqs/${id}` : '/api/admin/faqs';
+      const method = id ? 'PATCH' : 'POST';
+
+      try {
+        const res = await adminFetch(url, {
+          method,
+          body: JSON.stringify(payload),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json.success) {
+          closeModal('modalFaq');
+          showAdminToast(id ? 'FAQ updated successfully.' : 'New FAQ added successfully.');
+          loadAdminFaqs();
+        } else {
+          showAdminToast(json.message || 'Failed to save FAQ.', 'error');
+        }
+      } catch (err) {
+        if (err.message !== 'Authentication required') {
+          console.error('FAQ save error:', err);
+          showAdminToast('Network error while saving FAQ.', 'error');
         }
       }
     });

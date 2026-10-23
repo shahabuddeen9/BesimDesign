@@ -9,12 +9,16 @@ import env from '../config/env.js';
 import logger from '../utils/logger.js';
 import { db, initDb } from './index.js';
 
-export async function runSeed() {
+export async function runSeed(force = false) {
   await initDb();
-  logger.info('Starting database seeding...');
 
-  // 1. Ensure tables exist
+  // 1. Ensure required tables exist
   db.exec(`
+    CREATE TABLE IF NOT EXISTS _system_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
     CREATE TABLE IF NOT EXISTS admins (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT UNIQUE NOT NULL,
@@ -37,7 +41,7 @@ export async function runSeed() {
     CREATE INDEX IF NOT EXISTS idx_clients_featured ON clients(is_featured, sort_order);
   `);
 
-  // 2. Seed Admin Users
+  // 2. Ensure Administrator accounts exist without altering user records
   const adminEmails = [
     env.ADMIN_EMAIL,
     'besimdesigne@gmail.com',
@@ -45,7 +49,7 @@ export async function runSeed() {
     'mdshahabuddeen9@gmail.com',
     'mdshahabuddeen48@gmail.com',
   ];
-  const passwordToHash = env.ADMIN_PASSWORD || 'Admin@2025!';
+  const passwordToHash = env.ADMIN_PASSWORD || 'AdminPass123!';
   const passwordHash = await bcrypt.hash(passwordToHash, 10);
   for (const email of adminEmails) {
     if (!email) continue;
@@ -56,16 +60,28 @@ export async function runSeed() {
         VALUES (?, ?, datetime('now'))
       `).run(email, passwordHash);
       logger.info(`Seeded administrator account: ${email}`);
-    } else {
-      db.prepare(`
-        UPDATE admins SET password_hash = ? WHERE email = ?
-      `).run(passwordHash, email);
     }
   }
 
-  // 3. Seed Clients (from green-square.co.in)
-  const clientCount = db.prepare('SELECT COUNT(*) as count FROM clients').get();
-  if (clientCount.count === 0) {
+  // Check if database has already been initialized with initial content
+  const metaCheck = db.prepare("SELECT value FROM _system_meta WHERE key = 'initial_seed_completed'").get();
+  const clientCount = db.prepare('SELECT COUNT(*) as count FROM clients').get()?.count ?? 0;
+  const projCount = db.prepare('SELECT COUNT(*) as count FROM projects').get()?.count ?? 0;
+  const isAlreadySeeded = !force && (metaCheck?.value === 'true' || projCount > 0 || clientCount > 0);
+
+  if (isAlreadySeeded) {
+    db.prepare(`
+      INSERT OR REPLACE INTO _system_meta (key, value, updated_at)
+      VALUES ('initial_seed_completed', 'true', datetime('now'))
+    `).run();
+    logger.info('Database already seeded. Preserving existing admin modifications and skipping re-seed.');
+    return;
+  }
+
+  logger.info('Starting initial database seeding for fresh installation...');
+
+  // 3. Seed Initial Clients
+  if (clientCount === 0) {
     const sampleClients = [
       { name: 'The Nutcracker', category: 'Hospitality & F&B', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/Nutcracker.jpg', is_featured: 1, sort_order: 1 },
       { name: 'HDFC Bank', category: 'Corporate & Banking', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/HDFC.jpg', is_featured: 1, sort_order: 2 },
@@ -100,12 +116,7 @@ export async function runSeed() {
   }
 
   // 4. Seed Projects (Categories: central_kitchen, hotels, hospitality, residential)
-  const currentProjects = db.prepare('SELECT category FROM projects LIMIT 10').all();
-  const hasNewCategories = currentProjects.some(p => ['central_kitchen', 'hotels', 'hospitality', 'residential'].includes(p.category));
-
-  if (true) {
-    db.prepare('DELETE FROM projects').run();
-
+  if (projCount === 0) {
     const sampleProjects = [
       // CATEGORY 1: CENTRAL KITCHEN
       {
@@ -325,96 +336,106 @@ export async function runSeed() {
   }
 
   // 5. Seed Testimonials (including Annie Bafna from green-square.co.in)
-  db.prepare('DELETE FROM testimonials').run();
-  const sampleTestimonials = [
-    {
-      client_name: 'Annie Bafna',
-      business_type: 'The Nut Cracker (Jio World Mall, BKC)',
-      rating: 5,
-      review: 'We worked with Besim Design for the first time when we executed our latest restaurant at The Jio Mall, BKC. The experience was smoother than we could imagine on all fronts - the team was extremely professional & skilled, all timelines were met sometimes even before time, the quality of work and finishes were excellent and the overall organisation and team work within the team was absolutely on point.',
-      sort_order: 1,
-      is_published: 1,
-    },
-    {
-      client_name: 'Kishore Daryanani',
-      business_type: 'FOO Asian Tapas / Pebble Street Hospitality',
-      rating: 5,
-      review: 'Their turnkey execution enabled us to open on schedule with zero snags. The in-house furniture from their Nalasopara factory and specialized kitchen extraction is world class. True partners who value quality over cutting corners.',
-      sort_order: 2,
-      is_published: 1,
-    },
-    {
-      client_name: 'Vipul Shah',
-      business_type: 'Parinee Group (Crescenzo Luxury Living)',
-      rating: 5,
-      review: 'Besim Design delivers complete transparency in project costs and timelines. The site handover file with work-in-progress pictures and technical documentation gives total peace of mind.',
-      sort_order: 3,
-      is_published: 1,
-    },
-    {
-      client_name: 'Prashant Chawla',
-      business_type: 'Royal China Group',
-      rating: 5,
-      review: 'With 20+ years of expertise, Mr. Sanjay Baikerikar and his engineering team solved our complex MEP and acoustic challenges effortlessly. Outstanding craftsmanship in both dining areas and back of house.',
-      sort_order: 4,
-      is_published: 1,
+  const testCount = db.prepare('SELECT COUNT(*) as count FROM testimonials').get()?.count ?? 0;
+  if (testCount === 0) {
+    const sampleTestimonials = [
+      {
+        client_name: 'Annie Bafna',
+        business_type: 'The Nut Cracker (Jio World Mall, BKC)',
+        rating: 5,
+        review: 'We worked with Besim Design for the first time when we executed our latest restaurant at The Jio Mall, BKC. The experience was smoother than we could imagine on all fronts - the team was extremely professional & skilled, all timelines were met sometimes even before time, the quality of work and finishes were excellent and the overall organisation and team work within the team was absolutely on point.',
+        sort_order: 1,
+        is_published: 1,
+      },
+      {
+        client_name: 'Kishore Daryanani',
+        business_type: 'FOO Asian Tapas / Pebble Street Hospitality',
+        rating: 5,
+        review: 'Their turnkey execution enabled us to open on schedule with zero snags. The in-house furniture from their Nalasopara factory and specialized kitchen extraction is world class. True partners who value quality over cutting corners.',
+        sort_order: 2,
+        is_published: 1,
+      },
+      {
+        client_name: 'Vipul Shah',
+        business_type: 'Parinee Group (Crescenzo Luxury Living)',
+        rating: 5,
+        review: 'Besim Design delivers complete transparency in project costs and timelines. The site handover file with work-in-progress pictures and technical documentation gives total peace of mind.',
+        sort_order: 3,
+        is_published: 1,
+      },
+      {
+        client_name: 'Prashant Chawla',
+        business_type: 'Royal China Group',
+        rating: 5,
+        review: 'With 20+ years of expertise, Mr. Sanjay Baikerikar and his engineering team solved our complex MEP and acoustic challenges effortlessly. Outstanding craftsmanship in both dining areas and back of house.',
+        sort_order: 4,
+        is_published: 1,
+      }
+    ];
+
+    const insertTestimonial = db.prepare(`
+      INSERT INTO testimonials (client_name, business_type, rating, review, is_published, sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    `);
+
+    for (const t of sampleTestimonials) {
+      insertTestimonial.run(t.client_name, t.business_type, t.rating, t.review, t.is_published, t.sort_order);
     }
-  ];
-
-  const insertTestimonial = db.prepare(`
-    INSERT INTO testimonials (client_name, business_type, rating, review, is_published, sort_order, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-  `);
-
-  for (const t of sampleTestimonials) {
-    insertTestimonial.run(t.client_name, t.business_type, t.rating, t.review, t.is_published, t.sort_order);
   }
 
   // 6. Seed FAQs (with Besim Design Turnkey facts)
-  db.prepare('DELETE FROM faqs').run();
-  const sampleFaqs = [
-    {
-      question: 'What is Besim Design’s history and turnkey philosophy?',
-      answer: 'Besim Design was established 20+ years back as a design studio under Managing Director Sanjay Baikerikar (GD Arch, Academy of Architecture). We realized that unless there is a strong and dedicated team to execute, most designs remain dreams. We created our own dedicated teams to provide complete turnkey execution from design to handover.',
-      sort_order: 1,
-      is_published: 1,
-    },
-    {
-      question: 'Where is your furniture manufacturing facility located?',
-      answer: 'We operate our own state-of-the-art furniture manufacturing facility in Nalasopara, on the outskirts of Mumbai. We initiate the production of all loose and site-specific furniture items at the factory itself, accelerating project timelines while maintaining superior fit, finish, and structural quality.',
-      sort_order: 2,
-      is_published: 1,
-    },
-    {
-      question: 'What is your core USP in turnkey execution?',
-      answer: 'Our key USP is our ability to deliver complete turnkey solutions—including MEP services (Mechanical, Electrical, and Plumbing) and consultancy. This integrated approach enables us to streamline project timelines while maintaining the highest standards of quality and finish.',
-      sort_order: 3,
-      is_published: 1,
-    },
-    {
-      question: 'How do you ensure transparency in project costing and handover?',
-      answer: 'We make accurate upfront costings and continually update costings on any design or specification changes so clients can make conscious decisions on escalations. At project completion, we provide comprehensive site handover files with renovation details, work-in-progress photos, and emergency contact numbers.',
-      sort_order: 4,
-      is_published: 1,
-    },
-    {
-      question: 'What sectors do you execute projects in?',
-      answer: 'Our portfolio specializes in Central Kitchens & Commissaries, Hotels & Boutique Resorts, Hospitality (fine dining, cafes, lounges, bars), and Luxury Residential spaces across Mumbai, Pune, and India.',
-      sort_order: 5,
-      is_published: 1,
+  const faqCount = db.prepare('SELECT COUNT(*) as count FROM faqs').get()?.count ?? 0;
+  if (faqCount === 0) {
+    const sampleFaqs = [
+      {
+        question: 'What is Besim Design’s history and turnkey philosophy?',
+        answer: 'Besim Design was established 20+ years back as a design studio under Managing Director Sanjay Baikerikar (GD Arch, Academy of Architecture). We realized that unless there is a strong and dedicated team to execute, most designs remain dreams. We created our own dedicated teams to provide complete turnkey execution from design to handover.',
+        sort_order: 1,
+        is_published: 1,
+      },
+      {
+        question: 'Where is your furniture manufacturing facility located?',
+        answer: 'We operate our own state-of-the-art furniture manufacturing facility in Nalasopara, on the outskirts of Mumbai. We initiate the production of all loose and site-specific furniture items at the factory itself, accelerating project timelines while maintaining superior fit, finish, and structural quality.',
+        sort_order: 2,
+        is_published: 1,
+      },
+      {
+        question: 'What is your core USP in turnkey execution?',
+        answer: 'Our key USP is our ability to deliver complete turnkey solutions—including MEP services (Mechanical, Electrical, and Plumbing) and consultancy. This integrated approach enables us to streamline project timelines while maintaining the highest standards of quality and finish.',
+        sort_order: 3,
+        is_published: 1,
+      },
+      {
+        question: 'How do you ensure transparency in project costing and handover?',
+        answer: 'We make accurate upfront costings and continually update costings on any design or specification changes so clients can make conscious decisions on escalations. At project completion, we provide comprehensive site handover files with renovation details, work-in-progress photos, and emergency contact numbers.',
+        sort_order: 4,
+        is_published: 1,
+      },
+      {
+        question: 'What sectors do you execute projects in?',
+        answer: 'Our portfolio specializes in Central Kitchens & Commissaries, Hotels & Boutique Resorts, Hospitality (fine dining, cafes, lounges, bars), and Luxury Residential spaces across Mumbai, Pune, and India.',
+        sort_order: 5,
+        is_published: 1,
+      }
+    ];
+
+    const insertFaq = db.prepare(`
+      INSERT INTO faqs (question, answer, sort_order, is_published, created_at, updated_at)
+      VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
+    `);
+
+    for (const f of sampleFaqs) {
+      insertFaq.run(f.question, f.answer, f.sort_order, f.is_published);
     }
-  ];
-
-  const insertFaq = db.prepare(`
-    INSERT INTO faqs (question, answer, sort_order, is_published, created_at, updated_at)
-    VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-  `);
-
-  for (const f of sampleFaqs) {
-    insertFaq.run(f.question, f.answer, f.sort_order, f.is_published);
   }
 
-  logger.info('Database seeded successfully with Besim Design & Besim Design projects, clients, and FAQs!');
+  // Record that initial seed completed so re-runs never delete or recreate records
+  db.prepare(`
+    INSERT OR REPLACE INTO _system_meta (key, value, updated_at)
+    VALUES ('initial_seed_completed', 'true', datetime('now'))
+  `).run();
+
+  logger.info('Database seeded successfully and marked initial_seed_completed.');
 }
 
 export default runSeed;

@@ -161,7 +161,9 @@ async function loadProjects() {
   if (!grid) return;
 
   try {
-    const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects`);
+    const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects?_t=${Date.now()}`, {
+      cache: 'no-store',
+    });
     if (!res.ok) throw new Error('Failed to fetch projects');
     const json = await res.json();
 
@@ -170,7 +172,7 @@ async function loadProjects() {
       renderProjects(state.projects);
     }
   } catch (err) {
-    console.warn('API unavailable; retaining static showcase items.', err);
+    console.warn('API error loading showcase projects:', err);
     renderProjects(state.projects);
   }
 }

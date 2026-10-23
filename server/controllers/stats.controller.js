@@ -20,6 +20,7 @@ const projectRoot = path.resolve(__dirname, '../..');
  */
 export function getStats(req, res, next) {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     // 1. Total Enquiries
     const totalEnquiries = db.prepare('SELECT COUNT(*) as count FROM enquiries').get()?.count ?? 0;
 

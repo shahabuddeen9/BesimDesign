@@ -20,6 +20,7 @@ export const faqSchema = z.object({
  */
 export function getPublishedFaqs(req, res, next) {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const faqs = db.prepare(`
       SELECT id, question, answer, sort_order
       FROM faqs
@@ -41,6 +42,7 @@ export function getPublishedFaqs(req, res, next) {
  */
 export function getAllFaqs(req, res, next) {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const faqs = db.prepare(`
       SELECT * FROM faqs
       ORDER BY sort_order ASC, created_at ASC
