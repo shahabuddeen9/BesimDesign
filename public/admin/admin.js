@@ -2,7 +2,7 @@
  * @file /public/admin/admin.js
  * @description Administrative dashboard controller for Besim Design CRM.
  * Manages authenticated sessions, metric cards, enquiries CRM, portfolio CRUD,
- * file uploads, testimonials, and FAQs. Auto-redirects to login on 401.
+ * file uploads, and testimonials. Auto-redirects to login on 401.
  */
 
 const state = {
@@ -11,7 +11,6 @@ const state = {
   projects: [],
   clients: [],
   testimonials: [],
-  faqs: [],
   pagination: {
     page: 1,
     limit: 20,
@@ -352,9 +351,6 @@ function switchTab(tabName) {
   } else if (tabName === 'testimonials') {
     if (pageTitle) pageTitle.textContent = 'Client Reviews & Testimonials';
     loadAdminTestimonials();
-  } else if (tabName === 'faqs') {
-    if (pageTitle) pageTitle.textContent = 'Architectural FAQs';
-    loadAdminFaqs();
   }
 
   // Sync URL hash without jumping page
@@ -381,7 +377,7 @@ function initTabs() {
   // Support direct URL query or hash navigation: e.g. ?tab=projects or #projects
   const params = new URLSearchParams(window.location.search);
   const targetTab = params.get('tab') || window.location.hash.replace('#', '');
-  if (['projects', 'clients', 'enquiries', 'testimonials', 'faqs'].includes(targetTab)) {
+  if (['projects', 'clients', 'enquiries', 'testimonials'].includes(targetTab)) {
     switchTab(targetTab);
   } else {
     loadEnquiries();
@@ -1516,92 +1512,6 @@ function renderAdminTestimonials(reviews) {
 }
 
 // =============================================================================
-// FAQs CRUD
-// =============================================================================
-
-async function loadAdminFaqs() {
-  const tbody = document.getElementById('faqsTableBody');
-  if (!tbody) return;
-
-  tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 32px; color: var(--text-dim);">Loading FAQs...</td></tr>`;
-
-  try {
-    const res = await adminFetch('/api/admin/faqs');
-    const json = await res.json();
-
-    if (json.success) {
-      state.faqs = json.data;
-      renderAdminFaqs(json.data);
-    }
-  } catch (err) {
-    if (err.message !== 'Authentication required') {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 24px; color: #f87171;">Failed to load FAQs.</td></tr>`;
-    }
-  }
-}
-
-function renderAdminFaqs(faqs) {
-  const tbody = document.getElementById('faqsTableBody');
-  if (!tbody) return;
-
-  if (faqs.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 32px; color: var(--text-dim);">No architectural FAQs configured.</td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = faqs.map((f) => `
-    <tr>
-      <td>${f.sort_order}</td>
-      <td style="font-weight: 600; color: #fff;">${f.question}</td>
-      <td style="max-width: 320px; font-size: 0.82rem; color: var(--text-muted);">${f.answer}</td>
-      <td>
-        <span class="badge-status ${f.is_published ? 'badge-won' : 'badge-lost'}">
-          ${f.is_published ? 'Published' : 'Hidden'}
-        </span>
-      </td>
-      <td>
-        <div style="display: flex; gap: 8px;">
-          <button class="btn btn-outline btn-sm btn-edit-faq" data-id="${f.id}">✏️ Change</button>
-          <button class="btn btn-danger btn-sm btn-del-faq" data-id="${f.id}">🗑️ Delete</button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-
-  document.querySelectorAll('.btn-edit-faq').forEach((b) => {
-    b.onclick = () => {
-      const f = state.faqs.find((item) => item.id.toString() === b.dataset.id.toString());
-      if (!f) return;
-      document.getElementById('editFaqId').value = f.id;
-      document.getElementById('faqQuestion').value = f.question;
-      document.getElementById('faqAnswer').value = f.answer;
-      document.getElementById('faqSort').value = f.sort_order;
-      document.getElementById('modalFaqTitle').textContent = 'Edit Architectural FAQ';
-      openModal('modalFaq');
-    };
-  });
-
-  document.querySelectorAll('.btn-del-faq').forEach((b) => {
-    b.onclick = async () => {
-      const confirmed = await confirmDialog({
-        title: 'Delete FAQ',
-        message: 'Are you sure you want to delete this architectural FAQ?',
-        proceedText: 'Delete FAQ 🗑️',
-        isDanger: true,
-      });
-
-      if (!confirmed) return;
-
-      try {
-        await adminFetch(`/api/admin/faqs/${b.dataset.id}`, { method: 'DELETE' });
-        showAdminToast('FAQ deleted successfully.');
-        loadAdminFaqs();
-      } catch (_) {}
-    };
-  });
-}
-
-// =============================================================================
 // DOM Initialization & Event Wiring
 // =============================================================================
 
@@ -2440,56 +2350,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (err.message !== 'Authentication required') {
           console.error('Testimonial save error:', err);
           showAdminToast('Failed to save testimonial.', 'error');
-        }
-      }
-    });
-  }
-
-  // Add / Edit FAQ Form
-  const btnNewFaq = document.getElementById('btnNewFaq');
-  const formFaq = document.getElementById('formFaq');
-  if (btnNewFaq && formFaq) {
-    btnNewFaq.addEventListener('click', () => {
-      formFaq.reset();
-      document.getElementById('editFaqId').value = '';
-      document.getElementById('modalFaqTitle').textContent = 'Add Architectural FAQ';
-      openModal('modalFaq');
-    });
-  }
-
-  if (formFaq) {
-    formFaq.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const id = document.getElementById('editFaqId').value;
-      const question = document.getElementById('faqQuestion').value.trim();
-      const answer = document.getElementById('faqAnswer').value.trim();
-      const sort_order = parseInt(document.getElementById('faqSort').value, 10) || 0;
-
-      if (!question || !answer) {
-        showAdminToast('Please provide both question and answer.', 'error');
-        return;
-      }
-
-      const payload = { question, answer, sort_order, is_published: 1 };
-      const url = id ? `/api/admin/faqs/${id}` : '/api/admin/faqs';
-      const method = id ? 'PATCH' : 'POST';
-
-      try {
-        const res = await adminFetch(url, {
-          method,
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-          closeModal('modalFaq');
-          showAdminToast(id ? 'FAQ updated.' : 'FAQ added.');
-          loadAdminFaqs();
-        } else {
-          showAdminToast('Failed to save FAQ.', 'error');
-        }
-      } catch (err) {
-        if (err.message !== 'Authentication required') {
-          console.error('FAQ save error:', err);
-          showAdminToast('Failed to save FAQ.', 'error');
         }
       }
     });
