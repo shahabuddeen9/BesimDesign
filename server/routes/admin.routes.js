@@ -4,6 +4,7 @@
  * portfolio management, reviews, clients, file uploads, and analytics.
  */
 
+import fs from 'fs';
 import { Router } from 'express';
 import {
   deleteEnquiry,
@@ -92,10 +93,25 @@ adminRouter.post('/upload', uploadImage.single('image'), (req, res, next) => {
     }
 
     const fileUrl = `/uploads/${req.file.filename}`;
+    let dataUri = null;
+    try {
+      if (req.file.path && fs.existsSync(req.file.path) && req.file.mimetype.startsWith('image/')) {
+        const buf = fs.readFileSync(req.file.path);
+        if (buf.length <= 4 * 1024 * 1024) {
+          dataUri = `data:${req.file.mimetype};base64,${buf.toString('base64')}`;
+        }
+      }
+    } catch (_) {}
+
+    // When deployed on Vercel or ephemeral serverless, dataUri ensures zero asset loss across container recycles
+    const primaryUrl = (process.env.VERCEL || !fileUrl.startsWith('/uploads/')) && dataUri ? dataUri : (dataUri || fileUrl);
+
     return res.status(200).json({
       success: true,
       message: 'Image uploaded successfully.',
-      url: fileUrl,
+      url: primaryUrl,
+      localUrl: fileUrl,
+      dataUri: dataUri,
       filename: req.file.filename,
       size: req.file.size,
       mimetype: req.file.mimetype,
@@ -111,12 +127,29 @@ adminRouter.post('/upload-multiple', uploadImage.array('images', 10), (req, res,
       throw new AppError('No image files uploaded or files rejected by validator.', 400);
     }
 
-    const uploaded = req.files.map((f) => ({
-      url: `/uploads/${f.filename}`,
-      filename: f.filename,
-      size: f.size,
-      mimetype: f.mimetype,
-    }));
+    const uploaded = req.files.map((f) => {
+      const fileUrl = `/uploads/${f.filename}`;
+      let dataUri = null;
+      try {
+        if (f.path && fs.existsSync(f.path) && f.mimetype.startsWith('image/')) {
+          const buf = fs.readFileSync(f.path);
+          if (buf.length <= 4 * 1024 * 1024) {
+            dataUri = `data:${f.mimetype};base64,${buf.toString('base64')}`;
+          }
+        }
+      } catch (_) {}
+
+      const primaryUrl = (process.env.VERCEL || !fileUrl.startsWith('/uploads/')) && dataUri ? dataUri : (dataUri || fileUrl);
+
+      return {
+        url: primaryUrl,
+        localUrl: fileUrl,
+        dataUri: dataUri,
+        filename: f.filename,
+        size: f.size,
+        mimetype: f.mimetype,
+      };
+    });
 
     return res.status(200).json({
       success: true,

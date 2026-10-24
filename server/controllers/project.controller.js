@@ -1,14 +1,8 @@
-/**
- * @file /server/controllers/project.controller.js
- * @description Controller for commercial architecture project portfolio management.
- * Provides public read endpoints and authenticated administrative CRUD operations.
- */
-
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { z } from 'zod';
-import { db } from '../db/index.js';
+import { db, recordDeletedProject, syncTombstones } from '../db/index.js';
 import AppError from '../utils/AppError.js';
 import { stripHtml } from '../utils/sanitize.js';
 
@@ -68,6 +62,8 @@ export function getPublishedProjects(req, res, next) {
       SELECT id, title, slug, category, client_name, location, area_sqft, description, scope, image_url, gallery, is_featured, sort_order, created_at
       FROM projects
       WHERE is_published = 1
+        AND id NOT IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
+        AND slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL)
     `;
     const params = [];
 
@@ -92,7 +88,12 @@ export function getPublishedProjects(req, res, next) {
       gallery: safeJsonParse(p.gallery),
     }));
 
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store',
+    });
     return res.status(200).json({
       success: true,
       data: projects,
@@ -178,6 +179,12 @@ export function createProject(req, res, next) {
       finalSlug = `${baseSlug}-${counter++}`;
     }
 
+    // If re-adding a previously deleted project, clear tombstone
+    try {
+      db.prepare('DELETE FROM deleted_projects WHERE slug = ? OR title = ?').run(finalSlug, stripHtml(validated.title));
+      syncTombstones();
+    } catch (_) {}
+
     const scopeJson = Array.isArray(validated.scope) ? JSON.stringify(validated.scope) : (validated.scope || '[]');
     const galleryJson = Array.isArray(validated.gallery) ? JSON.stringify(validated.gallery) : (validated.gallery || '[]');
 
@@ -206,6 +213,8 @@ export function createProject(req, res, next) {
       validated.sort_order,
       validated.is_published
     );
+
+    db.persist();
 
     const saved = db.prepare('SELECT * FROM projects WHERE id = ?').get(result.lastInsertRowid);
     if (saved) {
@@ -289,6 +298,8 @@ export function updateProject(req, res, next) {
       numId
     );
 
+    db.persist();
+
     const updated = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
     if (updated) {
       updated.scope = safeJsonParse(updated.scope);
@@ -312,16 +323,25 @@ export function deleteProject(req, res, next) {
   try {
     const { id } = req.params;
     const numId = parseInt(id, 10) || 0;
-    const existing = db.prepare('SELECT id FROM projects WHERE id = ? OR id = ?').get(id, numId);
+    const existing = db.prepare('SELECT id, slug, title FROM projects WHERE id = ? OR id = ?').get(id, numId);
     if (!existing) {
       throw new AppError(`Project #${id} not found`, 404);
     }
 
+    // 1. Permanently record tombstone
+    recordDeletedProject(existing.id, existing.slug, existing.title);
+
+    // 2. Delete project from DB
     db.prepare('DELETE FROM projects WHERE id = ? OR id = ?').run(id, numId);
+
+    // 3. Immediately persist to disk
+    db.persist();
 
     return res.status(200).json({
       success: true,
       message: `Project #${id} deleted successfully`,
+      deletedId: existing.id,
+      deletedSlug: existing.slug,
     });
   } catch (error) {
     next(error);
@@ -392,6 +412,7 @@ export function addProjectPhotos(req, res, next) {
       SET gallery = ?, image_url = ?, updated_at = datetime('now')
       WHERE id = ? OR id = ?
     `).run(JSON.stringify(gallery), imageUrl, id, numId);
+    db.persist();
 
     const updated = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
     if (updated) {
@@ -454,6 +475,7 @@ export function deleteProjectPhoto(req, res, next) {
       SET gallery = ?, image_url = ?, updated_at = datetime('now')
       WHERE id = ? OR id = ?
     `).run(JSON.stringify(gallery), imageUrl, id, numId);
+    db.persist();
 
     const updated = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
     if (updated) {
@@ -500,6 +522,7 @@ export function setProjectCoverPhoto(req, res, next) {
       SET image_url = ?, gallery = ?, updated_at = datetime('now')
       WHERE id = ? OR id = ?
     `).run(url, JSON.stringify(gallery), id, numId);
+    db.persist();
 
     const updated = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
     if (updated) {

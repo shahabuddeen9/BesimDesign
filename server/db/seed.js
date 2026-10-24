@@ -123,6 +123,12 @@ export async function runSeed(force = false) {
 
   // 4. Seed Projects (Categories: central_kitchen, hotels, hospitality, residential)
   if (projCount === 0) {
+    let deletedProjectSlugs = new Set();
+    try {
+      const deletedProjRows = db.prepare('SELECT slug FROM deleted_projects WHERE slug IS NOT NULL').all();
+      deletedProjectSlugs = new Set(deletedProjRows.map((r) => r.slug));
+    } catch (_) {}
+
     const sampleProjects = [
       // CATEGORY 1: CENTRAL KITCHEN
       {
@@ -332,18 +338,25 @@ export async function runSeed(force = false) {
       )
     `);
 
-    for (const p of sampleProjects) {
+    const activeProjects = sampleProjects.filter((p) => !deletedProjectSlugs.has(p.slug));
+    for (const p of activeProjects) {
       insertProj.run(
         p.title, p.slug, p.category, p.client_name, p.location, p.area_sqft,
         p.description, p.scope, p.image_url, p.gallery, p.is_featured, p.sort_order, p.is_published
       );
     }
-    logger.info(`Seeded ${sampleProjects.length} projects across Central Kitchen, Hotels, Hospitality, and Residential categories.`);
+    logger.info(`Seeded ${activeProjects.length} projects across Central Kitchen, Hotels, Hospitality, and Residential categories.`);
   }
 
   // 5. Seed Testimonials (including Annie Bafna from green-square.co.in)
   const testCount = db.prepare('SELECT COUNT(*) as count FROM testimonials').get()?.count ?? 0;
   if (testCount === 0) {
+    let deletedTestNames = new Set();
+    try {
+      const deletedTestRows = db.prepare('SELECT client_name FROM deleted_testimonials WHERE client_name IS NOT NULL').all();
+      deletedTestNames = new Set(deletedTestRows.map((r) => r.client_name));
+    } catch (_) {}
+
     const sampleTestimonials = [
       {
         client_name: 'Annie Bafna',
@@ -377,7 +390,7 @@ export async function runSeed(force = false) {
         sort_order: 4,
         is_published: 1,
       }
-    ];
+    ].filter((t) => !deletedTestNames.has(t.client_name));
 
     const insertTestimonial = db.prepare(`
       INSERT INTO testimonials (client_name, business_type, rating, review, is_published, sort_order, created_at, updated_at)

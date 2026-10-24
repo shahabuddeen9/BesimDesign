@@ -190,7 +190,7 @@ export async function initDb() {
         logger.info('Database schema initialized from fallback definitions.');
       }
 
-      // Ensure _system_meta and deleted_clients tables exist in all environments
+      // Ensure _system_meta, deleted_clients, deleted_testimonials, and deleted_projects tables exist in all environments
       try {
         rawDb.run(`
           CREATE TABLE IF NOT EXISTS _system_meta (
@@ -203,18 +203,29 @@ export async function initDb() {
             client_id INTEGER,
             deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
           );
+          CREATE TABLE IF NOT EXISTS deleted_testimonials (
+            testimonial_id INTEGER,
+            client_name TEXT,
+            deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
+          );
+          CREATE TABLE IF NOT EXISTS deleted_projects (
+            project_id INTEGER,
+            slug TEXT,
+            title TEXT,
+            deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
+          );
           DROP TABLE IF EXISTS faqs;
         `);
 
-        // Sync tombstone records from deleted_clients.json
-        const jsonCandidates = [
+        // 1. Sync tombstone records from deleted_clients.json
+        const clientJsonCandidates = [
           path.resolve(currentDir, 'deleted_clients.json'),
           path.resolve(process.cwd(), 'server/db/deleted_clients.json'),
         ];
-        const jsonPath = jsonCandidates.find((p) => fs.existsSync(p));
-        if (jsonPath) {
+        const clientJsonPath = clientJsonCandidates.find((p) => fs.existsSync(p));
+        if (clientJsonPath) {
           try {
-            const rawList = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+            const rawList = JSON.parse(fs.readFileSync(clientJsonPath, 'utf8'));
             if (Array.isArray(rawList)) {
               for (const name of rawList) {
                 if (typeof name === 'string' && name.trim()) {
@@ -225,8 +236,48 @@ export async function initDb() {
           } catch (_) {}
         }
 
-        // Enforce deletion: permanently remove any clients recorded in deleted_clients
+        // 2. Sync unified tombstone records from tombstones.json
+        const tombstoneCandidates = [
+          path.resolve(currentDir, 'tombstones.json'),
+          path.resolve(process.cwd(), 'server/db/tombstones.json'),
+        ];
+        const tombstonePath = tombstoneCandidates.find((p) => fs.existsSync(p));
+        if (tombstonePath) {
+          try {
+            const tombstones = JSON.parse(fs.readFileSync(tombstonePath, 'utf8'));
+            if (tombstones && typeof tombstones === 'object') {
+              if (Array.isArray(tombstones.clients)) {
+                for (const c of tombstones.clients) {
+                  const name = typeof c === 'string' ? c : c.name;
+                  const id = typeof c === 'object' ? c.id : null;
+                  if (name) {
+                    rawDb.run("INSERT OR IGNORE INTO deleted_clients (client_name, client_id, deleted_at) VALUES (?, ?, datetime('now'))", [name.trim(), id]);
+                  }
+                }
+              }
+              if (Array.isArray(tombstones.testimonials)) {
+                for (const t of tombstones.testimonials) {
+                  const id = typeof t === 'number' || typeof t === 'string' ? Number(t) : t.id;
+                  const name = typeof t === 'object' ? t.client_name : null;
+                  rawDb.run("INSERT OR IGNORE INTO deleted_testimonials (testimonial_id, client_name, deleted_at) VALUES (?, ?, datetime('now'))", [id || null, name || null]);
+                }
+              }
+              if (Array.isArray(tombstones.projects)) {
+                for (const p of tombstones.projects) {
+                  const id = typeof p === 'object' ? p.id : null;
+                  const slug = typeof p === 'string' ? p : p.slug;
+                  const title = typeof p === 'object' ? p.title : null;
+                  rawDb.run("INSERT OR IGNORE INTO deleted_projects (project_id, slug, title, deleted_at) VALUES (?, ?, ?, datetime('now'))", [id || null, slug || null, title || null]);
+                }
+              }
+            }
+          } catch (_) {}
+        }
+
+        // Enforce deletion: permanently remove any items recorded in tombstones
         rawDb.run('DELETE FROM clients WHERE name IN (SELECT client_name FROM deleted_clients);');
+        rawDb.run('DELETE FROM testimonials WHERE id IN (SELECT testimonial_id FROM deleted_testimonials WHERE testimonial_id IS NOT NULL) OR client_name IN (SELECT client_name FROM deleted_testimonials WHERE client_name IS NOT NULL);');
+        rawDb.run('DELETE FROM projects WHERE id IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL) OR slug IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL);');
         persistDb();
       } catch (_) {}
 
@@ -408,35 +459,130 @@ export const db = {
 
 /**
  * Persists the current deleted_clients list from SQLite to deleted_clients.json
+ * Also synchronizes the unified tombstones.json file for all entities.
  */
 export function syncDeletedClientsFile() {
+  syncTombstones();
+}
+
+/**
+ * Synchronizes all tombstone tables (clients, testimonials, projects) to durable JSON files.
+ */
+export function syncTombstones() {
   if (!rawDb) return;
   try {
     const currentDir = path.dirname(fileURLToPath(import.meta.url));
-    const paths = [
+    const clientsPaths = [
       path.resolve(currentDir, 'deleted_clients.json'),
       path.resolve(process.cwd(), 'server/db/deleted_clients.json'),
     ];
-    const stmt = rawDb.prepare('SELECT client_name FROM deleted_clients ORDER BY client_name ASC');
-    const list = [];
+    const tombstonesPaths = [
+      path.resolve(currentDir, 'tombstones.json'),
+      path.resolve(process.cwd(), 'server/db/tombstones.json'),
+    ];
+
+    // 1. Fetch deleted clients
+    const clientStmt = rawDb.prepare('SELECT client_name FROM deleted_clients ORDER BY client_name ASC');
+    const clientList = [];
     try {
-      while (stmt.step()) {
-        const obj = stmt.getAsObject();
-        if (obj.client_name) list.push(obj.client_name);
+      while (clientStmt.step()) {
+        const obj = clientStmt.getAsObject();
+        if (obj.client_name) clientList.push(obj.client_name);
       }
     } finally {
-      stmt.free();
+      clientStmt.free();
     }
-    const content = JSON.stringify(list, null, 2);
-    for (const p of paths) {
+
+    // 2. Fetch deleted testimonials
+    const testStmt = rawDb.prepare('SELECT testimonial_id, client_name FROM deleted_testimonials');
+    const testList = [];
+    try {
+      while (testStmt.step()) {
+        const obj = testStmt.getAsObject();
+        testList.push({ id: obj.testimonial_id, client_name: obj.client_name });
+      }
+    } finally {
+      testStmt.free();
+    }
+
+    // 3. Fetch deleted projects
+    const projStmt = rawDb.prepare('SELECT project_id, slug, title FROM deleted_projects');
+    const projList = [];
+    try {
+      while (projStmt.step()) {
+        const obj = projStmt.getAsObject();
+        projList.push({ id: obj.project_id, slug: obj.slug, title: obj.title });
+      }
+    } finally {
+      projStmt.free();
+    }
+
+    // Write deleted_clients.json
+    const clientContent = JSON.stringify(clientList, null, 2);
+    for (const p of clientsPaths) {
       try {
         const dir = path.dirname(p);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        fs.writeFileSync(p, content, 'utf8');
+        fs.writeFileSync(p, clientContent, 'utf8');
+      } catch (_) {}
+    }
+
+    // Write unified tombstones.json
+    const tombstonePayload = {
+      clients: clientList,
+      testimonials: testList,
+      projects: projList,
+      updated_at: new Date().toISOString(),
+    };
+    const tombstoneContent = JSON.stringify(tombstonePayload, null, 2);
+    for (const p of tombstonesPaths) {
+      try {
+        const dir = path.dirname(p);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(p, tombstoneContent, 'utf8');
       } catch (_) {}
     }
   } catch (err) {
-    logger.warn('Failed to sync deleted_clients.json:', err);
+    logger.warn('Failed to sync tombstones:', err);
+  }
+}
+
+/**
+ * Record a deleted client tombstone.
+ */
+export function recordDeletedClient(name, id = null) {
+  if (!rawDb || !name) return;
+  try {
+    rawDb.run("INSERT OR REPLACE INTO deleted_clients (client_name, client_id, deleted_at) VALUES (?, ?, datetime('now'))", [name.trim(), id]);
+    syncTombstones();
+  } catch (err) {
+    logger.warn('Failed to record deleted client tombstone:', err);
+  }
+}
+
+/**
+ * Record a deleted testimonial tombstone.
+ */
+export function recordDeletedTestimonial(id, clientName = null) {
+  if (!rawDb) return;
+  try {
+    rawDb.run("INSERT OR REPLACE INTO deleted_testimonials (testimonial_id, client_name, deleted_at) VALUES (?, ?, datetime('now'))", [id || null, clientName || null]);
+    syncTombstones();
+  } catch (err) {
+    logger.warn('Failed to record deleted testimonial tombstone:', err);
+  }
+}
+
+/**
+ * Record a deleted project tombstone.
+ */
+export function recordDeletedProject(id, slug = null, title = null) {
+  if (!rawDb) return;
+  try {
+    rawDb.run("INSERT OR REPLACE INTO deleted_projects (project_id, slug, title, deleted_at) VALUES (?, ?, ?, datetime('now'))", [id || null, slug || null, title || null]);
+    syncTombstones();
+  } catch (err) {
+    logger.warn('Failed to record deleted project tombstone:', err);
   }
 }
 

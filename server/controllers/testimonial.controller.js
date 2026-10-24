@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import { db } from '../db/index.js';
+import { db, recordDeletedTestimonial, syncTombstones } from '../db/index.js';
 import AppError from '../utils/AppError.js';
 import { stripHtml } from '../utils/sanitize.js';
 
@@ -22,11 +22,18 @@ export const testimonialSchema = z.object({
  */
 export function getPublishedTestimonials(req, res, next) {
   try {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store',
+    });
     const testimonials = db.prepare(`
       SELECT id, client_name, business_type, rating, review, sort_order, created_at
       FROM testimonials
       WHERE is_published = 1
+        AND id NOT IN (SELECT testimonial_id FROM deleted_testimonials WHERE testimonial_id IS NOT NULL)
+        AND client_name NOT IN (SELECT client_name FROM deleted_testimonials WHERE client_name IS NOT NULL)
       ORDER BY sort_order ASC, created_at DESC
     `).all();
 
@@ -65,6 +72,13 @@ export function getAllTestimonials(req, res, next) {
 export function createTestimonial(req, res, next) {
   try {
     const validated = testimonialSchema.parse(req.body);
+    const sanitizedClientName = stripHtml(validated.client_name);
+
+    // If re-adding a previously deleted testimonial, remove from tombstone table
+    try {
+      db.prepare('DELETE FROM deleted_testimonials WHERE client_name = ?').run(sanitizedClientName);
+      syncTombstones();
+    } catch (_) {}
 
     const result = db.prepare(`
       INSERT INTO testimonials (
@@ -72,7 +86,7 @@ export function createTestimonial(req, res, next) {
         is_published, sort_order, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
     `).run(
-      stripHtml(validated.client_name),
+      sanitizedClientName,
       stripHtml(validated.business_type),
       validated.rating,
       stripHtml(validated.review),
@@ -80,6 +94,7 @@ export function createTestimonial(req, res, next) {
       validated.sort_order
     );
 
+    db.persist();
     const saved = db.prepare('SELECT * FROM testimonials WHERE id = ?').get(result.lastInsertRowid);
 
     return res.status(201).json({
@@ -121,6 +136,7 @@ export function updateTestimonial(req, res, next) {
       id
     );
 
+    db.persist();
     const updated = db.prepare('SELECT * FROM testimonials WHERE id = ?').get(id);
 
     return res.status(200).json({
@@ -139,16 +155,23 @@ export function updateTestimonial(req, res, next) {
 export function deleteTestimonial(req, res, next) {
   try {
     const { id } = req.params;
-    const existing = db.prepare('SELECT id FROM testimonials WHERE id = ?').get(id);
+    const numId = parseInt(id, 10) || 0;
+    const existing = db.prepare('SELECT id, client_name FROM testimonials WHERE id = ? OR id = ?').get(id, numId);
     if (!existing) {
       throw new AppError(`Testimonial #${id} not found`, 404);
     }
 
-    db.prepare('DELETE FROM testimonials WHERE id = ?').run(id);
+    // Record tombstone so seed or reload never resurrects this testimonial
+    recordDeletedTestimonial(existing.id, existing.client_name);
+
+    db.prepare('DELETE FROM testimonials WHERE id = ? OR id = ?').run(id, numId);
+    db.persist();
 
     return res.status(200).json({
       success: true,
       message: `Testimonial #${id} deleted successfully`,
+      deletedId: existing.id,
+      deletedName: existing.client_name,
     });
   } catch (error) {
     next(error);

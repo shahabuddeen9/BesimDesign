@@ -297,38 +297,15 @@ function openBlueprintModal(project) {
 }
 
 function openFallbackModal(slug) {
-  const fallbackProjects = {
-    'sky-villa-parinee-bkc': {
-      title: 'The Sky Villa at Parinee Crescenzo',
-      client_name: 'Parinee Group HNI Penthouse',
-      location: 'Bandra Kurla Complex, Mumbai',
-      area_sqft: 7500,
-      description: 'Turnkey duplex sky villa fit-out with imported Italian marble flooring, bespoke walnut veneer wardrobes produced in our Nalasopara factory, smart home automation, and acoustic master bedrooms.',
-      scope: ['Complete Turnkey Execution', 'Italian Marble Cladding', 'Bespoke Factory Wardrobes', 'Home Automation Integration', 'Architectural Lighting'],
-      image_url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
-      gallery: [
-        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
-        'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80',
-        'https://images.unsplash.com/photo-1600565193348-f74bd3c7ccdf?auto=format&fit=crop&w=800&q=80'
-      ]
-    },
-    'sea-facing-penthouse-worli': {
-      title: 'Sea-Facing Luxury Penthouse Residence',
-      client_name: 'Private HNI Residence',
-      location: 'Worli Sea Face, Mumbai',
-      area_sqft: 6000,
-      description: 'Ultra-luxury sea-facing apartment renovation featuring panoramic glass walls, fluted oak timber paneling, concealed climate air conditioning, imported kitchen cabinetry, and custom vanity suites.',
-      scope: ['Turnkey Architectural Renovation', 'Custom Fluted Oak Paneling', 'Smart VRV Air Conditioning', 'Modular Dry Kitchen', 'Luxury Bath Suites'],
-      image_url: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80',
-      gallery: [
-        'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=800&q=80',
-        'https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=800&q=80'
-      ]
-    }
-  };
-
-  const project = fallbackProjects[slug] || fallbackProjects['sky-villa-parinee-bkc'];
-  openBlueprintModal(project);
+  // Pure database dynamic lookup - never return hardcoded zombie projects
+  fetch(`/api/projects/${encodeURIComponent(slug)}`)
+    .then((r) => r.json())
+    .then((json) => {
+      if (json.success && json.data) {
+        openBlueprintModal(json.data);
+      }
+    })
+    .catch(() => {});
 }
 
 // =============================================================================

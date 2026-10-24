@@ -1430,6 +1430,19 @@ async function toggleClientFeatured(id, newStatus) {
   }
 }
 
+function updateClientLogoPreview(url) {
+  const wrap = document.getElementById('clientLogoPreviewWrap');
+  const img = document.getElementById('clientLogoPreview');
+  if (!wrap || !img) return;
+  if (url && url.trim()) {
+    img.src = url.trim();
+    wrap.style.display = 'flex';
+  } else {
+    wrap.style.display = 'none';
+    img.src = '';
+  }
+}
+
 function editClient(id) {
   const c = state.clients.find((item) => item.id.toString() === id.toString());
   if (!c) return;
@@ -1439,6 +1452,7 @@ function editClient(id) {
   document.getElementById('clientName').value = c.name;
   document.getElementById('clientCategory').value = c.category || '';
   document.getElementById('clientLogoUrl').value = c.logo_url || '';
+  updateClientLogoPreview(c.logo_url || '');
   document.getElementById('clientWebsite').value = c.website_url || '';
   document.getElementById('clientDesc').value = c.description || '';
   document.getElementById('clientSort').value = c.sort_order || 0;
@@ -2249,8 +2263,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
 
-      const scope = rawScope ? rawScope.split(',').map((s) => s.trim()).filter(Boolean) : [];
-      const gallery = rawGallery ? rawGallery.split(',').map((g) => g.trim()).filter(Boolean) : [];
+      let scope = [];
+      if (rawScope) {
+        try {
+          const parsed = JSON.parse(rawScope);
+          scope = Array.isArray(parsed) ? parsed : [parsed];
+        } catch (_) {
+          scope = rawScope.split(',').map((s) => s.trim()).filter(Boolean);
+        }
+      }
+
+      let gallery = [];
+      if (rawGallery) {
+        try {
+          const parsed = JSON.parse(rawGallery);
+          gallery = Array.isArray(parsed) ? parsed : [parsed];
+        } catch (_) {
+          gallery = rawGallery.split(',').map((g) => g.trim()).filter(Boolean);
+        }
+      }
 
       const payload = {
         title,
@@ -2323,6 +2354,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const json = await res.json();
         if (res.ok && json.success) {
           document.getElementById('clientLogoUrl').value = json.url;
+          updateClientLogoPreview(json.url);
           clientUploadStatus.textContent = `Upload successful: ${json.filename}`;
           clientUploadStatus.style.color = '#10b981';
           showAdminToast('Client logo uploaded.');
@@ -2339,6 +2371,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  const clientLogoUrlInput = document.getElementById('clientLogoUrl');
+  if (clientLogoUrlInput) {
+    clientLogoUrlInput.addEventListener('input', () => {
+      updateClientLogoPreview(clientLogoUrlInput.value);
+    });
+  }
+
   // Add / Edit Client Form
   const btnNewClient = document.getElementById('btnNewClient');
   const formClient = document.getElementById('formClient');
@@ -2350,6 +2389,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (document.getElementById('clientFeatured')) document.getElementById('clientFeatured').value = '1';
       if (document.getElementById('clientSort')) document.getElementById('clientSort').value = '0';
       if (clientUploadStatus) clientUploadStatus.textContent = '';
+      updateClientLogoPreview('');
       openModal('modalClient');
     });
   }

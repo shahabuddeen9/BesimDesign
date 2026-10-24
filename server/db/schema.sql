@@ -76,6 +76,21 @@ CREATE TABLE IF NOT EXISTS deleted_clients (
   deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- 2.7 DELETED TESTIMONIALS TOMBSTONE TABLE
+CREATE TABLE IF NOT EXISTS deleted_testimonials (
+  testimonial_id INTEGER,
+  client_name TEXT,
+  deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- 2.8 DELETED PROJECTS TOMBSTONE TABLE
+CREATE TABLE IF NOT EXISTS deleted_projects (
+  project_id INTEGER,
+  slug TEXT,
+  title TEXT,
+  deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- 3. TESTIMONIALS TABLE
 CREATE TABLE IF NOT EXISTS testimonials (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

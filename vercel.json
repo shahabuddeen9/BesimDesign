@@ -12,6 +12,10 @@
       "destination": "/api/[...slug].js"
     },
     {
+      "source": "/uploads/:match*",
+      "destination": "/api/[...slug].js"
+    },
+    {
       "source": "/admin/projects",
       "destination": "/admin/dashboard.html?tab=projects"
     },

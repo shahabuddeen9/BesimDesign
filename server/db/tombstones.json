@@ -1,0 +1,147 @@
+{
+  "clients": [
+    "Grand Hyatt Turnkey Test (Updated)",
+    "Persistence Client Brand 1792757540164",
+    "Persistence Client Brand 1792757609647",
+    "Persistence Client Brand 1792758658966",
+    "Persistence Client Brand 1792818736720",
+    "Persistence Client Brand 1792819838448",
+    "Saudia Airlines",
+    "Test Brand Unique 1792757545583",
+    "Test Brand Unique 1792757612876",
+    "Test Brand Unique 1792758660791",
+    "Test Brand Unique 1792818741813",
+    "Test Brand Unique 1792819840568",
+    "White Oak"
+  ],
+  "testimonials": [
+    {
+      "id": 1427,
+      "client_name": "Testimonial Author 1792819838449"
+    },
+    {
+      "id": 1427,
+      "client_name": "Testimonial Author 1792819838449"
+    },
+    {
+      "id": 1427,
+      "client_name": "Testimonial Author 1792819838449"
+    },
+    {
+      "id": 1427,
+      "client_name": "Testimonial Author 1792819838449"
+    },
+    {
+      "id": 1428,
+      "client_name": "Anil Kapoor"
+    },
+    {
+      "id": 1427,
+      "client_name": "Testimonial Author 1792819838449"
+    },
+    {
+      "id": 1427,
+      "client_name": "Testimonial Author 1792819838449"
+    },
+    {
+      "id": 1427,
+      "client_name": "Testimonial Author 1792819838449"
+    },
+    {
+      "id": 1427,
+      "client_name": "Testimonial Author 1792819838449"
+    },
+    {
+      "id": 1428,
+      "client_name": "Anil Kapoor"
+    },
+    {
+      "id": 1427,
+      "client_name": "Testimonial Author 1792819838449"
+    },
+    {
+      "id": 1427,
+      "client_name": "Testimonial Author 1792819838449"
+    },
+    {
+      "id": 1427,
+      "client_name": "Testimonial Author 1792819838449"
+    },
+    {
+      "id": 1427,
+      "client_name": "Testimonial Author 1792819838449"
+    },
+    {
+      "id": 1428,
+      "client_name": "Anil Kapoor"
+    }
+  ],
+  "projects": [
+    {
+      "id": 825,
+      "slug": "persistence-test-hotel-1792819838447",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 825,
+      "slug": "persistence-test-hotel-1792819838447",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 825,
+      "slug": "persistence-test-hotel-1792819838447",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 825,
+      "slug": "persistence-test-hotel-1792819838447",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 825,
+      "slug": "persistence-test-hotel-1792819838447",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 825,
+      "slug": "persistence-test-hotel-1792819838447",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 825,
+      "slug": "persistence-test-hotel-1792819838447",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 825,
+      "slug": "persistence-test-hotel-1792819838447",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 825,
+      "slug": "persistence-test-hotel-1792819838447",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 825,
+      "slug": "persistence-test-hotel-1792819838447",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 825,
+      "slug": "persistence-test-hotel-1792819838447",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 825,
+      "slug": "persistence-test-hotel-1792819838447",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 826,
+      "slug": "test-luxury-bistro-1792819846545",
+      "title": "Aura Modern Bistronomy & Rooftop Lounge (Updated)"
+    }
+  ],
+  "updated_at": "2026-10-24T05:30:47.223Z"
+}
