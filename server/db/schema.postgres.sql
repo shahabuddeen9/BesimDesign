@@ -98,6 +98,12 @@ CREATE TABLE IF NOT EXISTS deleted_projects (
   deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- A slug is a durable identity for a deleted project. The partial index permits
+-- multiple tombstones without a known slug while allowing safe ON CONFLICT handling.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_deleted_projects_slug_unique
+  ON deleted_projects (slug)
+  WHERE slug IS NOT NULL;
+
 -- 6. ENQUIRIES TABLE
 CREATE TABLE IF NOT EXISTS enquiries (
   id SERIAL PRIMARY KEY,
