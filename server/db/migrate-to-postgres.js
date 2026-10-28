@@ -293,6 +293,22 @@ async function runMigration() {
       await client.query("SELECT setval('enquiries_id_seq', COALESCE((SELECT MAX(id) FROM enquiries), 1))");
       console.log(`✓ Migrated ${enqMigrated} enquiry lead(s).`);
 
+      // --- J. Download Records ---
+      // Preserve download analytics/history too; the PostgreSQL schema defines downloads.
+      const downloadRows = getSqliteRows('SELECT * FROM downloads');
+      let downloadsMigrated = 0;
+      for (const r of downloadRows) {
+        await client.query(
+          `INSERT INTO downloads (id, file_key, ip_hash, created_at)
+           VALUES ($1, $2, $3, COALESCE($4::timestamptz, NOW()))
+           ON CONFLICT (id) DO NOTHING`,
+          [r.id, r.file_key, r.ip_hash || '', r.created_at || null]
+        );
+        downloadsMigrated++;
+      }
+      await client.query("SELECT setval('downloads_id_seq', COALESCE((SELECT MAX(id) FROM downloads), 1))");
+      console.log(`✓ Migrated ${downloadsMigrated} download record(s).`);
+
       // Mark initial seed completed in PostgreSQL
       await client.query(`
         INSERT INTO _system_meta (key, value, updated_at)
