@@ -18,6 +18,11 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(3000),
+  DATABASE_URL: z.string().optional().default(''),
+  POSTGRES_URL: z.string().optional().default(''),
+  SUPABASE_URL: z.string().optional().default(''),
+  SUPABASE_KEY: z.string().optional().default(''),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional().default(''),
   JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters long').default('dev-besim-design-jwt-secret-key-super-secure-32chars!'),
   ADMIN_EMAIL: z.string().email().default('admin@besimdesign.com'),
   ADMIN_PASSWORD: z.string().min(8, 'ADMIN_PASSWORD must be at least 8 characters').default('AdminPass123!'),

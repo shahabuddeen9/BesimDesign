@@ -1,29 +1,229 @@
 /**
  * @file /server/db/index.js
- * @description SQLite database connection and query layer.
- * Uses WebAssembly SQLite (sql.js) for 100% zero-native-build-dependency file persistence.
- * Exposes a clean, parameterized query interface identical to better-sqlite3
- * with all SQL operations localized so it can easily swap to PostgreSQL.
+ * @description Dual-engine database adapter supporting PostgreSQL (Supabase, Neon, Cloud SQL)
+ * for permanent production persistence on Vercel, and WebAssembly SQLite (sql.js) for local development/testing.
+ *
+ * Provides a unified query interface with automatic dialect conversion:
+ * - Parameter placeholder mapping (? -> $1, $2, ...)
+ * - Timestamp function mapping (datetime('now') -> NOW(), interval expressions)
+ * - Conflict handling (ON CONFLICT DO NOTHING / DO UPDATE)
+ * - Result rowid extraction (RETURNING id)
  */
 
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import pg from 'pg';
 import initSqlJs from 'sql.js';
 import env from '../config/env.js';
 import logger from '../utils/logger.js';
 
+const { Pool } = pg;
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(currentDir, '../..');
+
+// State flags
+export const isPostgres = Boolean(env.DATABASE_URL || env.POSTGRES_URL);
+
+let pgPool = null;
 let rawDb = null;
 let SQL = null;
 let initPromise = null;
 let inTransaction = false;
 
 /**
+ * Returns PostgreSQL Pool instance if configured.
+ */
+export function getPool() {
+  return pgPool;
+}
+
+/**
+ * Converts SQLite SQL dialect into PostgreSQL dialect.
+ * Handles parameters (?, ?, ? -> $1, $2, $3) and SQLite datetime functions.
+ */
+export function transformSqlForPostgres(sql) {
+  let paramIndex = 1;
+  let out = sql.replace(/\?/g, () => `$${paramIndex++}`);
+
+  // Datetime translations
+  out = out.replace(/datetime\('now',\s*'-(\d+)\s*days'\)/gi, "(NOW() - INTERVAL '$1 days')");
+  out = out.replace(/datetime\('now'\)/gi, 'NOW()');
+  out = out.replace(/datetime\(created_at\)/gi, 'created_at');
+
+  // Upsert / Conflict translations
+  if (/INSERT\s+OR\s+REPLACE\s+INTO\s+_system_meta/i.test(out)) {
+    out = out.replace(/INSERT\s+OR\s+REPLACE\s+INTO\s+_system_meta/i, 'INSERT INTO _system_meta');
+    if (!out.includes('ON CONFLICT')) {
+      out = `${out.trim().replace(/;$/, '')} ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`;
+    }
+  } else if (/INSERT\s+OR\s+REPLACE\s+INTO\s+deleted_clients/i.test(out)) {
+    out = out.replace(/INSERT\s+OR\s+REPLACE\s+INTO\s+deleted_clients/i, 'INSERT INTO deleted_clients');
+    if (!out.includes('ON CONFLICT')) {
+      out = `${out.trim().replace(/;$/, '')} ON CONFLICT (client_name) DO UPDATE SET deleted_at = NOW(), client_id = EXCLUDED.client_id`;
+    }
+  } else if (/INSERT\s+OR\s+IGNORE\s+INTO\s+deleted_clients/i.test(out)) {
+    out = out.replace(/INSERT\s+OR\s+IGNORE\s+INTO\s+deleted_clients/i, 'INSERT INTO deleted_clients');
+    if (!out.includes('ON CONFLICT')) {
+      out = `${out.trim().replace(/;$/, '')} ON CONFLICT (client_name) DO NOTHING`;
+    }
+  } else if (/INSERT\s+OR\s+IGNORE\s+INTO\s+admins/i.test(out)) {
+    out = out.replace(/INSERT\s+OR\s+IGNORE\s+INTO\s+admins/i, 'INSERT INTO admins');
+    if (!out.includes('ON CONFLICT')) {
+      out = `${out.trim().replace(/;$/, '')} ON CONFLICT (email) DO NOTHING`;
+    }
+  }
+
+  // If query is an INSERT and does not have RETURNING clause, add RETURNING id
+  if (/^\s*INSERT\s+INTO/i.test(out) && !/RETURNING/i.test(out)) {
+    out = `${out.trim().replace(/;$/, '')} RETURNING id, *`;
+  }
+
+  return out;
+}
+
+/**
+ * Initializes PostgreSQL schema and indexes if not already present.
+ */
+async function initPostgresSchema(pool) {
+  const schemaCandidates = [
+    path.resolve(currentDir, 'schema.postgres.sql'),
+    path.resolve(projectRoot, 'server/db/schema.postgres.sql'),
+  ];
+  const schemaPath = schemaCandidates.find((p) => fs.existsSync(p));
+
+  if (schemaPath) {
+    const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+    await pool.query(schemaSql);
+    logger.info('PostgreSQL schema verified and synchronized from schema.postgres.sql.');
+  } else {
+    // Fallback inline PostgreSQL schema
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS _system_meta (
+        key VARCHAR(100) PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS admins (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        last_login_at TIMESTAMPTZ DEFAULT NULL
+      );
+      CREATE TABLE IF NOT EXISTS clients (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        category VARCHAR(255) DEFAULT '',
+        logo_url TEXT DEFAULT '',
+        website_url TEXT DEFAULT '',
+        description TEXT DEFAULT '',
+        is_featured SMALLINT NOT NULL DEFAULT 1,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_clients_featured ON clients(is_featured, sort_order);
+      CREATE TABLE IF NOT EXISTS deleted_clients (
+        client_name VARCHAR(255) PRIMARY KEY,
+        client_id INTEGER,
+        deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS testimonials (
+        id SERIAL PRIMARY KEY,
+        client_name VARCHAR(255) NOT NULL,
+        business_type VARCHAR(255) NOT NULL,
+        rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+        review TEXT NOT NULL,
+        is_published SMALLINT NOT NULL DEFAULT 1,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_testimonials_published ON testimonials(is_published, sort_order);
+      CREATE TABLE IF NOT EXISTS deleted_testimonials (
+        id SERIAL PRIMARY KEY,
+        testimonial_id INTEGER,
+        client_name VARCHAR(255),
+        deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS projects (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        slug VARCHAR(255) UNIQUE NOT NULL,
+        category VARCHAR(100) NOT NULL,
+        client_name VARCHAR(255) DEFAULT '',
+        location VARCHAR(255) DEFAULT '',
+        area_sqft INTEGER DEFAULT 0,
+        description TEXT NOT NULL,
+        scope JSONB NOT NULL DEFAULT '[]'::jsonb,
+        image_url TEXT NOT NULL,
+        gallery JSONB NOT NULL DEFAULT '[]'::jsonb,
+        is_featured SMALLINT NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        is_published SMALLINT NOT NULL DEFAULT 1,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_projects_slug ON projects(slug);
+      CREATE INDEX IF NOT EXISTS idx_projects_category ON projects(category);
+      CREATE INDEX IF NOT EXISTS idx_projects_published ON projects(is_published, sort_order);
+      CREATE TABLE IF NOT EXISTS deleted_projects (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER,
+        slug VARCHAR(255),
+        title VARCHAR(255),
+        deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS enquiries (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        phone VARCHAR(50) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        business_type VARCHAR(100) NOT NULL,
+        project_location VARCHAR(255) DEFAULT '',
+        area_sqft INTEGER NOT NULL DEFAULT 0,
+        message TEXT DEFAULT '',
+        source VARCHAR(50) NOT NULL DEFAULT 'contact_form',
+        calculator_data JSONB DEFAULT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'new',
+        admin_notes TEXT DEFAULT '',
+        consent_given SMALLINT NOT NULL DEFAULT 1,
+        ip_hash VARCHAR(255) NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_enquiries_status ON enquiries(status);
+      CREATE INDEX IF NOT EXISTS idx_enquiries_source ON enquiries(source);
+      CREATE INDEX IF NOT EXISTS idx_enquiries_created_at ON enquiries(created_at);
+      CREATE TABLE IF NOT EXISTS downloads (
+        id SERIAL PRIMARY KEY,
+        file_key VARCHAR(100) NOT NULL,
+        ip_hash VARCHAR(255) DEFAULT '',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_downloads_file ON downloads(file_key);
+    `);
+    logger.info('PostgreSQL schema initialized from fallback definitions.');
+  }
+
+  // Ensure initial tombstones are respected in PostgreSQL
+  await pool.query(`
+    DELETE FROM clients WHERE name IN (SELECT client_name FROM deleted_clients);
+    DELETE FROM testimonials WHERE id IN (SELECT testimonial_id FROM deleted_testimonials WHERE testimonial_id IS NOT NULL)
+      OR client_name IN (SELECT client_name FROM deleted_testimonials WHERE client_name IS NOT NULL);
+    DELETE FROM projects WHERE id IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
+      OR slug IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL);
+  `);
+}
+
+/**
  * Persists in-memory SQLite state to the physical file on disk using atomic writes.
- * Skips export if a transaction is currently in flight to avoid aborting the transaction.
+ * (Only active in SQLite fallback mode)
  */
 function persistDb() {
-  if (!rawDb || inTransaction) return;
+  if (isPostgres || !rawDb || inTransaction) return;
   try {
     const data = rawDb.export();
     const buffer = Buffer.from(data);
@@ -40,16 +240,54 @@ function persistDb() {
 }
 
 /**
- * Initializes SQLite database connection, loads disk file if present,
- * and runs schema migrations. Safe against concurrent invocations.
+ * Initializes database connection (PostgreSQL when configured, otherwise SQLite).
  */
 export async function initDb() {
-  if (rawDb) return rawDb;
+  if (isPostgres && pgPool) return pgPool;
+  if (!isPostgres && rawDb) return rawDb;
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
     try {
-      const currentDir = path.dirname(fileURLToPath(import.meta.url));
+      const connStr = env.DATABASE_URL || env.POSTGRES_URL;
+
+      if (connStr) {
+        logger.info('Connecting to persistent PostgreSQL database...');
+        const isLocal = connStr.includes('localhost') || connStr.includes('127.0.0.1');
+
+        pgPool = new Pool({
+          connectionString: connStr,
+          ssl: isLocal ? false : { rejectUnauthorized: false },
+          max: 10,
+          idleTimeoutMillis: 30000,
+          connectionTimeoutMillis: 10000,
+        });
+
+        pgPool.on('error', (err) => {
+          logger.error('Unexpected idle PostgreSQL client error:', err);
+        });
+
+        // Test connection
+        const testRes = await pgPool.query('SELECT NOW() as now');
+        logger.info(`✅ PostgreSQL connection established successfully. Server time: ${testRes.rows[0].now}`);
+
+        // Ensure schema and indexes exist
+        await initPostgresSchema(pgPool);
+
+        return pgPool;
+      }
+
+      // Check Vercel / Production constraint warning
+      if (process.env.VERCEL || env.NODE_ENV === 'production') {
+        logger.warn(
+          '⚠️ CRITICAL NOTICE: No persistent PostgreSQL database configured (DATABASE_URL / POSTGRES_URL is empty). ' +
+          'Vercel serverless containers are ephemeral; to ensure additions, changes, and deletions permanently survive ' +
+          'redeployments and multi-region containers, please configure DATABASE_URL in Vercel project environment variables ' +
+          '(e.g. from Supabase or Neon PostgreSQL).'
+        );
+      }
+
+      // Local / Testing WebAssembly SQLite Initialization (sql.js)
       SQL = await initSqlJs({
         locateFile: (file) => {
           const candidates = [
@@ -77,10 +315,7 @@ export async function initDb() {
             const destDir = path.dirname(env.DB_PATH);
             if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
             fs.copyFileSync(sourceDb, env.DB_PATH);
-            logger.info(`Copied packaged SQLite database from ${sourceDb} to ${env.DB_PATH}`);
-          } catch (copyErr) {
-            logger.warn('Could not copy packaged database file, will load in-memory:', copyErr);
-          }
+          } catch (_) {}
         }
       }
 
@@ -93,7 +328,6 @@ export async function initDb() {
         logger.info(`Initialized fresh in-memory SQLite database for ${env.DB_PATH}`);
       }
 
-      // Run schema migrations from potential paths
       const schemaCandidates = [
         path.resolve(path.dirname(env.DB_PATH), 'schema.sql'),
         path.resolve(currentDir, 'schema.sql'),
@@ -104,93 +338,9 @@ export async function initDb() {
         const schemaSql = fs.readFileSync(schemaPath, 'utf8');
         rawDb.run(schemaSql);
         persistDb();
-        logger.info('Database schema verified and synced successfully.');
-      } else {
-        const fallbackSchema = `
-          CREATE TABLE IF NOT EXISTS enquiries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            phone TEXT NOT NULL,
-            email TEXT NOT NULL,
-            business_type TEXT NOT NULL,
-            project_location TEXT DEFAULT '',
-            area_sqft INTEGER NOT NULL DEFAULT 0,
-            message TEXT DEFAULT '',
-            source TEXT NOT NULL DEFAULT 'contact_form',
-            calculator_data TEXT DEFAULT NULL,
-            status TEXT NOT NULL DEFAULT 'new',
-            admin_notes TEXT DEFAULT '',
-            consent_given INTEGER NOT NULL DEFAULT 1,
-            ip_hash TEXT NOT NULL,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-          );
-          CREATE TABLE IF NOT EXISTS projects (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            slug TEXT UNIQUE NOT NULL,
-            category TEXT NOT NULL,
-            client_name TEXT DEFAULT '',
-            location TEXT DEFAULT '',
-            area_sqft INTEGER DEFAULT 0,
-            description TEXT NOT NULL,
-            scope TEXT NOT NULL DEFAULT '[]',
-            image_url TEXT NOT NULL,
-            gallery TEXT NOT NULL DEFAULT '[]',
-            is_featured INTEGER NOT NULL DEFAULT 0,
-            sort_order INTEGER NOT NULL DEFAULT 0,
-            is_published INTEGER NOT NULL DEFAULT 1,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-          );
-          CREATE TABLE IF NOT EXISTS clients (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            category TEXT DEFAULT '',
-            logo_url TEXT DEFAULT '',
-            website_url TEXT DEFAULT '',
-            description TEXT DEFAULT '',
-            is_featured INTEGER NOT NULL DEFAULT 1,
-            sort_order INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-          );
-          CREATE TABLE IF NOT EXISTS testimonials (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            client_name TEXT NOT NULL,
-            business_type TEXT NOT NULL,
-            rating INTEGER NOT NULL,
-            review TEXT NOT NULL,
-            is_published INTEGER NOT NULL DEFAULT 1,
-            sort_order INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-          );
-          CREATE TABLE IF NOT EXISTS admins (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            last_login_at TEXT DEFAULT NULL
-          );
-          CREATE TABLE IF NOT EXISTS downloads (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            file_key TEXT NOT NULL,
-            ip_hash TEXT DEFAULT '',
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
-          );
-          CREATE TABLE IF NOT EXISTS _system_meta (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL,
-            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-          );
-        `;
-        rawDb.run(fallbackSchema);
-        persistDb();
-        logger.info('Database schema initialized from fallback definitions.');
       }
 
-      // Ensure _system_meta, deleted_clients, deleted_testimonials, and deleted_projects tables exist in all environments
+      // Ensure tombstone tables exist in SQLite
       try {
         rawDb.run(`
           CREATE TABLE IF NOT EXISTS _system_meta (
@@ -214,67 +364,7 @@ export async function initDb() {
             title TEXT,
             deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
           );
-          DROP TABLE IF EXISTS faqs;
         `);
-
-        // 1. Sync tombstone records from deleted_clients.json
-        const clientJsonCandidates = [
-          path.resolve(currentDir, 'deleted_clients.json'),
-          path.resolve(process.cwd(), 'server/db/deleted_clients.json'),
-        ];
-        const clientJsonPath = clientJsonCandidates.find((p) => fs.existsSync(p));
-        if (clientJsonPath) {
-          try {
-            const rawList = JSON.parse(fs.readFileSync(clientJsonPath, 'utf8'));
-            if (Array.isArray(rawList)) {
-              for (const name of rawList) {
-                if (typeof name === 'string' && name.trim()) {
-                  rawDb.run("INSERT OR IGNORE INTO deleted_clients (client_name, deleted_at) VALUES (?, datetime('now'))", [name.trim()]);
-                }
-              }
-            }
-          } catch (_) {}
-        }
-
-        // 2. Sync unified tombstone records from tombstones.json
-        const tombstoneCandidates = [
-          path.resolve(currentDir, 'tombstones.json'),
-          path.resolve(process.cwd(), 'server/db/tombstones.json'),
-        ];
-        const tombstonePath = tombstoneCandidates.find((p) => fs.existsSync(p));
-        if (tombstonePath) {
-          try {
-            const tombstones = JSON.parse(fs.readFileSync(tombstonePath, 'utf8'));
-            if (tombstones && typeof tombstones === 'object') {
-              if (Array.isArray(tombstones.clients)) {
-                for (const c of tombstones.clients) {
-                  const name = typeof c === 'string' ? c : c.name;
-                  const id = typeof c === 'object' ? c.id : null;
-                  if (name) {
-                    rawDb.run("INSERT OR IGNORE INTO deleted_clients (client_name, client_id, deleted_at) VALUES (?, ?, datetime('now'))", [name.trim(), id]);
-                  }
-                }
-              }
-              if (Array.isArray(tombstones.testimonials)) {
-                for (const t of tombstones.testimonials) {
-                  const id = typeof t === 'number' || typeof t === 'string' ? Number(t) : t.id;
-                  const name = typeof t === 'object' ? t.client_name : null;
-                  rawDb.run("INSERT OR IGNORE INTO deleted_testimonials (testimonial_id, client_name, deleted_at) VALUES (?, ?, datetime('now'))", [id || null, name || null]);
-                }
-              }
-              if (Array.isArray(tombstones.projects)) {
-                for (const p of tombstones.projects) {
-                  const id = typeof p === 'object' ? p.id : null;
-                  const slug = typeof p === 'string' ? p : p.slug;
-                  const title = typeof p === 'object' ? p.title : null;
-                  rawDb.run("INSERT OR IGNORE INTO deleted_projects (project_id, slug, title, deleted_at) VALUES (?, ?, ?, datetime('now'))", [id || null, slug || null, title || null]);
-                }
-              }
-            }
-          } catch (_) {}
-        }
-
-        // Enforce deletion: permanently remove any items recorded in tombstones
         rawDb.run('DELETE FROM clients WHERE name IN (SELECT client_name FROM deleted_clients);');
         rawDb.run('DELETE FROM testimonials WHERE id IN (SELECT testimonial_id FROM deleted_testimonials WHERE testimonial_id IS NOT NULL) OR client_name IN (SELECT client_name FROM deleted_testimonials WHERE client_name IS NOT NULL);');
         rawDb.run('DELETE FROM projects WHERE id IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL) OR slug IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL);');
@@ -291,37 +381,14 @@ export async function initDb() {
 }
 
 /**
- * Formats parameters for sql.js prepared statements.
- * Correctly distinguishes between named parameter objects, arrays, and primitives (including null/0/false).
- * @param {any} params 
- */
-function normalizeParams(params) {
-  if (params === null || params === undefined) return [];
-  if (Array.isArray(params)) return params;
-  if (typeof params === 'object' && !(params instanceof Uint8Array) && !(params instanceof Buffer)) {
-    const obj = {};
-    for (const [k, v] of Object.entries(params)) {
-      obj[k.startsWith(':') || k.startsWith('@') || k.startsWith('$') ? k : `:${k}`] = v;
-    }
-    return obj;
-  }
-  return [params];
-}
-
-/**
- * Extracts bindable parameters from method arguments.
- * Handles:
- * - .run([a, b, c]) -> positional array
- * - .run({ a: 1 })   -> named object
- * - .run(a, b, c)    -> positional args
- * - .run(null)       -> single null param [null]
+ * Extracts and normalizes bindable parameters.
  */
 function extractParams(args) {
   if (args.length === 0) return [];
   if (args.length === 1) {
     const first = args[0];
     if (first !== null && typeof first === 'object' && !Array.isArray(first)) {
-      return normalizeParams(first);
+      return Object.values(first);
     }
     if (Array.isArray(first)) {
       return first;
@@ -332,14 +399,63 @@ function extractParams(args) {
 }
 
 /**
- * better-sqlite3 compatible database abstraction layer.
+ * Formats JSON values for PostgreSQL query parameters (converts objects/arrays to JSON strings if needed).
+ */
+function normalizePgParam(p) {
+  if (p === undefined) return null;
+  if (p !== null && typeof p === 'object' && !(p instanceof Date) && !Buffer.isBuffer(p)) {
+    return JSON.stringify(p);
+  }
+  return p;
+}
+
+/**
+ * Unified database interface.
+ * Implements better-sqlite3 style methods (.prepare, .all, .get, .run, .transaction, .exec)
+ * with seamless transparent execution across both PostgreSQL and SQLite.
  */
 export const db = {
   /**
    * Prepares a parameterized SQL statement with .all(), .get(), and .run() methods.
-   * @param {string} sql 
+   * Works synchronously in SQLite mode (for backwards compatibility) and returns
+   * Promise/Thenables in PostgreSQL mode.
    */
   prepare(sql) {
+    if (isPostgres) {
+      if (!pgPool) {
+        throw new Error('Database not initialized! Call await initDb() on server start.');
+      }
+      const pgSql = transformSqlForPostgres(sql);
+
+      return {
+        all(...args) {
+          const rawParams = extractParams(args);
+          const params = rawParams.map(normalizePgParam);
+          return pgPool.query(pgSql, params).then((res) => res.rows);
+        },
+
+        get(...args) {
+          const rawParams = extractParams(args);
+          const params = rawParams.map(normalizePgParam);
+          return pgPool.query(pgSql, params).then((res) => res.rows[0] ?? undefined);
+        },
+
+        run(...args) {
+          const rawParams = extractParams(args);
+          const params = rawParams.map(normalizePgParam);
+          return pgPool.query(pgSql, params).then((res) => {
+            const row = res.rows && res.rows[0] ? res.rows[0] : null;
+            return {
+              lastInsertRowid: row ? (row.id ?? null) : null,
+              changes: res.rowCount ?? 0,
+              row,
+            };
+          });
+        },
+      };
+    }
+
+    // SQLite mode (sql.js)
     if (!rawDb) {
       throw new Error('Database not initialized! Call await initDb() on server start.');
     }
@@ -349,9 +465,7 @@ export const db = {
         const params = extractParams(args);
         const stmt = rawDb.prepare(sql);
         try {
-          if (Array.isArray(params) ? params.length > 0 : Object.keys(params).length > 0) {
-            stmt.bind(params);
-          }
+          if (params.length > 0) stmt.bind(params);
           const results = [];
           while (stmt.step()) {
             results.push(stmt.getAsObject());
@@ -366,9 +480,7 @@ export const db = {
         const params = extractParams(args);
         const stmt = rawDb.prepare(sql);
         try {
-          if (Array.isArray(params) ? params.length > 0 : Object.keys(params).length > 0) {
-            stmt.bind(params);
-          }
+          if (params.length > 0) stmt.bind(params);
           if (stmt.step()) {
             return stmt.getAsObject();
           }
@@ -381,8 +493,7 @@ export const db = {
       run(...args) {
         const params = extractParams(args);
         rawDb.run(sql, params);
-        
-        // Retrieve last_insert_rowid and changes
+
         let lastInsertRowid = 0;
         let changes = 0;
         try {
@@ -404,24 +515,92 @@ export const db = {
   },
 
   /**
-   * Wraps a callback function in a single SQLite transaction and persists on commit.
-   * @param {Function} fn 
+   * Helper: Execute query and return all rows.
+   */
+  async all(sql, ...args) {
+    const prep = this.prepare(sql);
+    return await prep.all(...args);
+  },
+
+  /**
+   * Helper: Execute query and return single row.
+   */
+  async get(sql, ...args) {
+    const prep = this.prepare(sql);
+    return await prep.get(...args);
+  },
+
+  /**
+   * Helper: Execute query and return execution summary.
+   */
+  async run(sql, ...args) {
+    const prep = this.prepare(sql);
+    return await prep.run(...args);
+  },
+
+  /**
+   * Helper: Execute raw SQL query.
+   */
+  async query(sql, params = []) {
+    if (isPostgres) {
+      if (!pgPool) await initDb();
+      const pgSql = transformSqlForPostgres(sql);
+      const res = await pgPool.query(pgSql, params.map(normalizePgParam));
+      return { rows: res.rows, rowCount: res.rowCount };
+    }
+    const stmt = this.prepare(sql);
+    const rows = stmt.all(...params);
+    return { rows, rowCount: rows.length };
+  },
+
+  /**
+   * Wraps a callback function in a single database transaction.
    */
   transaction(fn) {
     return (...args) => {
+      if (isPostgres) {
+        return (async () => {
+          if (!pgPool) await initDb();
+          const client = await pgPool.connect();
+          try {
+            await client.query('BEGIN');
+            const result = await fn(...args);
+            await client.query('COMMIT');
+            return result;
+          } catch (err) {
+            try { await client.query('ROLLBACK'); } catch (_) {}
+            throw err;
+          } finally {
+            client.release();
+          }
+        })();
+      }
+
       if (!rawDb) throw new Error('Database not initialized!');
       inTransaction = true;
       rawDb.run('BEGIN TRANSACTION;');
       try {
         const result = fn(...args);
+        if (result && typeof result.then === 'function') {
+          return result
+            .then((res) => {
+              rawDb.run('COMMIT;');
+              inTransaction = false;
+              persistDb();
+              return res;
+            })
+            .catch((err) => {
+              try { rawDb.run('ROLLBACK;'); } catch (_) {}
+              inTransaction = false;
+              throw err;
+            });
+        }
         rawDb.run('COMMIT;');
         inTransaction = false;
         persistDb();
         return result;
       } catch (err) {
-        try {
-          rawDb.run('ROLLBACK;');
-        } catch (_) {}
+        try { rawDb.run('ROLLBACK;'); } catch (_) {}
         inTransaction = false;
         throw err;
       }
@@ -430,48 +609,114 @@ export const db = {
 
   /**
    * Executes a raw SQL string (e.g. for migrations or DDL).
-   * @param {string} sql 
    */
-  exec(sql) {
+  async exec(sql) {
+    if (isPostgres) {
+      if (!pgPool) await initDb();
+      await pgPool.query(sql);
+      return;
+    }
     if (!rawDb) throw new Error('Database not initialized!');
     rawDb.run(sql);
     persistDb();
   },
 
   /**
-   * Explicitly flush state to disk.
+   * Explicitly flush state to disk (SQLite mode).
    */
   persist() {
     persistDb();
   },
 
   /**
-   * Closes database and saves final copy.
+   * Closes database cleanly.
    */
-  close() {
+  async close() {
+    if (pgPool) {
+      await pgPool.end();
+      pgPool = null;
+    }
     if (rawDb) {
       persistDb();
       rawDb.close();
       rawDb = null;
     }
-  }
+  },
 };
 
 /**
- * Persists the current deleted_clients list from SQLite to deleted_clients.json
- * Also synchronizes the unified tombstones.json file for all entities.
+ * Record a deleted client tombstone in persistent database.
+ */
+export async function recordDeletedClient(name, id = null) {
+  if (!name) return;
+  try {
+    if (isPostgres && pgPool) {
+      await pgPool.query(
+        'INSERT INTO deleted_clients (client_name, client_id, deleted_at) VALUES ($1, $2, NOW()) ON CONFLICT (client_name) DO UPDATE SET deleted_at = NOW(), client_id = EXCLUDED.client_id',
+        [name.trim(), id]
+      );
+    } else if (rawDb) {
+      rawDb.run("INSERT OR REPLACE INTO deleted_clients (client_name, client_id, deleted_at) VALUES (?, ?, datetime('now'))", [name.trim(), id]);
+      persistDb();
+    }
+    syncTombstones();
+  } catch (err) {
+    logger.warn('Failed to record deleted client tombstone:', err);
+  }
+}
+
+/**
+ * Record a deleted testimonial tombstone in persistent database.
+ */
+export async function recordDeletedTestimonial(id, clientName = null) {
+  try {
+    if (isPostgres && pgPool) {
+      await pgPool.query(
+        'INSERT INTO deleted_testimonials (testimonial_id, client_name, deleted_at) VALUES ($1, $2, NOW())',
+        [id || null, clientName || null]
+      );
+    } else if (rawDb) {
+      rawDb.run("INSERT OR REPLACE INTO deleted_testimonials (testimonial_id, client_name, deleted_at) VALUES (?, ?, datetime('now'))", [id || null, clientName || null]);
+      persistDb();
+    }
+    syncTombstones();
+  } catch (err) {
+    logger.warn('Failed to record deleted testimonial tombstone:', err);
+  }
+}
+
+/**
+ * Record a deleted project tombstone in persistent database.
+ */
+export async function recordDeletedProject(id, slug = null, title = null) {
+  try {
+    if (isPostgres && pgPool) {
+      await pgPool.query(
+        'INSERT INTO deleted_projects (project_id, slug, title, deleted_at) VALUES ($1, $2, $3, NOW())',
+        [id || null, slug || null, title || null]
+      );
+    } else if (rawDb) {
+      rawDb.run("INSERT OR REPLACE INTO deleted_projects (project_id, slug, title, deleted_at) VALUES (?, ?, ?, datetime('now'))", [id || null, slug || null, title || null]);
+      persistDb();
+    }
+    syncTombstones();
+  } catch (err) {
+    logger.warn('Failed to record deleted project tombstone:', err);
+  }
+}
+
+/**
+ * Persists the current deleted_clients list to JSON file (for local/testing fallback).
  */
 export function syncDeletedClientsFile() {
   syncTombstones();
 }
 
 /**
- * Synchronizes all tombstone tables (clients, testimonials, projects) to durable JSON files.
+ * Synchronizes tombstone records to durable JSON files (for local/testing fallback).
  */
-export function syncTombstones() {
-  if (!rawDb) return;
+export async function syncTombstones() {
   try {
-    const currentDir = path.dirname(fileURLToPath(import.meta.url));
     const clientsPaths = [
       path.resolve(currentDir, 'deleted_clients.json'),
       path.resolve(process.cwd(), 'server/db/deleted_clients.json'),
@@ -481,43 +726,51 @@ export function syncTombstones() {
       path.resolve(process.cwd(), 'server/db/tombstones.json'),
     ];
 
-    // 1. Fetch deleted clients
-    const clientStmt = rawDb.prepare('SELECT client_name FROM deleted_clients ORDER BY client_name ASC');
-    const clientList = [];
-    try {
-      while (clientStmt.step()) {
-        const obj = clientStmt.getAsObject();
-        if (obj.client_name) clientList.push(obj.client_name);
+    let clientList = [];
+    let testList = [];
+    let projList = [];
+
+    if (isPostgres && pgPool) {
+      const cRes = await pgPool.query('SELECT client_name FROM deleted_clients ORDER BY client_name ASC');
+      clientList = cRes.rows.map((r) => r.client_name).filter(Boolean);
+
+      const tRes = await pgPool.query('SELECT testimonial_id, client_name FROM deleted_testimonials');
+      testList = tRes.rows.map((r) => ({ id: r.testimonial_id, client_name: r.client_name }));
+
+      const pRes = await pgPool.query('SELECT project_id, slug, title FROM deleted_projects');
+      projList = pRes.rows.map((r) => ({ id: r.project_id, slug: r.slug, title: r.title }));
+    } else if (rawDb) {
+      const clientStmt = rawDb.prepare('SELECT client_name FROM deleted_clients ORDER BY client_name ASC');
+      try {
+        while (clientStmt.step()) {
+          const obj = clientStmt.getAsObject();
+          if (obj.client_name) clientList.push(obj.client_name);
+        }
+      } finally {
+        clientStmt.free();
       }
-    } finally {
-      clientStmt.free();
+
+      const testStmt = rawDb.prepare('SELECT testimonial_id, client_name FROM deleted_testimonials');
+      try {
+        while (testStmt.step()) {
+          const obj = testStmt.getAsObject();
+          testList.push({ id: obj.testimonial_id, client_name: obj.client_name });
+        }
+      } finally {
+        testStmt.free();
+      }
+
+      const projStmt = rawDb.prepare('SELECT project_id, slug, title FROM deleted_projects');
+      try {
+        while (projStmt.step()) {
+          const obj = projStmt.getAsObject();
+          projList.push({ id: obj.project_id, slug: obj.slug, title: obj.title });
+        }
+      } finally {
+        projStmt.free();
+      }
     }
 
-    // 2. Fetch deleted testimonials
-    const testStmt = rawDb.prepare('SELECT testimonial_id, client_name FROM deleted_testimonials');
-    const testList = [];
-    try {
-      while (testStmt.step()) {
-        const obj = testStmt.getAsObject();
-        testList.push({ id: obj.testimonial_id, client_name: obj.client_name });
-      }
-    } finally {
-      testStmt.free();
-    }
-
-    // 3. Fetch deleted projects
-    const projStmt = rawDb.prepare('SELECT project_id, slug, title FROM deleted_projects');
-    const projList = [];
-    try {
-      while (projStmt.step()) {
-        const obj = projStmt.getAsObject();
-        projList.push({ id: obj.project_id, slug: obj.slug, title: obj.title });
-      }
-    } finally {
-      projStmt.free();
-    }
-
-    // Write deleted_clients.json
     const clientContent = JSON.stringify(clientList, null, 2);
     for (const p of clientsPaths) {
       try {
@@ -527,7 +780,6 @@ export function syncTombstones() {
       } catch (_) {}
     }
 
-    // Write unified tombstones.json
     const tombstonePayload = {
       clients: clientList,
       testimonials: testList,
@@ -547,44 +799,4 @@ export function syncTombstones() {
   }
 }
 
-/**
- * Record a deleted client tombstone.
- */
-export function recordDeletedClient(name, id = null) {
-  if (!rawDb || !name) return;
-  try {
-    rawDb.run("INSERT OR REPLACE INTO deleted_clients (client_name, client_id, deleted_at) VALUES (?, ?, datetime('now'))", [name.trim(), id]);
-    syncTombstones();
-  } catch (err) {
-    logger.warn('Failed to record deleted client tombstone:', err);
-  }
-}
-
-/**
- * Record a deleted testimonial tombstone.
- */
-export function recordDeletedTestimonial(id, clientName = null) {
-  if (!rawDb) return;
-  try {
-    rawDb.run("INSERT OR REPLACE INTO deleted_testimonials (testimonial_id, client_name, deleted_at) VALUES (?, ?, datetime('now'))", [id || null, clientName || null]);
-    syncTombstones();
-  } catch (err) {
-    logger.warn('Failed to record deleted testimonial tombstone:', err);
-  }
-}
-
-/**
- * Record a deleted project tombstone.
- */
-export function recordDeletedProject(id, slug = null, title = null) {
-  if (!rawDb) return;
-  try {
-    rawDb.run("INSERT OR REPLACE INTO deleted_projects (project_id, slug, title, deleted_at) VALUES (?, ?, ?, datetime('now'))", [id || null, slug || null, title || null]);
-    syncTombstones();
-  } catch (err) {
-    logger.warn('Failed to record deleted project tombstone:', err);
-  }
-}
-
 export default db;
-

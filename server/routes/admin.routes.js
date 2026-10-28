@@ -83,35 +83,25 @@ adminRouter.post('/testimonials', createTestimonial);
 adminRouter.patch('/testimonials/:id', updateTestimonial);
 adminRouter.delete('/testimonials/:id', deleteTestimonial);
 
+import { processUploadedFile } from '../services/storage.js';
+
 // ==========================================
 // 5. ASSET IMAGE UPLOAD (Single & Multiple: 10MB max, JPG/PNG/WebP)
 // ==========================================
-adminRouter.post('/upload', uploadImage.single('image'), (req, res, next) => {
+adminRouter.post('/upload', uploadImage.single('image'), async (req, res, next) => {
   try {
     if (!req.file) {
       throw new AppError('No image file uploaded or file rejected by validator.', 400);
     }
 
-    const fileUrl = `/uploads/${req.file.filename}`;
-    let dataUri = null;
-    try {
-      if (req.file.path && fs.existsSync(req.file.path) && req.file.mimetype.startsWith('image/')) {
-        const buf = fs.readFileSync(req.file.path);
-        if (buf.length <= 4 * 1024 * 1024) {
-          dataUri = `data:${req.file.mimetype};base64,${buf.toString('base64')}`;
-        }
-      }
-    } catch (_) {}
-
-    // When deployed on Vercel or ephemeral serverless, dataUri ensures zero asset loss across container recycles
-    const primaryUrl = (process.env.VERCEL || !fileUrl.startsWith('/uploads/')) && dataUri ? dataUri : (dataUri || fileUrl);
+    const processed = await processUploadedFile(req.file);
 
     return res.status(200).json({
       success: true,
       message: 'Image uploaded successfully.',
-      url: primaryUrl,
-      localUrl: fileUrl,
-      dataUri: dataUri,
+      url: processed.url,
+      localUrl: processed.localUrl,
+      dataUri: processed.dataUri,
       filename: req.file.filename,
       size: req.file.size,
       mimetype: req.file.mimetype,
@@ -121,35 +111,25 @@ adminRouter.post('/upload', uploadImage.single('image'), (req, res, next) => {
   }
 });
 
-adminRouter.post('/upload-multiple', uploadImage.array('images', 10), (req, res, next) => {
+adminRouter.post('/upload-multiple', uploadImage.array('images', 10), async (req, res, next) => {
   try {
     if (!req.files || req.files.length === 0) {
       throw new AppError('No image files uploaded or files rejected by validator.', 400);
     }
 
-    const uploaded = req.files.map((f) => {
-      const fileUrl = `/uploads/${f.filename}`;
-      let dataUri = null;
-      try {
-        if (f.path && fs.existsSync(f.path) && f.mimetype.startsWith('image/')) {
-          const buf = fs.readFileSync(f.path);
-          if (buf.length <= 4 * 1024 * 1024) {
-            dataUri = `data:${f.mimetype};base64,${buf.toString('base64')}`;
-          }
-        }
-      } catch (_) {}
-
-      const primaryUrl = (process.env.VERCEL || !fileUrl.startsWith('/uploads/')) && dataUri ? dataUri : (dataUri || fileUrl);
-
-      return {
-        url: primaryUrl,
-        localUrl: fileUrl,
-        dataUri: dataUri,
-        filename: f.filename,
-        size: f.size,
-        mimetype: f.mimetype,
-      };
-    });
+    const uploaded = await Promise.all(
+      req.files.map(async (f) => {
+        const processed = await processUploadedFile(f);
+        return {
+          url: processed.url,
+          localUrl: processed.localUrl,
+          dataUri: processed.dataUri,
+          filename: f.filename,
+          size: f.size,
+          mimetype: f.mimetype,
+        };
+      })
+    );
 
     return res.status(200).json({
       success: true,

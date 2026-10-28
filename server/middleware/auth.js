@@ -3,6 +3,7 @@
  * @description JWT authentication middleware for administrative endpoints.
  * Inspects httpOnly cookie (or Bearer Authorization header).
  * Verifies JWT token and attaches authenticated admin details to req.admin.
+ * Compatible with both PostgreSQL and SQLite.
  */
 
 import jwt from 'jsonwebtoken';
@@ -10,7 +11,7 @@ import env from '../config/env.js';
 import { db } from '../db/index.js';
 import AppError from '../utils/AppError.js';
 
-export function authenticateAdmin(req, res, next) {
+export async function authenticateAdmin(req, res, next) {
   let token = null;
 
   // 1. Check Authorization Bearer header first (primary for modern SPA & iframes)
@@ -38,10 +39,10 @@ export function authenticateAdmin(req, res, next) {
 
     let admin = null;
     if (decoded.id) {
-      admin = db.prepare('SELECT id, email, created_at, last_login_at FROM admins WHERE id = ?').get(decoded.id);
+      admin = await db.get('SELECT id, email, created_at, last_login_at FROM admins WHERE id = ?', decoded.id);
     }
     if (!admin && decoded.email) {
-      admin = db.prepare('SELECT id, email, created_at, last_login_at FROM admins WHERE LOWER(email) = ?').get(decoded.email.toLowerCase());
+      admin = await db.get('SELECT id, email, created_at, last_login_at FROM admins WHERE LOWER(email) = LOWER(?)', decoded.email);
     }
 
     if (!admin) {
@@ -54,7 +55,7 @@ export function authenticateAdmin(req, res, next) {
       ].filter(Boolean);
 
       if (decoded.email && authorizedEmails.includes(decoded.email.toLowerCase())) {
-        admin = db.prepare('SELECT id, email, created_at, last_login_at FROM admins WHERE LOWER(email) = ?').get(decoded.email.toLowerCase());
+        admin = await db.get('SELECT id, email, created_at, last_login_at FROM admins WHERE LOWER(email) = LOWER(?)', decoded.email);
       }
     }
 

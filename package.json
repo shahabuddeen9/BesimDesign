@@ -8,6 +8,8 @@
     "dev": "tsx server.ts",
     "build": "vite build",
     "seed": "node server/db/seed.js",
+    "db:migrate": "node server/db/migrate-to-postgres.js",
+    "db:plan": "node server/db/manage-data-safety.js",
     "test": "vitest run",
     "preview": "vite preview",
     "clean": "rm -rf dist",

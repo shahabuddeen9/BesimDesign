@@ -2,6 +2,7 @@
  * @file /server/controllers/enquiry.controller.js
  * @description Controller for public lead submissions (forms, quotes, calculator)
  * and administrator CRM lead management, status updates, notes, and CSV exports.
+ * Supports both PostgreSQL and SQLite persistence.
  */
 
 import { z } from 'zod';
@@ -115,8 +116,7 @@ export async function createEnquiry(req, res, next) {
         : JSON.stringify(validated.calculator_data)
       : null;
 
-    // Insert enquiry into SQLite database
-    const insertStmt = db.prepare(`
+    const result = await db.run(`
       INSERT INTO enquiries (
         name, phone, email, business_type, project_location,
         area_sqft, message, source, calculator_data, status,
@@ -126,9 +126,7 @@ export async function createEnquiry(req, res, next) {
         ?, ?, ?, ?, 'new',
         '', 1, ?, datetime('now'), datetime('now')
       )
-    `);
-
-    const result = insertStmt.run(
+    `,
       sanitizedName,
       sanitizedPhone,
       sanitizedEmail,
@@ -141,11 +139,10 @@ export async function createEnquiry(req, res, next) {
       ipHash
     );
 
-    const savedId = result.lastInsertRowid;
+    const savedId = result.lastInsertRowid || result.row?.id;
     logger.info(`Saved enquiry #${savedId} from ${sanitizedName} (${sanitizedBusinessType})`);
 
-    // Fetch newly saved record for email dispatch
-    const savedEnquiry = db.prepare('SELECT * FROM enquiries WHERE id = ?').get(savedId);
+    const savedEnquiry = await db.get('SELECT * FROM enquiries WHERE id = ?', savedId);
 
     // Asynchronously dispatch emails without blocking client response
     sendEnquiryEmails(savedEnquiry).catch((err) => {
@@ -153,7 +150,7 @@ export async function createEnquiry(req, res, next) {
     });
 
     const whatsappTarget = (env.WHATSAPP_NUMBER || '919892699850').replace(/[^0-9]/g, '');
-    const formattedId = `#MSF-${savedId.toString().padStart(4, '0')}`;
+    const formattedId = `#MSF-${String(savedId).padStart(4, '0')}`;
     const waLines = [
       `*🏛️ BESIM DESIGN - NEW PROJECT BRIEF* (${formattedId})`,
       `*Client:* ${sanitizedName}`,
@@ -182,7 +179,7 @@ export async function createEnquiry(req, res, next) {
 /**
  * Admin: Get paginated list of enquiries with filtering and search.
  */
-export function getEnquiries(req, res, next) {
+export async function getEnquiries(req, res, next) {
   try {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
@@ -205,12 +202,12 @@ export function getEnquiries(req, res, next) {
     }
 
     if (startDate) {
-      conditions.push('date(created_at) >= date(?)');
+      conditions.push('created_at >= ?');
       params.push(startDate);
     }
 
     if (endDate) {
-      conditions.push('date(created_at) <= date(?)');
+      conditions.push('created_at <= ?');
       params.push(endDate);
     }
 
@@ -222,12 +219,10 @@ export function getEnquiries(req, res, next) {
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    // Total count for pagination
-    const totalRow = db.prepare(`SELECT COUNT(*) as count FROM enquiries ${whereClause}`).get(...params);
-    const total = totalRow ? totalRow.count : 0;
+    const totalRow = await db.get(`SELECT COUNT(*) as count FROM enquiries ${whereClause}`, ...params);
+    const total = totalRow ? Number(totalRow.count) : 0;
 
-    // Paginated records
-    const records = db.prepare(`
+    const records = await db.all(`
       SELECT id, name, phone, email, business_type, project_location,
              area_sqft, message, source, calculator_data, status,
              admin_notes, consent_given, created_at, updated_at
@@ -235,16 +230,16 @@ export function getEnquiries(req, res, next) {
       ${whereClause}
       ORDER BY created_at DESC
       LIMIT ? OFFSET ?
-    `).all(...params, limit, offset);
+    `, ...params, limit, offset);
 
     return res.status(200).json({
       success: true,
-      data: records,
+      data: records || [],
       pagination: {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.ceil(total / limit) || 1,
       },
     });
   } catch (error) {
@@ -255,11 +250,11 @@ export function getEnquiries(req, res, next) {
 /**
  * Admin: Retrieve a single enquiry by ID.
  */
-export function getEnquiryById(req, res, next) {
+export async function getEnquiryById(req, res, next) {
   try {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const { id } = req.params;
-    const enquiry = db.prepare('SELECT * FROM enquiries WHERE id = ?').get(id);
+    const enquiry = await db.get('SELECT * FROM enquiries WHERE id = ?', id);
 
     if (!enquiry) {
       throw new AppError(`Enquiry #${id} not found`, 404);
@@ -277,12 +272,12 @@ export function getEnquiryById(req, res, next) {
 /**
  * Admin: Update enquiry status and administrative notes.
  */
-export function updateEnquiry(req, res, next) {
+export async function updateEnquiry(req, res, next) {
   try {
     const { id } = req.params;
     const { status, admin_notes } = req.body;
 
-    const existing = db.prepare('SELECT id FROM enquiries WHERE id = ?').get(id);
+    const existing = await db.get('SELECT id FROM enquiries WHERE id = ?', id);
     if (!existing) {
       throw new AppError(`Enquiry #${id} not found`, 404);
     }
@@ -307,13 +302,13 @@ export function updateEnquiry(req, res, next) {
 
     updates.push("updated_at = datetime('now')");
 
-    db.prepare(`
+    await db.run(`
       UPDATE enquiries
       SET ${updates.join(', ')}
       WHERE id = ?
-    `).run(...params, id);
+    `, ...params, id);
 
-    const updated = db.prepare('SELECT * FROM enquiries WHERE id = ?').get(id);
+    const updated = await db.get('SELECT * FROM enquiries WHERE id = ?', id);
 
     return res.status(200).json({
       success: true,
@@ -328,15 +323,15 @@ export function updateEnquiry(req, res, next) {
 /**
  * Admin: Delete an enquiry.
  */
-export function deleteEnquiry(req, res, next) {
+export async function deleteEnquiry(req, res, next) {
   try {
     const { id } = req.params;
-    const existing = db.prepare('SELECT id FROM enquiries WHERE id = ?').get(id);
+    const existing = await db.get('SELECT id FROM enquiries WHERE id = ?', id);
     if (!existing) {
       throw new AppError(`Enquiry #${id} not found`, 404);
     }
 
-    db.prepare('DELETE FROM enquiries WHERE id = ?').run(id);
+    await db.run('DELETE FROM enquiries WHERE id = ?', id);
 
     return res.status(200).json({
       success: true,
@@ -350,7 +345,7 @@ export function deleteEnquiry(req, res, next) {
 /**
  * Admin: Export all filtered enquiries as RFC 4180 CSV.
  */
-export function exportEnquiriesCsv(req, res, next) {
+export async function exportEnquiriesCsv(req, res, next) {
   try {
     const { status, source, search, startDate, endDate } = req.query;
     const conditions = [];
@@ -365,11 +360,11 @@ export function exportEnquiriesCsv(req, res, next) {
       params.push(source);
     }
     if (startDate) {
-      conditions.push('date(created_at) >= date(?)');
+      conditions.push('created_at >= ?');
       params.push(startDate);
     }
     if (endDate) {
-      conditions.push('date(created_at) <= date(?)');
+      conditions.push('created_at <= ?');
       params.push(endDate);
     }
     if (search && search.trim()) {
@@ -379,9 +374,9 @@ export function exportEnquiriesCsv(req, res, next) {
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    const records = db.prepare(`SELECT * FROM enquiries ${whereClause} ORDER BY created_at DESC`).all(...params);
+    const records = await db.all(`SELECT * FROM enquiries ${whereClause} ORDER BY created_at DESC`, ...params);
 
-    const csvData = generateEnquiriesCsv(records);
+    const csvData = generateEnquiriesCsv(records || []);
     const filename = `besim-design-enquiries-${new Date().toISOString().slice(0, 10)}.csv`;
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
