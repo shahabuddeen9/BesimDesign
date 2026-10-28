@@ -208,7 +208,7 @@ async function runMigration() {
           await client.query(
             `INSERT INTO deleted_projects (project_id, slug, title, deleted_at)
              VALUES ($1, $2, $3, COALESCE($4::timestamptz, NOW()))
-             ON CONFLICT (slug) DO NOTHING`,
+             ON CONFLICT (slug) WHERE slug IS NOT NULL DO NOTHING`,
             [r.project_id || null, r.slug || null, r.title || null, r.deleted_at || null]
           );
           deletedProjCount++;
