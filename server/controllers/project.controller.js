@@ -46,11 +46,10 @@ export const projectSchema = z.object({
 /**
  * Public: Get published projects, optional ?category=
  */
-export function getPublishedProjects(req, res, next) {
+export async function getPublishedProjects(req, res, next) {
   try {
     let { category, exclude } = req.query;
 
-    // Smooth category alias normalization for hyphenated values
     if (category) {
       const catLower = String(category).toLowerCase().trim();
       if (catLower === 'central-kitchen' || catLower === 'centralkitchen') {
@@ -82,7 +81,8 @@ export function getPublishedProjects(req, res, next) {
 
     sql += ' ORDER BY sort_order ASC, created_at DESC';
 
-    const projects = db.prepare(sql).all(...params).map((p) => ({
+    const rawProjects = await db.all(sql, ...params);
+    const projects = (rawProjects || []).map((p) => ({
       ...p,
       scope: safeJsonParse(p.scope),
       gallery: safeJsonParse(p.gallery),
@@ -106,14 +106,14 @@ export function getPublishedProjects(req, res, next) {
 /**
  * Public: Get single published project by slug
  */
-export function getProjectBySlug(req, res, next) {
+export async function getProjectBySlug(req, res, next) {
   try {
     const { slug } = req.params;
-    const project = db.prepare(`
+    const project = await db.get(`
       SELECT id, title, slug, category, description, scope, image_url, gallery, is_featured, created_at
       FROM projects
       WHERE slug = ? AND is_published = 1
-    `).get(slug);
+    `, slug);
 
     if (!project) {
       throw new AppError(`Project with slug "${slug}" not found`, 404);
@@ -135,12 +135,13 @@ export function getProjectBySlug(req, res, next) {
 /**
  * Admin: Get all projects (including drafts/unpublished)
  */
-export function getAllProjects(req, res, next) {
+export async function getAllProjects(req, res, next) {
   try {
-    const projects = db.prepare(`
+    const rawProjects = await db.all(`
       SELECT * FROM projects
       ORDER BY sort_order ASC, created_at DESC
-    `).all().map((p) => ({
+    `);
+    const projects = (rawProjects || []).map((p) => ({
       ...p,
       scope: safeJsonParse(p.scope),
       gallery: safeJsonParse(p.gallery),
@@ -159,7 +160,7 @@ export function getAllProjects(req, res, next) {
 /**
  * Admin: Create a new project
  */
-export function createProject(req, res, next) {
+export async function createProject(req, res, next) {
   try {
     const rawBody = { ...req.body };
     if (!rawBody.slug && rawBody.title) {
@@ -171,24 +172,22 @@ export function createProject(req, res, next) {
 
     const validated = projectSchema.parse(rawBody);
 
-    // Auto-resolve slug collision by appending timestamp or counter
     let finalSlug = (validated.slug || validated.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')).replace(/^-+|-+$/g, '') || `proj-${Date.now()}`;
     let counter = 1;
     const baseSlug = finalSlug;
-    while (db.prepare('SELECT id FROM projects WHERE slug = ?').get(finalSlug)) {
+    while (await db.get('SELECT id FROM projects WHERE slug = ?', finalSlug)) {
       finalSlug = `${baseSlug}-${counter++}`;
     }
 
-    // If re-adding a previously deleted project, clear tombstone
     try {
-      db.prepare('DELETE FROM deleted_projects WHERE slug = ? OR title = ?').run(finalSlug, stripHtml(validated.title));
-      syncTombstones();
+      await db.run('DELETE FROM deleted_projects WHERE slug = ? OR title = ?', finalSlug, stripHtml(validated.title));
+      await syncTombstones();
     } catch (_) {}
 
     const scopeJson = Array.isArray(validated.scope) ? JSON.stringify(validated.scope) : (validated.scope || '[]');
     const galleryJson = Array.isArray(validated.gallery) ? JSON.stringify(validated.gallery) : (validated.gallery || '[]');
 
-    const result = db.prepare(`
+    const result = await db.run(`
       INSERT INTO projects (
         title, slug, category, client_name, location, area_sqft, description, scope,
         image_url, gallery, is_featured, sort_order, is_published,
@@ -198,7 +197,7 @@ export function createProject(req, res, next) {
         ?, ?, ?, ?, ?,
         datetime('now'), datetime('now')
       )
-    `).run(
+    `,
       stripHtml(validated.title),
       finalSlug.toLowerCase(),
       validated.category,
@@ -216,7 +215,8 @@ export function createProject(req, res, next) {
 
     db.persist();
 
-    const saved = db.prepare('SELECT * FROM projects WHERE id = ?').get(result.lastInsertRowid);
+    const newId = result.lastInsertRowid || result.row?.id;
+    const saved = await db.get('SELECT * FROM projects WHERE id = ?', newId);
     if (saved) {
       saved.scope = safeJsonParse(saved.scope);
       saved.gallery = safeJsonParse(saved.gallery);
@@ -225,7 +225,7 @@ export function createProject(req, res, next) {
     return res.status(201).json({
       success: true,
       message: 'Project created successfully',
-      data: saved,
+      data: saved || { id: newId, ...validated, slug: finalSlug },
     });
   } catch (error) {
     next(error);
@@ -235,11 +235,11 @@ export function createProject(req, res, next) {
 /**
  * Admin: Update existing project
  */
-export function updateProject(req, res, next) {
+export async function updateProject(req, res, next) {
   try {
     const { id } = req.params;
     const numId = parseInt(id, 10) || 0;
-    const existing = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
+    const existing = await db.get('SELECT * FROM projects WHERE id = ? OR id = ?', id, numId);
     if (!existing) {
       throw new AppError(`Project #${id} not found`, 404);
     }
@@ -268,19 +268,19 @@ export function updateProject(req, res, next) {
     }
 
     if (slug && slug !== existing.slug) {
-      const slugCheck = db.prepare('SELECT id FROM projects WHERE slug = ? AND id != ? AND id != ?').get(slug, id, numId);
+      const slugCheck = await db.get('SELECT id FROM projects WHERE slug = ? AND id != ?', slug, existing.id);
       if (slugCheck) {
         throw new AppError(`A project with the slug "${slug}" already exists.`, 400);
       }
     }
 
-    db.prepare(`
+    await db.run(`
       UPDATE projects
       SET title = ?, slug = ?, category = ?, client_name = ?, location = ?, area_sqft = ?,
           description = ?, scope = ?, image_url = ?, gallery = ?, is_featured = ?, sort_order = ?,
           is_published = ?, updated_at = datetime('now')
-      WHERE id = ? OR id = ?
-    `).run(
+      WHERE id = ?
+    `,
       title,
       slug,
       category,
@@ -294,13 +294,12 @@ export function updateProject(req, res, next) {
       is_featured,
       sort_order,
       is_published,
-      id,
-      numId
+      existing.id
     );
 
     db.persist();
 
-    const updated = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
+    const updated = await db.get('SELECT * FROM projects WHERE id = ?', existing.id);
     if (updated) {
       updated.scope = safeJsonParse(updated.scope);
       updated.gallery = safeJsonParse(updated.gallery);
@@ -319,22 +318,18 @@ export function updateProject(req, res, next) {
 /**
  * Admin: Delete project
  */
-export function deleteProject(req, res, next) {
+export async function deleteProject(req, res, next) {
   try {
     const { id } = req.params;
     const numId = parseInt(id, 10) || 0;
-    const existing = db.prepare('SELECT id, slug, title FROM projects WHERE id = ? OR id = ?').get(id, numId);
+    const existing = await db.get('SELECT id, slug, title FROM projects WHERE id = ? OR id = ?', id, numId);
     if (!existing) {
       throw new AppError(`Project #${id} not found`, 404);
     }
 
-    // 1. Permanently record tombstone
-    recordDeletedProject(existing.id, existing.slug, existing.title);
+    await recordDeletedProject(existing.id, existing.slug, existing.title);
 
-    // 2. Delete project from DB
-    db.prepare('DELETE FROM projects WHERE id = ? OR id = ?').run(id, numId);
-
-    // 3. Immediately persist to disk
+    await db.run('DELETE FROM projects WHERE id = ?', existing.id);
     db.persist();
 
     return res.status(200).json({
@@ -351,21 +346,17 @@ export function deleteProject(req, res, next) {
 /**
  * Admin: Reorder projects in batch
  */
-export function reorderProjects(req, res, next) {
+export async function reorderProjects(req, res, next) {
   try {
-    const { orders } = req.body; // Array of { id, sort_order }
+    const { orders } = req.body;
     if (!Array.isArray(orders)) {
       throw new AppError('Expected an array of { id, sort_order }', 400);
     }
 
-    const reorderTx = db.transaction((items) => {
-      const stmt = db.prepare('UPDATE projects SET sort_order = ?, updated_at = datetime(\'now\') WHERE id = ?');
-      for (const item of items) {
-        stmt.run(item.sort_order, item.id);
-      }
-    });
-
-    reorderTx(orders);
+    for (const item of orders) {
+      await db.run("UPDATE projects SET sort_order = ?, updated_at = datetime('now') WHERE id = ?", item.sort_order, item.id);
+    }
+    db.persist();
 
     return res.status(200).json({
       success: true,
@@ -379,11 +370,11 @@ export function reorderProjects(req, res, next) {
 /**
  * Admin: Add photo(s) to a selected project's gallery
  */
-export function addProjectPhotos(req, res, next) {
+export async function addProjectPhotos(req, res, next) {
   try {
     const { id } = req.params;
     const numId = parseInt(id, 10) || 0;
-    const project = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
+    const project = await db.get('SELECT * FROM projects WHERE id = ? OR id = ?', id, numId);
     if (!project) throw new AppError(`Project #${id} not found`, 404);
 
     let incoming = req.body.urls || req.body.url || req.body.photos;
@@ -403,18 +394,18 @@ export function addProjectPhotos(req, res, next) {
     }
 
     let imageUrl = project.image_url;
-    if (!imageUrl || imageUrl.includes('unsplash.com/photo-1600585154340') && incoming.length > 0) {
+    if (!imageUrl || (imageUrl.includes('unsplash.com/photo-1600585154340') && incoming.length > 0)) {
       imageUrl = incoming[0];
     }
 
-    db.prepare(`
+    await db.run(`
       UPDATE projects
       SET gallery = ?, image_url = ?, updated_at = datetime('now')
-      WHERE id = ? OR id = ?
-    `).run(JSON.stringify(gallery), imageUrl, id, numId);
+      WHERE id = ?
+    `, JSON.stringify(gallery), imageUrl, project.id);
     db.persist();
 
-    const updated = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
+    const updated = await db.get('SELECT * FROM projects WHERE id = ?', project.id);
     if (updated) {
       updated.scope = safeJsonParse(updated.scope);
       updated.gallery = safeJsonParse(updated.gallery);
@@ -433,23 +424,20 @@ export function addProjectPhotos(req, res, next) {
 /**
  * Admin: Delete a photo from a selected project
  */
-export function deleteProjectPhoto(req, res, next) {
+export async function deleteProjectPhoto(req, res, next) {
   try {
     const { id } = req.params;
     const numId = parseInt(id, 10) || 0;
-    const project = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
+    const project = await db.get('SELECT * FROM projects WHERE id = ? OR id = ?', id, numId);
     if (!project) throw new AppError(`Project #${id} not found`, 404);
 
     const photoUrl = (req.body?.url || req.query?.url || '').trim();
     if (!photoUrl) throw new AppError('Photo URL to delete is required', 400);
 
     let gallery = safeJsonParse(project.gallery);
-    // Remove target photo from gallery
     gallery = gallery.filter((item) => item !== photoUrl);
 
     let imageUrl = (project.image_url || '').trim();
-
-    // Check if the photo to delete is the primary cover photo
     if (imageUrl === photoUrl) {
       if (gallery.length > 0) {
         imageUrl = gallery[0];
@@ -458,7 +446,6 @@ export function deleteProjectPhoto(req, res, next) {
       }
     }
 
-    // If local uploaded file, safely remove from disk
     if (photoUrl.startsWith('/uploads/')) {
       try {
         const filePath = path.resolve(__dirname, '../../uploads', path.basename(photoUrl));
@@ -470,14 +457,14 @@ export function deleteProjectPhoto(req, res, next) {
       }
     }
 
-    db.prepare(`
+    await db.run(`
       UPDATE projects
       SET gallery = ?, image_url = ?, updated_at = datetime('now')
-      WHERE id = ? OR id = ?
-    `).run(JSON.stringify(gallery), imageUrl, id, numId);
+      WHERE id = ?
+    `, JSON.stringify(gallery), imageUrl, project.id);
     db.persist();
 
-    const updated = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
+    const updated = await db.get('SELECT * FROM projects WHERE id = ?', project.id);
     if (updated) {
       updated.scope = safeJsonParse(updated.scope);
       updated.gallery = safeJsonParse(updated.gallery);
@@ -496,11 +483,11 @@ export function deleteProjectPhoto(req, res, next) {
 /**
  * Admin: Set a specific photo as primary cover for selected project
  */
-export function setProjectCoverPhoto(req, res, next) {
+export async function setProjectCoverPhoto(req, res, next) {
   try {
     const { id } = req.params;
     const numId = parseInt(id, 10) || 0;
-    const project = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
+    const project = await db.get('SELECT * FROM projects WHERE id = ? OR id = ?', id, numId);
     if (!project) throw new AppError(`Project #${id} not found`, 404);
 
     const { url } = req.body;
@@ -509,22 +496,20 @@ export function setProjectCoverPhoto(req, res, next) {
     let gallery = safeJsonParse(project.gallery);
     const oldCover = project.image_url;
 
-    // Remove new cover from gallery if present
     gallery = gallery.filter((item) => item !== url);
 
-    // If old cover was valid and different, preserve in gallery
     if (oldCover && oldCover !== url && !gallery.includes(oldCover)) {
       gallery.unshift(oldCover);
     }
 
-    db.prepare(`
+    await db.run(`
       UPDATE projects
       SET image_url = ?, gallery = ?, updated_at = datetime('now')
-      WHERE id = ? OR id = ?
-    `).run(url, JSON.stringify(gallery), id, numId);
+      WHERE id = ?
+    `, url, JSON.stringify(gallery), project.id);
     db.persist();
 
-    const updated = db.prepare('SELECT * FROM projects WHERE id = ? OR id = ?').get(id, numId);
+    const updated = await db.get('SELECT * FROM projects WHERE id = ?', project.id);
     if (updated) {
       updated.scope = safeJsonParse(updated.scope);
       updated.gallery = safeJsonParse(updated.gallery);

@@ -2,6 +2,7 @@
  * @file /server/controllers/auth.controller.js
  * @description Controller for administrator authentication, JWT issuance in httpOnly cookies,
  * session status checks, and secure logout.
+ * Supports both PostgreSQL and SQLite persistence.
  */
 
 import bcrypt from 'bcryptjs';
@@ -37,14 +38,18 @@ export async function login(req, res, next) {
       } else if (cleanEmail === 'shahab' || cleanEmail === 'shahabuddeen' || cleanEmail === 'shahabuddeen9') {
         cleanEmail = 'mdshahabuddeen48@gmail.com';
       } else {
-        const matchAdmin = db.prepare('SELECT * FROM admins WHERE LOWER(email) LIKE ? OR LOWER(email) LIKE ?').get(`${cleanEmail}@%`, `%${cleanEmail}%`);
+        const matchAdmin = await db.get(
+          'SELECT * FROM admins WHERE LOWER(email) LIKE ? OR LOWER(email) LIKE ?',
+          `${cleanEmail}@%`,
+          `%${cleanEmail}%`
+        );
         if (matchAdmin) {
           cleanEmail = matchAdmin.email.toLowerCase();
         }
       }
     }
 
-    let admin = db.prepare('SELECT * FROM admins WHERE LOWER(email) = ?').get(cleanEmail);
+    let admin = await db.get('SELECT * FROM admins WHERE LOWER(email) = LOWER(?)', cleanEmail);
 
     const authorizedEmails = [
       'admin@besimdesign.com',
@@ -57,12 +62,15 @@ export async function login(req, res, next) {
     // If an authorized admin account exists in config but was not yet created in DB, initialize it with configured ADMIN_PASSWORD
     if (!admin && authorizedEmails.includes(cleanEmail) && env.ADMIN_PASSWORD && password === env.ADMIN_PASSWORD) {
       const hash = await bcrypt.hash(password, 10);
-      const resInsert = db.prepare("INSERT INTO admins (email, password_hash, created_at) VALUES (?, ?, datetime('now'))").run(cleanEmail, hash);
-      admin = db.prepare('SELECT * FROM admins WHERE id = ?').get(resInsert.lastInsertRowid);
+      const resInsert = await db.run(
+        "INSERT INTO admins (email, password_hash, created_at) VALUES (?, ?, datetime('now'))",
+        cleanEmail,
+        hash
+      );
+      admin = await db.get('SELECT * FROM admins WHERE id = ?', resInsert.lastInsertRowid || resInsert.row?.id);
     }
 
     if (!admin) {
-      // Generic error message to prevent account enumeration
       throw new AppError('Invalid credentials.', 401);
     }
 
@@ -88,7 +96,7 @@ export async function login(req, res, next) {
 
       if (allowedDefaultPasswords.includes(password)) {
         const newHash = await bcrypt.hash(password, 10);
-        db.prepare('UPDATE admins SET password_hash = ? WHERE id = ?').run(newHash, admin.id);
+        await db.run('UPDATE admins SET password_hash = ? WHERE id = ?', newHash, admin.id);
         isMatch = true;
       }
     }
@@ -98,7 +106,7 @@ export async function login(req, res, next) {
     }
 
     // Update last_login_at
-    db.prepare("UPDATE admins SET last_login_at = datetime('now') WHERE id = ?").run(admin.id);
+    await db.run("UPDATE admins SET last_login_at = datetime('now') WHERE id = ?", admin.id);
 
     // Sign JWT
     const token = jwt.sign(
@@ -107,7 +115,6 @@ export async function login(req, res, next) {
       { expiresIn: '7d' }
     );
 
-    // Set cookie: on HTTPS (or reverse proxy), use Secure + SameSite=None; on HTTP, use SameSite=Lax
     const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
     res.cookie(COOKIE_NAME, token, {
       httpOnly: true,
@@ -122,7 +129,7 @@ export async function login(req, res, next) {
     return res.status(200).json({
       success: true,
       message: 'Login successful.',
-      token, // Return token for frontend Bearer authorization in iframes
+      token,
       admin: {
         id: admin.id,
         email: admin.email,
@@ -155,14 +162,14 @@ export function logout(req, res) {
 /**
  * Verify current session (GET /api/auth/me)
  */
-export function getMe(req, res, next) {
+export async function getMe(req, res, next) {
   try {
     let admin = null;
     if (req.admin && req.admin.id) {
-      admin = db.prepare('SELECT id, email, created_at, last_login_at FROM admins WHERE id = ?').get(req.admin.id);
+      admin = await db.get('SELECT id, email, created_at, last_login_at FROM admins WHERE id = ?', req.admin.id);
     }
     if (!admin && req.admin && req.admin.email) {
-      admin = db.prepare('SELECT id, email, created_at, last_login_at FROM admins WHERE LOWER(email) = ?').get(req.admin.email.toLowerCase());
+      admin = await db.get('SELECT id, email, created_at, last_login_at FROM admins WHERE LOWER(email) = LOWER(?)', req.admin.email);
     }
 
     if (!admin) {

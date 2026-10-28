@@ -2,10 +2,11 @@
  * @file /server/controllers/client.controller.js
  * @description Controller for brand clients and partners.
  * Public read endpoints and authenticated administrative CRUD.
+ * Supports both PostgreSQL and SQLite persistence.
  */
 
 import { z } from 'zod';
-import { db, syncDeletedClientsFile } from '../db/index.js';
+import { db, recordDeletedClient, syncDeletedClientsFile } from '../db/index.js';
 import AppError from '../utils/AppError.js';
 import { stripHtml } from '../utils/sanitize.js';
 
@@ -23,7 +24,7 @@ export const clientSchema = z.object({
 /**
  * Public: Get published/featured clients
  */
-export function getPublishedClients(req, res, next) {
+export async function getPublishedClients(req, res, next) {
   try {
     res.set({
       'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
@@ -31,16 +32,18 @@ export function getPublishedClients(req, res, next) {
       'Expires': '0',
       'Surrogate-Control': 'no-store',
     });
-    const clients = db.prepare(`
+
+    const clients = await db.all(`
       SELECT id, name, category, logo_url, website_url, description, is_featured, sort_order, created_at
       FROM clients
       WHERE is_featured = 1
+        AND name NOT IN (SELECT client_name FROM deleted_clients WHERE client_name IS NOT NULL)
       ORDER BY sort_order ASC, name ASC
-    `).all();
+    `);
 
     return res.status(200).json({
       success: true,
-      data: clients,
+      data: clients || [],
     });
   } catch (error) {
     next(error);
@@ -50,7 +53,7 @@ export function getPublishedClients(req, res, next) {
 /**
  * Admin: Get all clients
  */
-export function getAllClients(req, res, next) {
+export async function getAllClients(req, res, next) {
   try {
     res.set({
       'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
@@ -58,15 +61,16 @@ export function getAllClients(req, res, next) {
       'Expires': '0',
       'Surrogate-Control': 'no-store',
     });
-    const clients = db.prepare(`
+
+    const clients = await db.all(`
       SELECT id, name, category, logo_url, website_url, description, is_featured, sort_order, created_at, updated_at
       FROM clients
       ORDER BY sort_order ASC, created_at DESC
-    `).all();
+    `);
 
     return res.status(200).json({
       success: true,
-      data: clients,
+      data: clients || [],
     });
   } catch (error) {
     next(error);
@@ -76,7 +80,7 @@ export function getAllClients(req, res, next) {
 /**
  * Admin: Create client
  */
-export function createClient(req, res, next) {
+export async function createClient(req, res, next) {
   try {
     const validated = clientSchema.parse(req.body);
     const sanitizedName = stripHtml(validated.name);
@@ -85,14 +89,13 @@ export function createClient(req, res, next) {
 
     // If re-adding a previously deleted client, remove from tombstone table
     try {
-      db.prepare('DELETE FROM deleted_clients WHERE client_name = ?').run(sanitizedName);
+      await db.run('DELETE FROM deleted_clients WHERE client_name = ?', sanitizedName);
       syncDeletedClientsFile();
     } catch (_) {}
 
-    const result = db.prepare(`
-      INSERT INTO clients (name, category, logo_url, website_url, description, is_featured, sort_order, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-    `).run(
+    const result = await db.run(
+      `INSERT INTO clients (name, category, logo_url, website_url, description, is_featured, sort_order, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
       sanitizedName,
       sanitizedCat,
       validated.logo_url || '',
@@ -102,12 +105,13 @@ export function createClient(req, res, next) {
       validated.sort_order
     );
 
-    const created = db.prepare('SELECT * FROM clients WHERE id = ?').get(result.lastInsertRowid);
+    const newId = result.lastInsertRowid || result.row?.id;
+    const created = await db.get('SELECT * FROM clients WHERE id = ?', newId);
 
     return res.status(201).json({
       success: true,
       message: 'Client added successfully',
-      data: created,
+      data: created || { id: newId, ...validated, name: sanitizedName },
     });
   } catch (error) {
     next(error);
@@ -117,12 +121,12 @@ export function createClient(req, res, next) {
 /**
  * Admin: Update client
  */
-export function updateClient(req, res, next) {
+export async function updateClient(req, res, next) {
   try {
     const rawId = req.params.id;
     const numId = parseInt(rawId, 10) || 0;
 
-    const existing = db.prepare('SELECT * FROM clients WHERE id = ? OR id = ?').get(rawId, numId);
+    const existing = await db.get('SELECT * FROM clients WHERE id = ? OR id = ?', rawId, numId);
     if (!existing) throw new AppError('Client not found', 404);
 
     const partialSchema = clientSchema.partial();
@@ -136,13 +140,21 @@ export function updateClient(req, res, next) {
     const is_featured = validated.is_featured !== undefined ? validated.is_featured : existing.is_featured;
     const sort_order = validated.sort_order !== undefined ? validated.sort_order : existing.sort_order;
 
-    db.prepare(`
-      UPDATE clients
-      SET name = ?, category = ?, logo_url = ?, website_url = ?, description = ?, is_featured = ?, sort_order = ?, updated_at = datetime('now')
-      WHERE id = ? OR id = ?
-    `).run(name, category, logo_url, website_url, description, is_featured, sort_order, rawId, numId);
+    await db.run(
+      `UPDATE clients
+       SET name = ?, category = ?, logo_url = ?, website_url = ?, description = ?, is_featured = ?, sort_order = ?, updated_at = datetime('now')
+       WHERE id = ?`,
+      name,
+      category,
+      logo_url,
+      website_url,
+      description,
+      is_featured,
+      sort_order,
+      existing.id
+    );
 
-    const updated = db.prepare('SELECT * FROM clients WHERE id = ? OR id = ?').get(rawId, numId);
+    const updated = await db.get('SELECT * FROM clients WHERE id = ?', existing.id);
 
     return res.status(200).json({
       success: true,
@@ -157,29 +169,22 @@ export function updateClient(req, res, next) {
 /**
  * Admin: Delete client
  */
-export function deleteClient(req, res, next) {
+export async function deleteClient(req, res, next) {
   try {
     const rawId = req.params.id;
     const numId = parseInt(rawId, 10) || 0;
 
-    const existing = db.prepare('SELECT id, name FROM clients WHERE id = ? OR id = ?').get(rawId, numId);
+    const existing = await db.get('SELECT id, name FROM clients WHERE id = ? OR id = ?', rawId, numId);
     if (!existing) throw new AppError('Client not found', 404);
 
     // 1. Permanently record in tombstone table so seed or DB recreation never resurrects it
-    try {
-      db.prepare(`
-        INSERT OR REPLACE INTO deleted_clients (client_name, client_id, deleted_at)
-        VALUES (?, ?, datetime('now'))
-      `).run(existing.name, existing.id);
-    } catch (_) {}
+    await recordDeletedClient(existing.name, existing.id);
 
     // 2. Permanently delete from clients table
-    db.prepare('DELETE FROM clients WHERE id = ? OR id = ?').run(rawId, numId);
+    await db.run('DELETE FROM clients WHERE id = ?', existing.id);
 
-    // 3. Immediately persist database to disk
+    // 3. Flush/sync tombstones
     db.persist();
-
-    // 4. Update the tombstone JSON file for cross-deployment persistence
     syncDeletedClientsFile();
 
     return res.status(200).json({
@@ -192,3 +197,11 @@ export function deleteClient(req, res, next) {
     next(error);
   }
 }
+
+export default {
+  getPublishedClients,
+  getAllClients,
+  createClient,
+  updateClient,
+  deleteClient,
+};

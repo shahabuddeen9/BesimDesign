@@ -1,6 +1,7 @@
 /**
  * @file /server/controllers/testimonial.controller.js
  * @description Controller for managing client testimonials, star ratings, and published states.
+ * Supports both PostgreSQL and SQLite persistence.
  */
 
 import { z } from 'zod';
@@ -20,7 +21,7 @@ export const testimonialSchema = z.object({
 /**
  * Public: Get published testimonials
  */
-export function getPublishedTestimonials(req, res, next) {
+export async function getPublishedTestimonials(req, res, next) {
   try {
     res.set({
       'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
@@ -28,18 +29,19 @@ export function getPublishedTestimonials(req, res, next) {
       'Expires': '0',
       'Surrogate-Control': 'no-store',
     });
-    const testimonials = db.prepare(`
+
+    const testimonials = await db.all(`
       SELECT id, client_name, business_type, rating, review, sort_order, created_at
       FROM testimonials
       WHERE is_published = 1
         AND id NOT IN (SELECT testimonial_id FROM deleted_testimonials WHERE testimonial_id IS NOT NULL)
         AND client_name NOT IN (SELECT client_name FROM deleted_testimonials WHERE client_name IS NOT NULL)
       ORDER BY sort_order ASC, created_at DESC
-    `).all();
+    `);
 
     return res.status(200).json({
       success: true,
-      data: testimonials,
+      data: testimonials || [],
     });
   } catch (error) {
     next(error);
@@ -49,17 +51,18 @@ export function getPublishedTestimonials(req, res, next) {
 /**
  * Admin: Get all testimonials
  */
-export function getAllTestimonials(req, res, next) {
+export async function getAllTestimonials(req, res, next) {
   try {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    const testimonials = db.prepare(`
+
+    const testimonials = await db.all(`
       SELECT * FROM testimonials
       ORDER BY sort_order ASC, created_at DESC
-    `).all();
+    `);
 
     return res.status(200).json({
       success: true,
-      data: testimonials,
+      data: testimonials || [],
     });
   } catch (error) {
     next(error);
@@ -69,23 +72,22 @@ export function getAllTestimonials(req, res, next) {
 /**
  * Admin: Create testimonial
  */
-export function createTestimonial(req, res, next) {
+export async function createTestimonial(req, res, next) {
   try {
     const validated = testimonialSchema.parse(req.body);
     const sanitizedClientName = stripHtml(validated.client_name);
 
     // If re-adding a previously deleted testimonial, remove from tombstone table
     try {
-      db.prepare('DELETE FROM deleted_testimonials WHERE client_name = ?').run(sanitizedClientName);
-      syncTombstones();
+      await db.run('DELETE FROM deleted_testimonials WHERE client_name = ?', sanitizedClientName);
+      await syncTombstones();
     } catch (_) {}
 
-    const result = db.prepare(`
-      INSERT INTO testimonials (
+    const result = await db.run(
+      `INSERT INTO testimonials (
         client_name, business_type, rating, review,
         is_published, sort_order, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-    `).run(
+      ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
       sanitizedClientName,
       stripHtml(validated.business_type),
       validated.rating,
@@ -95,12 +97,13 @@ export function createTestimonial(req, res, next) {
     );
 
     db.persist();
-    const saved = db.prepare('SELECT * FROM testimonials WHERE id = ?').get(result.lastInsertRowid);
+    const newId = result.lastInsertRowid || result.row?.id;
+    const saved = await db.get('SELECT * FROM testimonials WHERE id = ?', newId);
 
     return res.status(201).json({
       success: true,
       message: 'Testimonial added successfully',
-      data: saved,
+      data: saved || { id: newId, ...validated, client_name: sanitizedClientName },
     });
   } catch (error) {
     next(error);
@@ -110,10 +113,11 @@ export function createTestimonial(req, res, next) {
 /**
  * Admin: Update testimonial
  */
-export function updateTestimonial(req, res, next) {
+export async function updateTestimonial(req, res, next) {
   try {
     const { id } = req.params;
-    const existing = db.prepare('SELECT * FROM testimonials WHERE id = ?').get(id);
+    const numId = parseInt(id, 10) || 0;
+    const existing = await db.get('SELECT * FROM testimonials WHERE id = ? OR id = ?', id, numId);
     if (!existing) {
       throw new AppError(`Testimonial #${id} not found`, 404);
     }
@@ -121,23 +125,22 @@ export function updateTestimonial(req, res, next) {
     const validated = testimonialSchema.partial().parse(req.body);
     const { client_name, business_type, rating, review, is_published, sort_order } = validated;
 
-    db.prepare(`
-      UPDATE testimonials
-      SET client_name = ?, business_type = ?, rating = ?, review = ?,
-          is_published = ?, sort_order = ?, updated_at = datetime('now')
-      WHERE id = ?
-    `).run(
+    await db.run(
+      `UPDATE testimonials
+       SET client_name = ?, business_type = ?, rating = ?, review = ?,
+           is_published = ?, sort_order = ?, updated_at = datetime('now')
+       WHERE id = ?`,
       client_name ? stripHtml(client_name) : existing.client_name,
       business_type ? stripHtml(business_type) : existing.business_type,
       rating !== undefined ? Number(rating) : existing.rating,
       review ? stripHtml(review) : existing.review,
       is_published !== undefined ? Number(is_published) : existing.is_published,
       sort_order !== undefined ? Number(sort_order) : existing.sort_order,
-      id
+      existing.id
     );
 
     db.persist();
-    const updated = db.prepare('SELECT * FROM testimonials WHERE id = ?').get(id);
+    const updated = await db.get('SELECT * FROM testimonials WHERE id = ?', existing.id);
 
     return res.status(200).json({
       success: true,
@@ -152,19 +155,19 @@ export function updateTestimonial(req, res, next) {
 /**
  * Admin: Delete testimonial
  */
-export function deleteTestimonial(req, res, next) {
+export async function deleteTestimonial(req, res, next) {
   try {
     const { id } = req.params;
     const numId = parseInt(id, 10) || 0;
-    const existing = db.prepare('SELECT id, client_name FROM testimonials WHERE id = ? OR id = ?').get(id, numId);
+    const existing = await db.get('SELECT id, client_name FROM testimonials WHERE id = ? OR id = ?', id, numId);
     if (!existing) {
       throw new AppError(`Testimonial #${id} not found`, 404);
     }
 
     // Record tombstone so seed or reload never resurrects this testimonial
-    recordDeletedTestimonial(existing.id, existing.client_name);
+    await recordDeletedTestimonial(existing.id, existing.client_name);
 
-    db.prepare('DELETE FROM testimonials WHERE id = ? OR id = ?').run(id, numId);
+    await db.run('DELETE FROM testimonials WHERE id = ?', existing.id);
     db.persist();
 
     return res.status(200).json({

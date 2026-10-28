@@ -2,6 +2,12 @@
  * @file /server/db/seed.js
  * @description Seeds initial administrator account, clients, realistic portfolio projects,
  * and client testimonials for Besim Design.
+ *
+ * CRITICAL LIFECYCLE RULES:
+ * 1. Safe to run repeatedly (idempotent).
+ * 2. Never overwrites existing admin modifications or custom database records.
+ * 3. Never re-creates deleted clients, projects, or testimonials (checks tombstone tables).
+ * 4. Once 'initial_seed_completed' is set, sample clients are NEVER restored, even if the table is empty.
  */
 
 import bcrypt from 'bcryptjs';
@@ -12,120 +18,77 @@ import { db, initDb } from './index.js';
 export async function runSeed(force = false) {
   await initDb();
 
-  // 1. Ensure required tables exist
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS _system_meta (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL,
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS admins (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      last_login_at TEXT DEFAULT NULL
-    );
-    CREATE TABLE IF NOT EXISTS clients (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      category TEXT DEFAULT '',
-      logo_url TEXT DEFAULT '',
-      website_url TEXT DEFAULT '',
-      description TEXT DEFAULT '',
-      is_featured INTEGER NOT NULL DEFAULT 1,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_clients_featured ON clients(is_featured, sort_order);
-    CREATE TABLE IF NOT EXISTS deleted_clients (
-      client_name TEXT PRIMARY KEY,
-      client_id INTEGER,
-      deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-  `);
-
-  // 2. Ensure Administrator accounts exist without altering user records
+  // 1. Ensure Administrator accounts exist without altering existing records
   const adminEmails = [
     env.ADMIN_EMAIL,
     'besimdesigne@gmail.com',
     'admin@besimdesign.com',
     'mdshahabuddeen9@gmail.com',
     'mdshahabuddeen48@gmail.com',
-  ];
+  ].filter(Boolean);
+
   const passwordToHash = env.ADMIN_PASSWORD || 'AdminPass123!';
   const passwordHash = await bcrypt.hash(passwordToHash, 10);
+
   for (const email of adminEmails) {
-    if (!email) continue;
-    const existingAdmin = db.prepare('SELECT id FROM admins WHERE email = ?').get(email);
+    const existingAdmin = await db.get('SELECT id FROM admins WHERE LOWER(email) = LOWER(?)', email);
     if (!existingAdmin) {
-      db.prepare(`
-        INSERT INTO admins (email, password_hash, created_at)
-        VALUES (?, ?, datetime('now'))
-      `).run(email, passwordHash);
+      await db.run(
+        "INSERT INTO admins (email, password_hash, created_at) VALUES (?, ?, datetime('now'))",
+        email,
+        passwordHash
+      );
       logger.info(`Seeded administrator account: ${email}`);
     }
   }
 
-  // Check if database has already been initialized with initial content
-  const metaCheck = db.prepare("SELECT value FROM _system_meta WHERE key = 'initial_seed_completed'").get();
-  const clientCount = db.prepare('SELECT COUNT(*) as count FROM clients').get()?.count ?? 0;
-  const projCount = db.prepare('SELECT COUNT(*) as count FROM projects').get()?.count ?? 0;
-  const isAlreadySeeded = !force && (metaCheck?.value === 'true' || projCount > 0 || clientCount > 0);
+  // 2. Check if database has already been initialized with initial seed
+  const metaCheck = await db.get("SELECT value FROM _system_meta WHERE key = 'initial_seed_completed'");
+  const clientCountRow = await db.get('SELECT COUNT(*) as count FROM clients');
+  const projCountRow = await db.get('SELECT COUNT(*) as count FROM projects');
+
+  const clientCount = Number(clientCountRow?.count ?? 0);
+  const projCount = Number(projCountRow?.count ?? 0);
+
+  // Once initialized, never re-seed sample data on startup
+  const isAlreadySeeded = !force && (metaCheck?.value === 'true' || projCount > 0 || (metaCheck?.value && clientCount === 0));
 
   if (isAlreadySeeded) {
-    db.prepare(`
+    await db.run(`
       INSERT OR REPLACE INTO _system_meta (key, value, updated_at)
       VALUES ('initial_seed_completed', 'true', datetime('now'))
-    `).run();
+    `);
     logger.info('Database already seeded. Preserving existing admin modifications and skipping re-seed.');
     return;
   }
 
   logger.info('Starting initial database seeding for fresh installation...');
 
-  // 3. Seed Initial Clients (Excluding any client recorded in deleted_clients tombstone)
-  if (clientCount === 0) {
-    const deletedRows = db.prepare('SELECT client_name FROM deleted_clients').all();
+  // 3. Seed Initial Clients (Strictly excluding any client recorded in deleted_clients tombstone)
+  if (clientCount === 0 && !metaCheck?.value) {
+    const deletedRows = (await db.all('SELECT client_name FROM deleted_clients')) || [];
     const deletedNames = new Set(deletedRows.map((r) => r.client_name));
 
     const sampleClients = [
       { name: 'The Nutcracker', category: 'Hospitality & F&B', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/Nutcracker.jpg', is_featured: 1, sort_order: 1 },
-      { name: 'HDFC Bank', category: 'Corporate & Banking', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/HDFC.jpg', is_featured: 1, sort_order: 2 },
-      { name: 'Dave & Buster’s', category: 'Entertainment & Dining', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/Dave-Busters.jpg', is_featured: 1, sort_order: 3 },
-      { name: 'FOO Asian Tapas', category: 'Fine Dining & Hospitality', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/FOO.jpg', is_featured: 1, sort_order: 4 },
-      { name: 'Royal China', category: 'Fine Dining', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/Royal-China.jpg', is_featured: 1, sort_order: 5 },
-      { name: 'SAZ American Brasserie', category: 'Hospitality', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/SAZ.jpg', is_featured: 1, sort_order: 6 },
-      { name: 'RSVP', category: 'Hospitality & Lounges', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/RSVP.jpg', is_featured: 1, sort_order: 7 },
-      { name: 'Parinee Group', category: 'Luxury Real Estate', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/PARINEE.jpg', is_featured: 1, sort_order: 9 },
-      { name: 'The Silver Train', category: 'Hospitality', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/The-silver-train.jpg', is_featured: 1, sort_order: 10 },
-      { name: 'Ping’s Orient', category: 'Asian Dining', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/Pings.jpg', is_featured: 1, sort_order: 11 },
-      { name: 'SEA-Yah', category: 'Coastal Dining', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/SEA-Yah.jpg', is_featured: 1, sort_order: 12 },
-      { name: 'LAPOZ', category: 'Nightlife & Lounge', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/LAPOZ.jpg', is_featured: 1, sort_order: 14 },
-      { name: 'HOM', category: 'Hospitality', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/HOM.jpg', is_featured: 1, sort_order: 15 },
-      { name: 'IGI', category: 'Corporate & Retail', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/IGI.jpg', is_featured: 1, sort_order: 16 },
-      { name: 'CDC', category: 'Corporate Fit-out', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/CDC.jpg', is_featured: 1, sort_order: 17 },
-      { name: 'Nikita', category: 'Retail & Commercial', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/Nikita.jpg', is_featured: 1, sort_order: 18 },
-      { name: 'Otoki', category: 'Culinary Retail', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/Otoki.jpg', is_featured: 1, sort_order: 19 },
+      { name: 'FOO Asian Tapas', category: 'Fine Dining & Hospitality', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/FOO.jpg', is_featured: 1, sort_order: 2 },
     ].filter((c) => !deletedNames.has(c.name));
 
-    const insertClient = db.prepare(`
-      INSERT INTO clients (name, category, logo_url, is_featured, sort_order, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-    `);
-
     for (const c of sampleClients) {
-      insertClient.run(c.name, c.category, c.logo_url, c.is_featured, c.sort_order);
+      await db.run(
+        `INSERT INTO clients (name, category, logo_url, is_featured, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+        c.name, c.category, c.logo_url, c.is_featured, c.sort_order
+      );
     }
     logger.info(`Seeded ${sampleClients.length} verified brand clients.`);
   }
 
   // 4. Seed Projects (Categories: central_kitchen, hotels, hospitality, residential)
-  if (projCount === 0) {
+  if (projCount === 0 && !metaCheck?.value) {
     let deletedProjectSlugs = new Set();
     try {
-      const deletedProjRows = db.prepare('SELECT slug FROM deleted_projects WHERE slug IS NOT NULL').all();
+      const deletedProjRows = (await db.all('SELECT slug FROM deleted_projects WHERE slug IS NOT NULL')) || [];
       deletedProjectSlugs = new Set(deletedProjRows.map((r) => r.slug));
     } catch (_) {}
 
@@ -146,7 +109,7 @@ export async function runSeed(force = false) {
           'https://images.unsplash.com/photo-1574096079513-d8259312b785?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1577100078783-05763fa2fcb6?auto=format&fit=crop&w=800&q=80'
+          'https://images.unsplash.com/photo-1577100078783-05763fa2fcb6?auto=format&fit=crop&w=800&q=80',
         ]),
         is_featured: 1,
         sort_order: 1,
@@ -167,7 +130,7 @@ export async function runSeed(force = false) {
           'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1517433670267-08bbd4be890f?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1589367920969-ab8e050bbb04?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1507138086030-41628ccce391?auto=format&fit=crop&w=800&q=80'
+          'https://images.unsplash.com/photo-1507138086030-41628ccce391?auto=format&fit=crop&w=800&q=80',
         ]),
         is_featured: 1,
         sort_order: 2,
@@ -190,7 +153,7 @@ export async function runSeed(force = false) {
           'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=800&q=80'
+          'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=800&q=80',
         ]),
         is_featured: 1,
         sort_order: 3,
@@ -211,7 +174,7 @@ export async function runSeed(force = false) {
           'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=800&q=80'
+          'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=800&q=80',
         ]),
         is_featured: 1,
         sort_order: 4,
@@ -234,7 +197,7 @@ export async function runSeed(force = false) {
           'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=800&q=80'
+          'https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=800&q=80',
         ]),
         is_featured: 1,
         sort_order: 5,
@@ -255,7 +218,7 @@ export async function runSeed(force = false) {
           'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1543007630-9710e4a00a20?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80'
+          'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80',
         ]),
         is_featured: 1,
         sort_order: 6,
@@ -276,7 +239,7 @@ export async function runSeed(force = false) {
           'https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?auto=format&fit=crop&w=800&q=80'
+          'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?auto=format&fit=crop&w=800&q=80',
         ]),
         is_featured: 1,
         sort_order: 7,
@@ -299,7 +262,7 @@ export async function runSeed(force = false) {
           'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1600565193348-f74bd3c7ccdf?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=800&q=80'
+          'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=800&q=80',
         ]),
         is_featured: 1,
         sort_order: 8,
@@ -320,40 +283,38 @@ export async function runSeed(force = false) {
           'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1600565193348-f74bd3c7ccdf?auto=format&fit=crop&w=800&q=80'
+          'https://images.unsplash.com/photo-1600565193348-f74bd3c7ccdf?auto=format&fit=crop&w=800&q=80',
         ]),
         is_featured: 1,
         sort_order: 9,
         is_published: 1,
-      }
+      },
     ];
-
-    const insertProj = db.prepare(`
-      INSERT INTO projects (
-        title, slug, category, client_name, location, area_sqft, description, scope,
-        image_url, gallery, is_featured, sort_order, is_published, created_at, updated_at
-      ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?, datetime('now'), datetime('now')
-      )
-    `);
 
     const activeProjects = sampleProjects.filter((p) => !deletedProjectSlugs.has(p.slug));
     for (const p of activeProjects) {
-      insertProj.run(
+      await db.run(
+        `INSERT INTO projects (
+          title, slug, category, client_name, location, area_sqft, description, scope,
+          image_url, gallery, is_featured, sort_order, is_published, created_at, updated_at
+        ) VALUES (
+          ?, ?, ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, datetime('now'), datetime('now')
+        )`,
         p.title, p.slug, p.category, p.client_name, p.location, p.area_sqft,
         p.description, p.scope, p.image_url, p.gallery, p.is_featured, p.sort_order, p.is_published
       );
     }
-    logger.info(`Seeded ${activeProjects.length} projects across Central Kitchen, Hotels, Hospitality, and Residential categories.`);
+    logger.info(`Seeded ${activeProjects.length} projects across categories.`);
   }
 
-  // 5. Seed Testimonials (including Annie Bafna from green-square.co.in)
-  const testCount = db.prepare('SELECT COUNT(*) as count FROM testimonials').get()?.count ?? 0;
-  if (testCount === 0) {
+  // 5. Seed Testimonials
+  const testCountRow = await db.get('SELECT COUNT(*) as count FROM testimonials');
+  const testCount = Number(testCountRow?.count ?? 0);
+  if (testCount === 0 && !metaCheck?.value) {
     let deletedTestNames = new Set();
     try {
-      const deletedTestRows = db.prepare('SELECT client_name FROM deleted_testimonials WHERE client_name IS NOT NULL').all();
+      const deletedTestRows = (await db.all('SELECT client_name FROM deleted_testimonials WHERE client_name IS NOT NULL')) || [];
       deletedTestNames = new Set(deletedTestRows.map((r) => r.client_name));
     } catch (_) {}
 
@@ -389,26 +350,25 @@ export async function runSeed(force = false) {
         review: 'With 20+ years of expertise, Mr. Sanjay Baikerikar and his engineering team solved our complex MEP and acoustic challenges effortlessly. Outstanding craftsmanship in both dining areas and back of house.',
         sort_order: 4,
         is_published: 1,
-      }
+      },
     ].filter((t) => !deletedTestNames.has(t.client_name));
 
-    const insertTestimonial = db.prepare(`
-      INSERT INTO testimonials (client_name, business_type, rating, review, is_published, sort_order, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-    `);
-
     for (const t of sampleTestimonials) {
-      insertTestimonial.run(t.client_name, t.business_type, t.rating, t.review, t.is_published, t.sort_order);
+      await db.run(
+        `INSERT INTO testimonials (client_name, business_type, rating, review, is_published, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+        t.client_name, t.business_type, t.rating, t.review, t.is_published, t.sort_order
+      );
     }
   }
 
   // Record that initial seed completed so re-runs never delete or recreate records
-  db.prepare(`
+  await db.run(`
     INSERT OR REPLACE INTO _system_meta (key, value, updated_at)
     VALUES ('initial_seed_completed', 'true', datetime('now'))
-  `).run();
+  `);
 
-  logger.info('Database seeded successfully and marked initial_seed_completed.');
+  logger.info('Database initial setup completed and permanently marked initial_seed_completed.');
 }
 
 export default runSeed;
