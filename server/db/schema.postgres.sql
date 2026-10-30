@@ -65,6 +65,11 @@ CREATE TABLE IF NOT EXISTS deleted_testimonials (
   deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Prevent repeated historical tombstones from being inserted more than once.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_deleted_testimonials_identity
+  ON deleted_testimonials (COALESCE(testimonial_id, -1), COALESCE(client_name, ''))
+  WHERE testimonial_id IS NOT NULL OR client_name IS NOT NULL;
+
 -- 5. PROJECTS TABLE
 CREATE TABLE IF NOT EXISTS projects (
   id SERIAL PRIMARY KEY,
