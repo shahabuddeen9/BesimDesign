@@ -163,17 +163,26 @@ async function runMigration() {
       // --- E. Deleted Testimonials Tombstones ---
       let deletedTestCount = 0;
       try {
-        const delTestRows = getSqliteRows('SELECT * FROM deleted_testimonials');
+        // Collapse the source's repeated historical entries to unique identities before transfer.
+        const delTestRows = getSqliteRows(`
+          SELECT testimonial_id, client_name, MAX(deleted_at) AS deleted_at
+          FROM deleted_testimonials
+          WHERE testimonial_id IS NOT NULL OR client_name IS NOT NULL
+          GROUP BY testimonial_id, client_name
+        `);
         for (const r of delTestRows) {
-          await client.query(
+          const inserted = await client.query(
             `INSERT INTO deleted_testimonials (testimonial_id, client_name, deleted_at)
-             VALUES ($1, $2, COALESCE($3::timestamptz, NOW()))`,
-            [r.testimonial_id || null, r.client_name || null, r.deleted_at || null]
+             VALUES ($1, $2, COALESCE($3::timestamptz, NOW()))
+             ON CONFLICT DO NOTHING`,
+            [r.testimonial_id ?? null, r.client_name ?? null, r.deleted_at || null]
           );
-          deletedTestCount++;
+          deletedTestCount += inserted.rowCount;
         }
-      } catch (_) {}
-      console.log(`✓ Migrated ${deletedTestCount} deleted testimonial tombstone(s).`);
+      } catch (error) {
+        throw new Error(`Failed migrating deleted testimonial tombstones: ${error.message}`);
+      }
+      console.log(`✓ Migrated ${deletedTestCount} unique deleted testimonial tombstone(s).`);
 
       // --- F. Testimonials ---
       const testRows = getSqliteRows('SELECT * FROM testimonials');
@@ -203,18 +212,25 @@ async function runMigration() {
       // --- G. Deleted Projects Tombstones ---
       let deletedProjCount = 0;
       try {
-        const delProjRows = getSqliteRows('SELECT * FROM deleted_projects');
+        // The source contains many repeated rows; group them by tombstone identity before transfer.
+        const delProjRows = getSqliteRows(`
+          SELECT project_id, slug, title, MAX(deleted_at) AS deleted_at
+          FROM deleted_projects
+          GROUP BY project_id, slug, title
+        `);
         for (const r of delProjRows) {
-          await client.query(
+          const inserted = await client.query(
             `INSERT INTO deleted_projects (project_id, slug, title, deleted_at)
              VALUES ($1, $2, $3, COALESCE($4::timestamptz, NOW()))
              ON CONFLICT (slug) WHERE slug IS NOT NULL DO NOTHING`,
-            [r.project_id || null, r.slug || null, r.title || null, r.deleted_at || null]
+            [r.project_id ?? null, r.slug ?? null, r.title ?? null, r.deleted_at || null]
           );
-          deletedProjCount++;
+          deletedProjCount += inserted.rowCount;
         }
-      } catch (_) {}
-      console.log(`✓ Migrated ${deletedProjCount} deleted project tombstone(s).`);
+      } catch (error) {
+        throw new Error(`Failed migrating deleted project tombstones: ${error.message}`);
+      }
+      console.log(`✓ Migrated ${deletedProjCount} unique deleted project tombstone(s).`);
 
       // --- H. Projects ---
       const projRows = getSqliteRows('SELECT * FROM projects');
