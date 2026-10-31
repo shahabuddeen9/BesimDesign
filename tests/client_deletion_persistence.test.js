@@ -140,4 +140,89 @@ describe('Permanent Client Deletion Lifecycle & Anti-Resurrection', () => {
     expect(saudiaFound).toBe(false);
     expect(whiteOakFound).toBe(false);
   });
+
+  it('Step 9: Verifies that ONLY the 2 intended clients are active in the public showcase', async () => {
+    const pubRes = await request(app).get('/api/clients');
+    expect(pubRes.status).toBe(200);
+    expect(pubRes.body.success).toBe(true);
+    expect(pubRes.body.data.length).toBe(2);
+
+    const clientNames = pubRes.body.data.map((c) => c.name).sort();
+    expect(clientNames).toEqual(['FOO Asian Tapas', 'The Nutcracker']);
+
+    const nutcracker = pubRes.body.data.find((c) => c.name === 'The Nutcracker');
+    expect(nutcracker.category).toBe('Hospitality & F&B');
+
+    const foo = pubRes.body.data.find((c) => c.name === 'FOO Asian Tapas');
+    expect(foo.category).toBe('Fine Dining & Hospitality');
+  });
+
+  it('Step 10: Verifies that all 15 decommissioned brands have tombstones and never appear in public or admin APIs', async () => {
+    const decommissioned = [
+      'HDFC Bank',
+      "Dave & Buster's",
+      'Royal China',
+      'SAZ American Brasserie',
+      'RSVP',
+      'Parinee Group',
+      'The Silver Train',
+      "Ping's Orient",
+      'SEA-Yah',
+      'LAPOZ',
+      'HOM',
+      'IGI',
+      'CDC',
+      'Nikita',
+      'Otoki',
+    ];
+
+    const pubRes = await request(app).get('/api/clients');
+    const adminRes = await request(app).get('/api/admin/clients').set('Cookie', [authCookie]);
+
+    for (const brand of decommissioned) {
+      const inPub = pubRes.body.data.some((c) => c.name.toLowerCase() === brand.toLowerCase());
+      expect(inPub, `Decommissioned brand "${brand}" should not appear in public API`).toBe(false);
+
+      const inAdmin = adminRes.body.data.some((c) => c.name.toLowerCase() === brand.toLowerCase());
+      expect(inAdmin, `Decommissioned brand "${brand}" should not appear in admin API`).toBe(false);
+    }
+  });
+
+  it('Step 11: Verifies atomic rollback if writing a tombstone fails during deletion', async () => {
+    // Insert a temporary client
+    const tempName = `Rollback Test Client ${Date.now()}`;
+    const insertRes = await db.run(
+      'INSERT INTO clients (name, category, is_featured, sort_order) VALUES (?, ?, ?, ?)',
+      tempName, 'Rollback Test', 0, 999
+    );
+    const tempId = insertRes.lastInsertRowid;
+
+    // Verify it exists in db
+    const clientBefore = await db.get('SELECT * FROM clients WHERE id = ?', tempId);
+    expect(clientBefore).toBeDefined();
+
+    // Now attempt a transaction where the tombstone operation throws an error
+    let transactionFailed = false;
+    try {
+      await db.withTransaction(async (tx) => {
+        // delete client first in tx
+        await tx.run('DELETE FROM clients WHERE id = ?', tempId);
+        // deliberately throw to simulate tombstone write failure
+        throw new Error('SIMULATED_TOMBSTONE_WRITE_FAILURE');
+      });
+    } catch (err) {
+      transactionFailed = true;
+      expect(err.message).toBe('SIMULATED_TOMBSTONE_WRITE_FAILURE');
+    }
+
+    expect(transactionFailed).toBe(true);
+
+    // Verify the client was NOT deleted from DB due to atomic rollback
+    const clientAfter = await db.get('SELECT * FROM clients WHERE id = ?', tempId);
+    expect(clientAfter).toBeDefined();
+    expect(clientAfter.name).toBe(tempName);
+
+    // Clean up
+    await db.run('DELETE FROM clients WHERE id = ?', tempId);
+  });
 });

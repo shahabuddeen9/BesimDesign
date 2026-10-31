@@ -20,6 +20,10 @@ import { generalLimiter } from './middleware/rateLimit.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
+const uploadsPath = process.env.VERCEL ? '/tmp/uploads' : path.resolve(projectRoot, 'uploads');
+const projectUploadsPath = path.resolve(projectRoot, 'uploads');
+const publicPath = path.resolve(projectRoot, 'public');
+const distPath = path.resolve(projectRoot, 'dist');
 
 export const app = express();
 
@@ -117,11 +121,6 @@ app.get('/admin/projects', (req, res) => {
 });
 
 // 7. Static Asset Hosting
-const uploadsPath = process.env.VERCEL ? '/tmp/uploads' : path.resolve(projectRoot, 'uploads');
-const projectUploadsPath = path.resolve(projectRoot, 'uploads');
-const publicPath = path.resolve(projectRoot, 'public');
-const distPath = path.resolve(projectRoot, 'dist');
-
 try {
   if (!fs.existsSync(uploadsPath)) fs.mkdirSync(uploadsPath, { recursive: true });
 } catch (_) {}
@@ -187,6 +186,14 @@ app.get(['/showcase', '/showcase.html'], (req, res) => {
   res.sendFile(target);
 });
 
+app.get(['/privacy', '/privacy.html'], (req, res) => {
+  const distFile = path.resolve(distPath, 'privacy.html');
+  const pubFile = path.resolve(publicPath, 'privacy.html');
+  const rootFile = path.resolve(projectRoot, 'privacy.html');
+  const target = fs.existsSync(distFile) ? distFile : (fs.existsSync(pubFile) ? pubFile : rootFile);
+  res.sendFile(target);
+});
+
 // 7. General API Rate Limiting for /api
 app.use('/api', generalLimiter);
 
@@ -215,6 +222,23 @@ app.use('/api/*', (req, res) => {
   res.status(404).json({
     success: false,
     message: `API route ${req.originalUrl} not found.`,
+  });
+});
+
+// 404 handler for unmatched public routes (serving branded 404.html for HTML requests)
+app.use((req, res) => {
+  if (req.accepts('html')) {
+    const dist404 = path.resolve(distPath, '404.html');
+    const pub404 = path.resolve(publicPath, '404.html');
+    const root404 = path.resolve(projectRoot, '404.html');
+    const target404 = fs.existsSync(dist404) ? dist404 : (fs.existsSync(pub404) ? pub404 : root404);
+    if (fs.existsSync(target404)) {
+      return res.status(404).sendFile(target404);
+    }
+  }
+  res.status(404).json({
+    success: false,
+    message: 'Resource not found',
   });
 });
 

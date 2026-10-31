@@ -72,10 +72,21 @@ export async function getStats(req, res, next) {
     const totalDownloadsRow = await db.get('SELECT COUNT(*) as count FROM downloads');
     const totalDownloads = Number(totalDownloadsRow?.count ?? 0);
 
-    // 7. Total Projects, Clients, Testimonials
-    const totalProjectsRow = await db.get('SELECT COUNT(*) as count FROM projects');
-    const totalClientsRow = await db.get('SELECT COUNT(*) as count FROM clients');
-    const totalTestimonialsRow = await db.get('SELECT COUNT(*) as count FROM testimonials');
+    // 7. Total Projects, Clients, Testimonials (excluding tombstones)
+    const totalProjectsRow = await db.get(`
+      SELECT COUNT(*) as count FROM projects
+      WHERE id NOT IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
+        AND slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL)
+    `);
+    const totalClientsRow = await db.get(`
+      SELECT COUNT(*) as count FROM clients
+      WHERE name NOT IN (SELECT client_name FROM deleted_clients WHERE client_name IS NOT NULL)
+    `);
+    const totalTestimonialsRow = await db.get(`
+      SELECT COUNT(*) as count FROM testimonials
+      WHERE id NOT IN (SELECT testimonial_id FROM deleted_testimonials WHERE testimonial_id IS NOT NULL)
+        AND client_name NOT IN (SELECT client_name FROM deleted_testimonials WHERE client_name IS NOT NULL)
+    `);
 
     const totalProjects = Number(totalProjectsRow?.count ?? 0);
     const totalClients = Number(totalClientsRow?.count ?? 0);

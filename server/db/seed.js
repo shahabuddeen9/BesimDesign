@@ -13,7 +13,7 @@
 import bcrypt from 'bcryptjs';
 import env from '../config/env.js';
 import logger from '../utils/logger.js';
-import { db, initDb } from './index.js';
+import { db, initDb, DECOMMISSIONED_CLIENTS } from './index.js';
 
 export async function runSeed(force = false) {
   await initDb();
@@ -68,11 +68,12 @@ export async function runSeed(force = false) {
   if (clientCount === 0 && !metaCheck?.value) {
     const deletedRows = (await db.all('SELECT client_name FROM deleted_clients')) || [];
     const deletedNames = new Set(deletedRows.map((r) => r.client_name));
+    const decommissionedSet = new Set(DECOMMISSIONED_CLIENTS || []);
 
     const sampleClients = [
       { name: 'The Nutcracker', category: 'Hospitality & F&B', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/Nutcracker.jpg', is_featured: 1, sort_order: 1 },
       { name: 'FOO Asian Tapas', category: 'Fine Dining & Hospitality', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/FOO.jpg', is_featured: 1, sort_order: 2 },
-    ].filter((c) => !deletedNames.has(c.name));
+    ].filter((c) => !deletedNames.has(c.name) && !decommissionedSet.has(c.name));
 
     for (const c of sampleClients) {
       await db.run(

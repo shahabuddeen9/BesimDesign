@@ -65,6 +65,7 @@ export async function getAllClients(req, res, next) {
     const clients = await db.all(`
       SELECT id, name, category, logo_url, website_url, description, is_featured, sort_order, created_at, updated_at
       FROM clients
+      WHERE name NOT IN (SELECT client_name FROM deleted_clients WHERE client_name IS NOT NULL)
       ORDER BY sort_order ASC, created_at DESC
     `);
 
@@ -87,25 +88,28 @@ export async function createClient(req, res, next) {
     const sanitizedCat = stripHtml(validated.category);
     const sanitizedDesc = stripHtml(validated.description);
 
-    // If re-adding a previously deleted client, remove from tombstone table
-    try {
-      await db.run('DELETE FROM deleted_clients WHERE client_name = ?', sanitizedName);
-      syncDeletedClientsFile();
-    } catch (_) {}
+    let newId;
+    await db.withTransaction(async (tx) => {
+      // If re-adding a previously deleted client, remove from tombstone table
+      await tx.run('DELETE FROM deleted_clients WHERE LOWER(client_name) = LOWER(?)', sanitizedName);
 
-    const result = await db.run(
-      `INSERT INTO clients (name, category, logo_url, website_url, description, is_featured, sort_order, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
-      sanitizedName,
-      sanitizedCat,
-      validated.logo_url || '',
-      validated.website_url || '',
-      sanitizedDesc,
-      validated.is_featured,
-      validated.sort_order
-    );
+      const result = await tx.run(
+        `INSERT INTO clients (name, category, logo_url, website_url, description, is_featured, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+        sanitizedName,
+        sanitizedCat,
+        validated.logo_url || '',
+        validated.website_url || '',
+        sanitizedDesc,
+        validated.is_featured,
+        validated.sort_order
+      );
+      newId = result.lastInsertRowid || result.row?.id;
+    });
 
-    const newId = result.lastInsertRowid || result.row?.id;
+    db.persist();
+    syncDeletedClientsFile();
+
     const created = await db.get('SELECT * FROM clients WHERE id = ?', newId);
 
     return res.status(201).json({
@@ -177,11 +181,14 @@ export async function deleteClient(req, res, next) {
     const existing = await db.get('SELECT id, name FROM clients WHERE id = ? OR id = ?', rawId, numId);
     if (!existing) throw new AppError('Client not found', 404);
 
-    // 1. Permanently record in tombstone table so seed or DB recreation never resurrects it
-    await recordDeletedClient(existing.name, existing.id);
+    // Atomically record tombstone and delete client inside a single transaction
+    await db.withTransaction(async (tx) => {
+      // 1. Permanently record in tombstone table so seed or DB recreation never resurrects it
+      await recordDeletedClient(existing.name, existing.id, tx);
 
-    // 2. Permanently delete from clients table
-    await db.run('DELETE FROM clients WHERE id = ?', existing.id);
+      // 2. Permanently delete from clients table
+      await tx.run('DELETE FROM clients WHERE id = ?', existing.id);
+    });
 
     // 3. Flush/sync tombstones
     db.persist();

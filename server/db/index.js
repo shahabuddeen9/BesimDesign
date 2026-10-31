@@ -26,6 +26,27 @@ const projectRoot = path.resolve(currentDir, '../..');
 // State flags
 export const isPostgres = Boolean(env.DATABASE_URL || env.POSTGRES_URL);
 
+// Permanent decommissioned brand list per Section 3 requirements
+export const DECOMMISSIONED_CLIENTS = [
+  'HDFC Bank',
+  "Dave & Buster's",
+  'Dave & Buster’s',
+  'Royal China',
+  'SAZ American Brasserie',
+  'RSVP',
+  'Parinee Group',
+  'The Silver Train',
+  "Ping's Orient",
+  'Ping’s Orient',
+  'SEA-Yah',
+  'LAPOZ',
+  'HOM',
+  'IGI',
+  'CDC',
+  'Nikita',
+  'Otoki',
+];
+
 let pgPool = null;
 let rawDb = null;
 let SQL = null;
@@ -68,6 +89,21 @@ export function transformSqlForPostgres(sql) {
     if (!out.includes('ON CONFLICT')) {
       out = `${out.trim().replace(/;$/, '')} ON CONFLICT (client_name) DO NOTHING`;
     }
+  } else if (/INSERT\s+OR\s+REPLACE\s+INTO\s+deleted_projects/i.test(out)) {
+    out = out.replace(/INSERT\s+OR\s+REPLACE\s+INTO\s+deleted_projects/i, 'INSERT INTO deleted_projects');
+    if (!out.includes('ON CONFLICT')) {
+      out = `${out.trim().replace(/;$/, '')} ON CONFLICT (slug) DO UPDATE SET deleted_at = NOW()`;
+    }
+  } else if (/INSERT\s+OR\s+IGNORE\s+INTO\s+deleted_projects/i.test(out)) {
+    out = out.replace(/INSERT\s+OR\s+IGNORE\s+INTO\s+deleted_projects/i, 'INSERT INTO deleted_projects');
+    if (!out.includes('ON CONFLICT')) {
+      out = `${out.trim().replace(/;$/, '')} ON CONFLICT (slug) DO NOTHING`;
+    }
+  } else if (/INSERT\s+OR\s+(REPLACE|IGNORE)\s+INTO\s+deleted_testimonials/i.test(out)) {
+    out = out.replace(/INSERT\s+OR\s+(REPLACE|IGNORE)\s+INTO\s+deleted_testimonials/i, 'INSERT INTO deleted_testimonials');
+    if (!out.includes('ON CONFLICT')) {
+      out = `${out.trim().replace(/;$/, '')} ON CONFLICT DO NOTHING`;
+    }
   } else if (/INSERT\s+OR\s+IGNORE\s+INTO\s+admins/i.test(out)) {
     out = out.replace(/INSERT\s+OR\s+IGNORE\s+INTO\s+admins/i, 'INSERT INTO admins');
     if (!out.includes('ON CONFLICT')) {
@@ -75,9 +111,9 @@ export function transformSqlForPostgres(sql) {
     }
   }
 
-  // If query is an INSERT and does not have RETURNING clause, add RETURNING id
+  // If query is an INSERT and does not have RETURNING clause, add RETURNING *
   if (/^\s*INSERT\s+INTO/i.test(out) && !/RETURNING/i.test(out)) {
-    out = `${out.trim().replace(/;$/, '')} RETURNING id, *`;
+    out = `${out.trim().replace(/;$/, '')} RETURNING *`;
   }
 
   return out;
@@ -208,7 +244,17 @@ async function initPostgresSchema(pool) {
     logger.info('PostgreSQL schema initialized from fallback definitions.');
   }
 
-  // Ensure initial tombstones are respected in PostgreSQL
+  // 1. Ensure decommissioned clients have permanent tombstones in PostgreSQL
+  for (const name of DECOMMISSIONED_CLIENTS) {
+    try {
+      await pool.query(
+        'INSERT INTO deleted_clients (client_name, deleted_at) VALUES ($1, NOW()) ON CONFLICT (client_name) DO NOTHING',
+        [name]
+      );
+    } catch (_) {}
+  }
+
+  // 2. Ensure initial tombstones are respected in PostgreSQL
   await pool.query(`
     DELETE FROM clients WHERE name IN (SELECT client_name FROM deleted_clients);
     DELETE FROM testimonials WHERE id IN (SELECT testimonial_id FROM deleted_testimonials WHERE testimonial_id IS NOT NULL)
@@ -216,6 +262,14 @@ async function initPostgresSchema(pool) {
     DELETE FROM projects WHERE id IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
       OR slug IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL);
   `);
+
+  // 3. Synchronize PostgreSQL SERIAL sequences with current MAX(id)
+  const seqTables = ['clients', 'projects', 'testimonials', 'admins', 'enquiries', 'downloads'];
+  for (const tbl of seqTables) {
+    try {
+      await pool.query(`SELECT setval(pg_get_serial_sequence('${tbl}', 'id'), COALESCE((SELECT MAX(id) FROM ${tbl}), 1), true)`);
+    } catch (_) {}
+  }
 }
 
 /**
@@ -365,6 +419,12 @@ export async function initDb() {
             deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
           );
         `);
+
+        // Ensure decommissioned clients have tombstones in SQLite
+        for (const name of DECOMMISSIONED_CLIENTS) {
+          rawDb.run("INSERT OR IGNORE INTO deleted_clients (client_name, deleted_at) VALUES (?, datetime('now'))", [name]);
+        }
+
         rawDb.run('DELETE FROM clients WHERE name IN (SELECT client_name FROM deleted_clients);');
         rawDb.run('DELETE FROM testimonials WHERE id IN (SELECT testimonial_id FROM deleted_testimonials WHERE testimonial_id IS NOT NULL) OR client_name IN (SELECT client_name FROM deleted_testimonials WHERE client_name IS NOT NULL);');
         rawDb.run('DELETE FROM projects WHERE id IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL) OR slug IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL);');
@@ -555,56 +615,134 @@ export const db = {
 
   /**
    * Wraps a callback function in a single database transaction.
+   * Supports synchronous execution for SQLite / better-sqlite3 compatibility,
+   * while seamlessly supporting async functions and PostgreSQL client isolation.
    */
   transaction(fn) {
-    return (...args) => {
-      if (isPostgres) {
-        return (async () => {
-          if (!pgPool) await initDb();
-          const client = await pgPool.connect();
-          try {
-            await client.query('BEGIN');
-            const result = await fn(...args);
-            await client.query('COMMIT');
-            return result;
-          } catch (err) {
-            try { await client.query('ROLLBACK'); } catch (_) {}
-            throw err;
-          } finally {
-            client.release();
-          }
-        })();
-      }
-
-      if (!rawDb) throw new Error('Database not initialized!');
-      inTransaction = true;
-      rawDb.run('BEGIN TRANSACTION;');
-      try {
-        const result = fn(...args);
-        if (result && typeof result.then === 'function') {
-          return result
-            .then((res) => {
-              rawDb.run('COMMIT;');
-              inTransaction = false;
-              persistDb();
-              return res;
-            })
-            .catch((err) => {
-              try { rawDb.run('ROLLBACK;'); } catch (_) {}
-              inTransaction = false;
-              throw err;
-            });
+    if (!isPostgres) {
+      return (...args) => {
+        if (!rawDb) initDb();
+        if (inTransaction) {
+          return fn(...args);
         }
-        rawDb.run('COMMIT;');
-        inTransaction = false;
-        persistDb();
+        inTransaction = true;
+        try {
+          rawDb.run('BEGIN TRANSACTION;');
+          const result = fn(...args);
+          if (result && typeof result.then === 'function') {
+            return result.then(
+              (val) => {
+                rawDb.run('COMMIT;');
+                inTransaction = false;
+                persistDb();
+                return val;
+              },
+              (err) => {
+                try { rawDb.run('ROLLBACK;'); } catch (_) {}
+                inTransaction = false;
+                throw err;
+              }
+            );
+          }
+          rawDb.run('COMMIT;');
+          inTransaction = false;
+          persistDb();
+          return result;
+        } catch (err) {
+          try { rawDb.run('ROLLBACK;'); } catch (_) {}
+          inTransaction = false;
+          throw err;
+        }
+      };
+    }
+    return (...args) => this.withTransaction((tx) => fn(...args));
+  },
+
+  /**
+   * Executes an async callback inside an atomic transaction.
+   * In PostgreSQL mode, all queries execute on the exact same acquired client connection.
+   * If any error is thrown, the transaction is automatically rolled back.
+   */
+  async withTransaction(fn) {
+    if (isPostgres) {
+      if (!pgPool) await initDb();
+      const client = await pgPool.connect();
+      try {
+        await client.query('BEGIN');
+        const txDb = {
+          client,
+          isPostgres: true,
+          query: async (sql, params = []) => {
+            const pgSql = transformSqlForPostgres(sql);
+            const res = await client.query(pgSql, params.map(normalizePgParam));
+            return { rows: res.rows, rowCount: res.rowCount };
+          },
+          run: async (sql, ...params) => {
+            const rawParams = extractParams(params);
+            const pgSql = transformSqlForPostgres(sql);
+            const res = await client.query(pgSql, rawParams.map(normalizePgParam));
+            const row = res.rows && res.rows[0] ? res.rows[0] : null;
+            return {
+              lastInsertRowid: row ? (row.id ?? null) : null,
+              changes: res.rowCount ?? 0,
+              row,
+            };
+          },
+          get: async (sql, ...params) => {
+            const rawParams = extractParams(params);
+            const pgSql = transformSqlForPostgres(sql);
+            const res = await client.query(pgSql, rawParams.map(normalizePgParam));
+            return res.rows[0] ?? undefined;
+          },
+          all: async (sql, ...params) => {
+            const rawParams = extractParams(params);
+            const pgSql = transformSqlForPostgres(sql);
+            const res = await client.query(pgSql, rawParams.map(normalizePgParam));
+            return res.rows;
+          },
+        };
+        const result = await fn(txDb);
+        await client.query('COMMIT');
         return result;
       } catch (err) {
-        try { rawDb.run('ROLLBACK;'); } catch (_) {}
-        inTransaction = false;
+        try { await client.query('ROLLBACK'); } catch (_) {}
         throw err;
+      } finally {
+        client.release();
       }
-    };
+    }
+
+    // SQLite mode (sql.js)
+    if (!rawDb) await initDb();
+    inTransaction = true;
+    rawDb.run('BEGIN TRANSACTION;');
+    try {
+      const txDb = {
+        isPostgres: false,
+        run: async (sql, ...params) => {
+          return db.prepare(sql).run(...params);
+        },
+        get: async (sql, ...params) => {
+          return db.prepare(sql).get(...params);
+        },
+        all: async (sql, ...params) => {
+          return db.prepare(sql).all(...params);
+        },
+        query: async (sql, params = []) => {
+          const rows = db.prepare(sql).all(...params);
+          return { rows, rowCount: rows.length };
+        },
+      };
+      const result = await fn(txDb);
+      rawDb.run('COMMIT;');
+      inTransaction = false;
+      persistDb();
+      return result;
+    } catch (err) {
+      try { rawDb.run('ROLLBACK;'); } catch (_) {}
+      inTransaction = false;
+      throw err;
+    }
   },
 
   /**
@@ -646,63 +784,88 @@ export const db = {
 
 /**
  * Record a deleted client tombstone in persistent database.
+ * Does not swallow errors — fails cleanly to enforce atomic deletion transactions.
  */
-export async function recordDeletedClient(name, id = null) {
+export async function recordDeletedClient(name, id = null, tx = null) {
   if (!name) return;
-  try {
-    if (isPostgres && pgPool) {
+  const trimmed = name.trim();
+  if (isPostgres) {
+    if (tx && tx.client) {
+      await tx.client.query(
+        'INSERT INTO deleted_clients (client_name, client_id, deleted_at) VALUES ($1, $2, NOW()) ON CONFLICT (client_name) DO UPDATE SET deleted_at = NOW(), client_id = EXCLUDED.client_id',
+        [trimmed, id]
+      );
+    } else {
+      if (!pgPool) await initDb();
       await pgPool.query(
         'INSERT INTO deleted_clients (client_name, client_id, deleted_at) VALUES ($1, $2, NOW()) ON CONFLICT (client_name) DO UPDATE SET deleted_at = NOW(), client_id = EXCLUDED.client_id',
-        [name.trim(), id]
+        [trimmed, id]
       );
-    } else if (rawDb) {
-      rawDb.run("INSERT OR REPLACE INTO deleted_clients (client_name, client_id, deleted_at) VALUES (?, ?, datetime('now'))", [name.trim(), id]);
-      persistDb();
     }
-    syncTombstones();
-  } catch (err) {
-    logger.warn('Failed to record deleted client tombstone:', err);
+  } else if (rawDb) {
+    rawDb.run(
+      "INSERT OR REPLACE INTO deleted_clients (client_name, client_id, deleted_at) VALUES (?, ?, datetime('now'))",
+      [trimmed, id]
+    );
+    if (!inTransaction) persistDb();
   }
+  syncTombstones().catch(() => {});
 }
 
 /**
  * Record a deleted testimonial tombstone in persistent database.
+ * Does not swallow errors — fails cleanly to enforce atomic deletion transactions.
  */
-export async function recordDeletedTestimonial(id, clientName = null) {
-  try {
-    if (isPostgres && pgPool) {
-      await pgPool.query(
-        'INSERT INTO deleted_testimonials (testimonial_id, client_name, deleted_at) VALUES ($1, $2, NOW())',
-        [id || null, clientName || null]
+export async function recordDeletedTestimonial(id, clientName = null, tx = null) {
+  if (isPostgres) {
+    if (tx && tx.client) {
+      await tx.client.query(
+        'INSERT INTO deleted_testimonials (testimonial_id, client_name, deleted_at) VALUES ($1, $2, NOW()) ON CONFLICT DO NOTHING',
+        [id || null, clientName ? clientName.trim() : null]
       );
-    } else if (rawDb) {
-      rawDb.run("INSERT OR REPLACE INTO deleted_testimonials (testimonial_id, client_name, deleted_at) VALUES (?, ?, datetime('now'))", [id || null, clientName || null]);
-      persistDb();
+    } else {
+      if (!pgPool) await initDb();
+      await pgPool.query(
+        'INSERT INTO deleted_testimonials (testimonial_id, client_name, deleted_at) VALUES ($1, $2, NOW()) ON CONFLICT DO NOTHING',
+        [id || null, clientName ? clientName.trim() : null]
+      );
     }
-    syncTombstones();
-  } catch (err) {
-    logger.warn('Failed to record deleted testimonial tombstone:', err);
+  } else if (rawDb) {
+    rawDb.run(
+      "INSERT OR REPLACE INTO deleted_testimonials (testimonial_id, client_name, deleted_at) VALUES (?, ?, datetime('now'))",
+      [id || null, clientName ? clientName.trim() : null]
+    );
+    if (!inTransaction) persistDb();
   }
+  syncTombstones().catch(() => {});
 }
 
 /**
  * Record a deleted project tombstone in persistent database.
+ * Does not swallow errors — fails cleanly to enforce atomic deletion transactions.
  */
-export async function recordDeletedProject(id, slug = null, title = null) {
-  try {
-    if (isPostgres && pgPool) {
-      await pgPool.query(
-        'INSERT INTO deleted_projects (project_id, slug, title, deleted_at) VALUES ($1, $2, $3, NOW())',
-        [id || null, slug || null, title || null]
+export async function recordDeletedProject(id, slug = null, title = null, tx = null) {
+  if (isPostgres) {
+    if (tx && tx.client) {
+      await tx.client.query(
+        'INSERT INTO deleted_projects (project_id, slug, title, deleted_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT (slug) DO NOTHING',
+        [id || null, slug ? slug.trim() : null, title ? title.trim() : null]
       );
-    } else if (rawDb) {
-      rawDb.run("INSERT OR REPLACE INTO deleted_projects (project_id, slug, title, deleted_at) VALUES (?, ?, ?, datetime('now'))", [id || null, slug || null, title || null]);
-      persistDb();
+    } else {
+      if (!pgPool) await initDb();
+      await pgPool.query(
+        'INSERT INTO deleted_projects (project_id, slug, title, deleted_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT (slug) DO NOTHING',
+        [id || null, slug ? slug.trim() : null, title ? title.trim() : null]
+      );
     }
-    syncTombstones();
-  } catch (err) {
-    logger.warn('Failed to record deleted project tombstone:', err);
+  } else if (rawDb) {
+    rawDb.run(
+      "INSERT OR REPLACE INTO deleted_projects (project_id, slug, title, deleted_at) VALUES (?, ?, ?, datetime('now'))",
+      [id || null, slug ? slug.trim() : null, title ? title.trim() : null]
+    );
+    if (!inTransaction) persistDb();
   }
+  syncTombstones().catch(() => {});
 }
 
 /**
@@ -731,16 +894,16 @@ export async function syncTombstones() {
     let projList = [];
 
     if (isPostgres && pgPool) {
-      const cRes = await pgPool.query('SELECT client_name FROM deleted_clients ORDER BY client_name ASC');
+      const cRes = await pgPool.query('SELECT DISTINCT client_name FROM deleted_clients WHERE client_name IS NOT NULL ORDER BY client_name ASC');
       clientList = cRes.rows.map((r) => r.client_name).filter(Boolean);
 
-      const tRes = await pgPool.query('SELECT testimonial_id, client_name FROM deleted_testimonials');
+      const tRes = await pgPool.query('SELECT DISTINCT testimonial_id, client_name FROM deleted_testimonials WHERE testimonial_id IS NOT NULL OR client_name IS NOT NULL');
       testList = tRes.rows.map((r) => ({ id: r.testimonial_id, client_name: r.client_name }));
 
-      const pRes = await pgPool.query('SELECT project_id, slug, title FROM deleted_projects');
+      const pRes = await pgPool.query('SELECT DISTINCT project_id, slug, title FROM deleted_projects WHERE project_id IS NOT NULL OR slug IS NOT NULL');
       projList = pRes.rows.map((r) => ({ id: r.project_id, slug: r.slug, title: r.title }));
     } else if (rawDb) {
-      const clientStmt = rawDb.prepare('SELECT client_name FROM deleted_clients ORDER BY client_name ASC');
+      const clientStmt = rawDb.prepare('SELECT DISTINCT client_name FROM deleted_clients WHERE client_name IS NOT NULL ORDER BY client_name ASC');
       try {
         while (clientStmt.step()) {
           const obj = clientStmt.getAsObject();
@@ -750,7 +913,7 @@ export async function syncTombstones() {
         clientStmt.free();
       }
 
-      const testStmt = rawDb.prepare('SELECT testimonial_id, client_name FROM deleted_testimonials');
+      const testStmt = rawDb.prepare('SELECT DISTINCT testimonial_id, client_name FROM deleted_testimonials WHERE testimonial_id IS NOT NULL OR client_name IS NOT NULL');
       try {
         while (testStmt.step()) {
           const obj = testStmt.getAsObject();
@@ -760,7 +923,7 @@ export async function syncTombstones() {
         testStmt.free();
       }
 
-      const projStmt = rawDb.prepare('SELECT project_id, slug, title FROM deleted_projects');
+      const projStmt = rawDb.prepare('SELECT DISTINCT project_id, slug, title FROM deleted_projects WHERE project_id IS NOT NULL OR slug IS NOT NULL');
       try {
         while (projStmt.step()) {
           const obj = projStmt.getAsObject();
@@ -770,6 +933,30 @@ export async function syncTombstones() {
         projStmt.free();
       }
     }
+
+    // Ensure strict uniqueness in memory
+    const seenClients = new Set();
+    clientList = clientList.filter((c) => {
+      if (!c || seenClients.has(c)) return false;
+      seenClients.add(c);
+      return true;
+    });
+
+    const seenTests = new Set();
+    testList = testList.filter((t) => {
+      const key = `${t.id ?? ''}|${t.client_name ?? ''}`;
+      if (seenTests.has(key)) return false;
+      seenTests.add(key);
+      return true;
+    });
+
+    const seenProjs = new Set();
+    projList = projList.filter((p) => {
+      const key = `${p.id ?? ''}|${p.slug ?? ''}`;
+      if (seenProjs.has(key)) return false;
+      seenProjs.add(key);
+      return true;
+    });
 
     const clientContent = JSON.stringify(clientList, null, 2);
     for (const p of clientsPaths) {

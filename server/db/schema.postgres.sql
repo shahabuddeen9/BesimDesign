@@ -42,6 +42,27 @@ CREATE TABLE IF NOT EXISTS deleted_clients (
   deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Seed initial permanent tombstones for decommissioned brand showcase clients
+INSERT INTO deleted_clients (client_name, deleted_at) VALUES
+  ('HDFC Bank', NOW()),
+  ('Dave & Buster''s', NOW()),
+  ('Dave & Buster’s', NOW()),
+  ('Royal China', NOW()),
+  ('SAZ American Brasserie', NOW()),
+  ('RSVP', NOW()),
+  ('Parinee Group', NOW()),
+  ('The Silver Train', NOW()),
+  ('Ping''s Orient', NOW()),
+  ('Ping’s Orient', NOW()),
+  ('SEA-Yah', NOW()),
+  ('LAPOZ', NOW()),
+  ('HOM', NOW()),
+  ('IGI', NOW()),
+  ('CDC', NOW()),
+  ('Nikita', NOW()),
+  ('Otoki', NOW())
+ON CONFLICT (client_name) DO NOTHING;
+
 -- 4. TESTIMONIALS TABLE
 CREATE TABLE IF NOT EXISTS testimonials (
   id SERIAL PRIMARY KEY,

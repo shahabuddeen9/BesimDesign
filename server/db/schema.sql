@@ -76,6 +76,25 @@ CREATE TABLE IF NOT EXISTS deleted_clients (
   deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+INSERT OR IGNORE INTO deleted_clients (client_name, deleted_at) VALUES
+  ('HDFC Bank', datetime('now')),
+  ('Dave & Buster''s', datetime('now')),
+  ('Dave & Buster’s', datetime('now')),
+  ('Royal China', datetime('now')),
+  ('SAZ American Brasserie', datetime('now')),
+  ('RSVP', datetime('now')),
+  ('Parinee Group', datetime('now')),
+  ('The Silver Train', datetime('now')),
+  ('Ping''s Orient', datetime('now')),
+  ('Ping’s Orient', datetime('now')),
+  ('SEA-Yah', datetime('now')),
+  ('LAPOZ', datetime('now')),
+  ('HOM', datetime('now')),
+  ('IGI', datetime('now')),
+  ('CDC', datetime('now')),
+  ('Nikita', datetime('now')),
+  ('Otoki', datetime('now'));
+
 -- 2.7 DELETED TESTIMONIALS TOMBSTONE TABLE
 CREATE TABLE IF NOT EXISTS deleted_testimonials (
   testimonial_id INTEGER,

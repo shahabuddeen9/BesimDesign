@@ -112,7 +112,10 @@ export async function getProjectBySlug(req, res, next) {
     const project = await db.get(`
       SELECT id, title, slug, category, description, scope, image_url, gallery, is_featured, created_at
       FROM projects
-      WHERE slug = ? AND is_published = 1
+      WHERE slug = ?
+        AND is_published = 1
+        AND id NOT IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
+        AND slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL)
     `, slug);
 
     if (!project) {
@@ -139,6 +142,8 @@ export async function getAllProjects(req, res, next) {
   try {
     const rawProjects = await db.all(`
       SELECT * FROM projects
+      WHERE id NOT IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
+        AND slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL)
       ORDER BY sort_order ASC, created_at DESC
     `);
     const projects = (rawProjects || []).map((p) => ({
@@ -327,9 +332,15 @@ export async function deleteProject(req, res, next) {
       throw new AppError(`Project #${id} not found`, 404);
     }
 
-    await recordDeletedProject(existing.id, existing.slug, existing.title);
+    // Atomically write tombstone and delete inside a database transaction
+    await db.withTransaction(async (tx) => {
+      // 1. Record tombstone
+      await recordDeletedProject(existing.id, existing.slug, existing.title, tx);
 
-    await db.run('DELETE FROM projects WHERE id = ?', existing.id);
+      // 2. Delete project from database
+      await tx.run('DELETE FROM projects WHERE id = ?', existing.id);
+    });
+
     db.persist();
 
     return res.status(200).json({

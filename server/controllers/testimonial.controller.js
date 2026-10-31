@@ -57,6 +57,8 @@ export async function getAllTestimonials(req, res, next) {
 
     const testimonials = await db.all(`
       SELECT * FROM testimonials
+      WHERE id NOT IN (SELECT testimonial_id FROM deleted_testimonials WHERE testimonial_id IS NOT NULL)
+        AND client_name NOT IN (SELECT client_name FROM deleted_testimonials WHERE client_name IS NOT NULL)
       ORDER BY sort_order ASC, created_at DESC
     `);
 
@@ -164,10 +166,15 @@ export async function deleteTestimonial(req, res, next) {
       throw new AppError(`Testimonial #${id} not found`, 404);
     }
 
-    // Record tombstone so seed or reload never resurrects this testimonial
-    await recordDeletedTestimonial(existing.id, existing.client_name);
+    // Atomically write tombstone and delete inside a database transaction
+    await db.withTransaction(async (tx) => {
+      // 1. Record tombstone so seed or reload never resurrects this testimonial
+      await recordDeletedTestimonial(existing.id, existing.client_name, tx);
 
-    await db.run('DELETE FROM testimonials WHERE id = ?', existing.id);
+      // 2. Delete testimonial from database
+      await tx.run('DELETE FROM testimonials WHERE id = ?', existing.id);
+    });
+
     db.persist();
 
     return res.status(200).json({

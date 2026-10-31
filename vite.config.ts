@@ -21,6 +21,8 @@ export default defineConfig(() => {
           hospitality: path.resolve(import.meta.dirname, 'hospitality.html'),
           residential: path.resolve(import.meta.dirname, 'residential.html'),
           showcase: path.resolve(import.meta.dirname, 'showcase.html'),
+          privacy: path.resolve(import.meta.dirname, 'privacy.html'),
+          page404: path.resolve(import.meta.dirname, '404.html'),
         },
       },
     },
