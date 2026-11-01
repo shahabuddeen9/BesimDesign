@@ -1459,6 +1459,10 @@ function editClient(id) {
   document.getElementById('clientFeatured').value = c.is_featured !== undefined ? c.is_featured : 1;
   const statusEl = document.getElementById('clientUploadStatus');
   if (statusEl) statusEl.textContent = '';
+  const fileInput = document.getElementById('clientLogoFile');
+  if (fileInput) fileInput.value = '';
+  const saveBtn = document.getElementById('btnSaveClient');
+  if (saveBtn) saveBtn.disabled = false;
 
   openModal('modalClient');
 }
@@ -2325,48 +2329,131 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Client Logo Upload
+  // ==============================================================
+  // CLIENT LOGO UPLOAD & BRAND CLIENT FORM (PERMANENT 413 PROTECTION)
+  // ==============================================================
   const btnUploadClientLogo = document.getElementById('btnUploadClientLogo');
   const clientFileInput = document.getElementById('clientLogoFile');
   const clientUploadStatus = document.getElementById('clientUploadStatus');
+  const btnSaveClient = document.getElementById('btnSaveClient');
+  let isUploadingClientLogo = false;
 
+  async function uploadClientLogo(file) {
+    if (!file) {
+      if (clientUploadStatus) {
+        clientUploadStatus.textContent = 'Please choose an image file (JPG, PNG, WebP) first.';
+        clientUploadStatus.style.color = '#ef4444';
+      }
+      return null;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      if (clientUploadStatus) {
+        clientUploadStatus.textContent = 'Invalid file type. Only JPG, PNG, and WebP images are allowed.';
+        clientUploadStatus.style.color = '#ef4444';
+      }
+      showAdminToast('Invalid file type! Please select a JPG, PNG, or WebP image.', 'error');
+      return null;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      if (clientUploadStatus) {
+        clientUploadStatus.textContent = 'File too large! Maximum image file size is 10 MB.';
+        clientUploadStatus.style.color = '#ef4444';
+      }
+      showAdminToast('Logo file size exceeds 10 MB limit.', 'error');
+      return null;
+    }
+
+    isUploadingClientLogo = true;
+    if (btnSaveClient) btnSaveClient.disabled = true;
+    if (btnUploadClientLogo) btnUploadClientLogo.disabled = true;
+
+    if (clientUploadStatus) {
+      clientUploadStatus.textContent = `Uploading logo "${file.name}"...`;
+      clientUploadStatus.style.color = 'var(--gold)';
+    }
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const res = await adminFetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (res.ok && json.success) {
+        // ALWAYS use clean URL or storage path (/uploads/...) — NEVER raw data: Base64
+        let cleanUrl = (json.url || '').trim();
+        if (cleanUrl.startsWith('data:') || !cleanUrl) {
+          cleanUrl = json.localUrl || (json.filename ? `/uploads/${json.filename}` : '');
+        }
+
+        // Replace any Base64 data in the Client Logo field with the actual uploaded image URL or storage path
+        const logoUrlInput = document.getElementById('clientLogoUrl');
+        if (logoUrlInput) {
+          logoUrlInput.value = cleanUrl;
+        }
+        updateClientLogoPreview(cleanUrl);
+
+        if (clientFileInput) {
+          clientFileInput.value = '';
+        }
+
+        if (clientUploadStatus) {
+          clientUploadStatus.textContent = `Upload successful: ${json.filename || file.name}`;
+          clientUploadStatus.style.color = '#10b981';
+        }
+        showAdminToast('Client logo uploaded successfully.');
+        return cleanUrl;
+      } else {
+        const errorMsg = json.message || 'Logo upload failed. Please try another image.';
+        if (clientUploadStatus) {
+          clientUploadStatus.textContent = errorMsg;
+          clientUploadStatus.style.color = '#ef4444';
+        }
+        showAdminToast(errorMsg, 'error');
+        return null;
+      }
+    } catch (err) {
+      if (err.message !== 'Authentication required') {
+        if (clientUploadStatus) {
+          clientUploadStatus.textContent = 'Upload network error. Please try again.';
+          clientUploadStatus.style.color = '#ef4444';
+        }
+        showAdminToast('Network error while uploading logo.', 'error');
+      }
+      return null;
+    } finally {
+      isUploadingClientLogo = false;
+      if (btnSaveClient) btnSaveClient.disabled = false;
+      if (btnUploadClientLogo) btnUploadClientLogo.disabled = false;
+    }
+  }
+
+  // Upload button click listener
   if (btnUploadClientLogo && clientFileInput) {
     btnUploadClientLogo.addEventListener('click', async () => {
       if (!clientFileInput.files || clientFileInput.files.length === 0) {
-        clientUploadStatus.textContent = 'Please choose an image file first.';
-        clientUploadStatus.style.color = '#ef4444';
+        if (clientUploadStatus) {
+          clientUploadStatus.textContent = 'Please select a logo image file first.';
+          clientUploadStatus.style.color = '#ef4444';
+        }
         return;
       }
+      await uploadClientLogo(clientFileInput.files[0]);
+    });
+  }
 
-      const file = clientFileInput.files[0];
-      const formData = new FormData();
-      formData.append('image', file);
-
-      clientUploadStatus.textContent = 'Uploading logo...';
-      clientUploadStatus.style.color = 'var(--gold)';
-
-      try {
-        const res = await adminFetch('/api/admin/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        const json = await res.json();
-        if (res.ok && json.success) {
-          document.getElementById('clientLogoUrl').value = json.url;
-          updateClientLogoPreview(json.url);
-          clientUploadStatus.textContent = `Upload successful: ${json.filename}`;
-          clientUploadStatus.style.color = '#10b981';
-          showAdminToast('Client logo uploaded.');
-        } else {
-          clientUploadStatus.textContent = json.message || 'Upload failed.';
-          clientUploadStatus.style.color = '#ef4444';
-        }
-      } catch (err) {
-        if (err.message !== 'Authentication required') {
-          clientUploadStatus.textContent = 'Upload network error.';
-          clientUploadStatus.style.color = '#ef4444';
-        }
+  // Auto-upload when user picks a file from file explorer
+  if (clientFileInput) {
+    clientFileInput.addEventListener('change', async () => {
+      if (clientFileInput.files && clientFileInput.files.length > 0) {
+        await uploadClientLogo(clientFileInput.files[0]);
       }
     });
   }
@@ -2374,7 +2461,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const clientLogoUrlInput = document.getElementById('clientLogoUrl');
   if (clientLogoUrlInput) {
     clientLogoUrlInput.addEventListener('input', () => {
-      updateClientLogoPreview(clientLogoUrlInput.value);
+      const val = clientLogoUrlInput.value.trim();
+      updateClientLogoPreview(val);
     });
   }
 
@@ -2389,6 +2477,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (document.getElementById('clientFeatured')) document.getElementById('clientFeatured').value = '1';
       if (document.getElementById('clientSort')) document.getElementById('clientSort').value = '0';
       if (clientUploadStatus) clientUploadStatus.textContent = '';
+      if (clientFileInput) clientFileInput.value = '';
+      if (btnSaveClient) btnSaveClient.disabled = false;
       updateClientLogoPreview('');
       openModal('modalClient');
     });
@@ -2397,10 +2487,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (formClient) {
     formClient.addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      if (isUploadingClientLogo) {
+        showAdminToast('Please wait for the logo upload to finish.', 'error');
+        return;
+      }
+
+      // If user selected a file in the input that hasn't finished uploading, upload it now
+      if (clientFileInput && clientFileInput.files && clientFileInput.files.length > 0) {
+        const uploadedUrl = await uploadClientLogo(clientFileInput.files[0]);
+        if (!uploadedUrl) {
+          return; // Stop form submission if upload failed
+        }
+      }
+
       const id = document.getElementById('editClientId').value;
       const name = document.getElementById('clientName').value.trim();
       const category = document.getElementById('clientCategory').value.trim();
-      const logo_url = document.getElementById('clientLogoUrl').value.trim();
+      let logo_url = (document.getElementById('clientLogoUrl').value || '').trim();
       const website_url = document.getElementById('clientWebsite').value.trim();
       const description = document.getElementById('clientDesc').value.trim();
       const sort_order = parseInt(document.getElementById('clientSort').value, 10) || 0;
@@ -2411,10 +2515,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
 
+      // Deletion Protection & 413 Safeguard: Never send raw Base64 data in the JSON payload
+      if (logo_url.startsWith('data:image/')) {
+        if (clientUploadStatus) {
+          clientUploadStatus.textContent = 'Converting and uploading Base64 logo to image storage...';
+          clientUploadStatus.style.color = 'var(--gold)';
+        }
+        try {
+          const blob = await fetch(logo_url).then((r) => r.blob());
+          const ext = (blob.type || 'image/png').split('/')[1] || 'png';
+          const file = new File([blob], `client-logo-${Date.now()}.${ext}`, { type: blob.type || 'image/png' });
+          const convertedUrl = await uploadClientLogo(file);
+          if (convertedUrl) {
+            logo_url = convertedUrl;
+            document.getElementById('clientLogoUrl').value = convertedUrl;
+          } else {
+            showAdminToast('Failed to upload logo to storage system. Please re-select the logo file.', 'error');
+            return;
+          }
+        } catch (_) {
+          showAdminToast('Invalid logo data format. Please select an image file to upload.', 'error');
+          return;
+        }
+      }
+
       const payload = {
         name,
         category,
-        logo_url,
+        logo_url, // URL or storage path ONLY — never huge Base64!
         website_url,
         description,
         sort_order,
@@ -2424,25 +2552,33 @@ document.addEventListener('DOMContentLoaded', async () => {
       const url = id ? `/api/admin/clients/${id}` : '/api/admin/clients';
       const method = id ? 'PATCH' : 'POST';
 
+      if (btnSaveClient) btnSaveClient.disabled = true;
+
       try {
         const res = await adminFetch(url, {
           method,
           body: JSON.stringify(payload),
         });
 
-        const json = await res.json();
+        const json = await res.json().catch(() => ({}));
+
         if (res.ok && json.success) {
           closeModal('modalClient');
           showAdminToast(id ? 'Client updated successfully.' : 'New brand client added successfully.');
-          loadAdminClients();
+          await loadAdminClients();
         } else {
-          showAdminToast(json.message || 'Failed to save client.', 'error');
+          const msg = res.status === 413
+            ? 'Request Entity Too Large (413). Please ensure logo is uploaded via the file upload button.'
+            : (json.message || 'Failed to save client.');
+          showAdminToast(msg, 'error');
         }
       } catch (err) {
         if (err.message !== 'Authentication required') {
           console.error('Client save error:', err);
           showAdminToast('Network error while saving client.', 'error');
         }
+      } finally {
+        if (btnSaveClient) btnSaveClient.disabled = false;
       }
     });
   }

@@ -14,7 +14,13 @@ import { stripHtml } from '../utils/sanitize.js';
 export const clientSchema = z.object({
   name: z.string().min(2, 'Client name must be at least 2 characters').max(100),
   category: z.string().max(100).default(''),
-  logo_url: z.string().default(''),
+  logo_url: z
+    .string()
+    .max(2048, 'Client logo must be a valid URL or storage path under 2048 characters')
+    .refine((val) => !val.startsWith('data:image/'), {
+      message: 'Raw Base64 image data is not allowed. Please upload the logo via the file upload button.',
+    })
+    .default(''),
   website_url: z.string().default(''),
   description: z.string().default(''),
   is_featured: z.coerce.number().min(0).max(1).default(1),

@@ -163,3 +163,12 @@ CREATE TABLE IF NOT EXISTS downloads (
 );
 
 CREATE INDEX IF NOT EXISTS idx_downloads_file ON downloads(file_key);
+
+-- 8. UPLOADED ASSETS TABLE (Persistent storage fallback for serverless restarts)
+CREATE TABLE IF NOT EXISTS uploaded_assets (
+  filename VARCHAR(255) PRIMARY KEY,
+  mimetype VARCHAR(100) NOT NULL,
+  data TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+

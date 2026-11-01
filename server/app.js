@@ -13,7 +13,7 @@ import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import env from './config/env.js';
-import { initDb } from './db/index.js';
+import { db, initDb } from './db/index.js';
 import errorHandler from './middleware/errorHandler.js';
 import { generalLimiter } from './middleware/rateLimit.js';
 
@@ -129,6 +129,23 @@ app.use('/uploads', express.static(uploadsPath));
 if (process.env.VERCEL && fs.existsSync(projectUploadsPath)) {
   app.use('/uploads', express.static(projectUploadsPath));
 }
+
+// Fallback serving for uploaded assets from persistent DB storage (if disk was cleared in serverless)
+app.get('/uploads/:filename', async (req, res, next) => {
+  try {
+    const filename = path.basename(req.params.filename);
+    const row = await db.get('SELECT mimetype, data FROM uploaded_assets WHERE filename = ?', filename);
+    if (row && row.data) {
+      const buffer = Buffer.from(row.data, 'base64');
+      res.setHeader('Content-Type', row.mimetype || 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      return res.send(buffer);
+    }
+    return res.status(404).json({ error: 'Uploaded file not found' });
+  } catch (err) {
+    next(err);
+  }
+});
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
 }

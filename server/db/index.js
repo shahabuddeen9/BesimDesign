@@ -109,6 +109,11 @@ export function transformSqlForPostgres(sql) {
     if (!out.includes('ON CONFLICT')) {
       out = `${out.trim().replace(/;$/, '')} ON CONFLICT (email) DO NOTHING`;
     }
+  } else if (/INSERT\s+OR\s+REPLACE\s+INTO\s+uploaded_assets/i.test(out)) {
+    out = out.replace(/INSERT\s+OR\s+REPLACE\s+INTO\s+uploaded_assets/i, 'INSERT INTO uploaded_assets');
+    if (!out.includes('ON CONFLICT')) {
+      out = `${out.trim().replace(/;$/, '')} ON CONFLICT (filename) DO UPDATE SET mimetype = EXCLUDED.mimetype, data = EXCLUDED.data, created_at = NOW()`;
+    }
   }
 
   // If query is an INSERT and does not have RETURNING clause, add RETURNING *
@@ -240,6 +245,12 @@ async function initPostgresSchema(pool) {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
       CREATE INDEX IF NOT EXISTS idx_downloads_file ON downloads(file_key);
+      CREATE TABLE IF NOT EXISTS uploaded_assets (
+        filename VARCHAR(255) PRIMARY KEY,
+        mimetype VARCHAR(100) NOT NULL,
+        data TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
     `);
     logger.info('PostgreSQL schema initialized from fallback definitions.');
   }
@@ -417,6 +428,12 @@ export async function initDb() {
             slug TEXT,
             title TEXT,
             deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
+          );
+          CREATE TABLE IF NOT EXISTS uploaded_assets (
+            filename TEXT PRIMARY KEY,
+            mimetype TEXT NOT NULL,
+            data TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
           );
         `);
 

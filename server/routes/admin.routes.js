@@ -101,7 +101,6 @@ adminRouter.post('/upload', uploadImage.single('image'), async (req, res, next) 
       message: 'Image uploaded successfully.',
       url: processed.url,
       localUrl: processed.localUrl,
-      dataUri: processed.dataUri,
       filename: req.file.filename,
       size: req.file.size,
       mimetype: req.file.mimetype,

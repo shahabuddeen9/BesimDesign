@@ -10,6 +10,7 @@
 import fs from 'fs';
 import path from 'path';
 import env from '../config/env.js';
+import { db } from '../db/index.js';
 import logger from '../utils/logger.js';
 
 /**
@@ -58,18 +59,20 @@ export async function uploadToSupabaseStorage(buffer, filename, mimeType) {
 
 /**
  * Processes an uploaded file from Multer and returns a permanent, persistent URL.
- * On Vercel / serverless environments without cloud bucket credentials, converts
- * to an inline Data URI so the image is stored in PostgreSQL and survives redeployments.
+ * Never returns raw Base64 Data URIs as the URL to prevent Request Entity Too Large (413)
+ * errors on subsequent form saves. Instead, saves to cloud storage or stores in the database
+ * fallback table while returning a clean URL or relative path (/uploads/...).
  *
  * @param {object} file Multer file object
- * @returns {Promise<{ url: string, localUrl: string, isDataUri: boolean }>}
+ * @returns {Promise<{ url: string, localUrl: string, filename: string, isDataUri: boolean }>}
  */
 export async function processUploadedFile(file) {
   if (!file) {
     throw new Error('No file provided');
   }
 
-  const localUrl = `/uploads/${file.filename}`;
+  const filename = file.filename;
+  const localUrl = `/uploads/${filename}`;
   let buffer = null;
 
   if (file.path && fs.existsSync(file.path)) {
@@ -82,32 +85,38 @@ export async function processUploadedFile(file) {
 
   // 1. Try Supabase Storage if configured
   if (buffer) {
-    const cloudUrl = await uploadToSupabaseStorage(buffer, file.filename, file.mimetype);
+    const cloudUrl = await uploadToSupabaseStorage(buffer, filename, file.mimetype);
     if (cloudUrl) {
       return {
         url: cloudUrl,
         localUrl,
+        filename,
         isDataUri: false,
       };
     }
   }
 
-  // 2. If on Vercel or serverless (where disk in /tmp is wiped), use Data URI for bulletproof permanence
-  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-
-  if (buffer && file.mimetype && file.mimetype.startsWith('image/')) {
-    const dataUri = `data:${file.mimetype};base64,${buffer.toString('base64')}`;
-    return {
-      url: isServerless ? dataUri : localUrl,
-      localUrl,
-      dataUri,
-      isDataUri: isServerless,
-    };
+  // 2. Persist to database fallback table for bulletproof permanence across serverless restarts
+  if (buffer && file.mimetype) {
+    try {
+      const base64Data = buffer.toString('base64');
+      await db.run(
+        `INSERT OR REPLACE INTO uploaded_assets (filename, mimetype, data, created_at)
+         VALUES (?, ?, ?, datetime('now'))`,
+        filename,
+        file.mimetype,
+        base64Data
+      );
+      db.persist();
+    } catch (err) {
+      logger.warn('Failed to persist uploaded asset to database:', err);
+    }
   }
 
   return {
     url: localUrl,
     localUrl,
+    filename,
     isDataUri: false,
   };
 }
@@ -116,3 +125,4 @@ export default {
   uploadToSupabaseStorage,
   processUploadedFile,
 };
+
