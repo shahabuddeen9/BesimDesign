@@ -25,16 +25,40 @@ export default async function handler(req, res) {
   const [pathname, search] = incomingUrl.split('?');
   const querySuffix = search ? `?${search}` : '';
 
+  const matchedPath = req.headers && typeof req.headers['x-matched-path'] === 'string' ? req.headers['x-matched-path'] : '';
+  const originalUri = req.headers && typeof req.headers['x-forwarded-url'] === 'string'
+    ? req.headers['x-forwarded-url']
+    : (req.headers && typeof req.headers['x-forwarded-uri'] === 'string' ? req.headers['x-forwarded-uri'] : '');
+
   let resolvedPath = pathname;
-  if (req.headers && typeof req.headers['x-matched-path'] === 'string' && req.headers['x-matched-path'].startsWith('/api')) {
-    resolvedPath = req.headers['x-matched-path'];
+
+  // Detect /uploads request from vercel.json rewrite or direct URI
+  const isUploadReq =
+    pathname.startsWith('/uploads') ||
+    matchedPath.startsWith('/uploads') ||
+    originalUri.includes('/uploads/') ||
+    (req.query && req.query.match && !req.query.slug);
+
+  if (isUploadReq) {
+    if (pathname.startsWith('/uploads')) {
+      resolvedPath = pathname;
+    } else if (originalUri && originalUri.includes('/uploads/')) {
+      const match = originalUri.match(/\/uploads\/[^?]+/);
+      resolvedPath = match ? match[0] : pathname;
+    } else if (req.query && req.query.match) {
+      const parts = Array.isArray(req.query.match) ? req.query.match : [req.query.match];
+      resolvedPath = `/uploads/${parts.join('/')}`;
+    } else {
+      resolvedPath = pathname;
+    }
+  } else if (matchedPath.startsWith('/api')) {
+    resolvedPath = matchedPath;
   } else if (req.query && (req.query.slug || req.query.match)) {
     const slug = req.query.slug || req.query.match;
     const parts = Array.isArray(slug) ? slug : [slug];
     resolvedPath = `/api/${parts.join('/')}`;
   } else if (pathname === '/' || pathname === '/api' || pathname === '/api/') {
-    const originalUri = req.headers && (req.headers['x-forwarded-url'] || req.headers['x-forwarded-uri']);
-    if (typeof originalUri === 'string' && originalUri.startsWith('/api')) {
+    if (originalUri.startsWith('/api')) {
       resolvedPath = originalUri.split('?')[0];
     }
   }

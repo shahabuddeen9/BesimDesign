@@ -73,6 +73,7 @@ export async function runSeed(force = false) {
     const sampleClients = [
       { name: 'The Nutcracker', category: 'Hospitality & F&B', logo_url: 'https://green-square.co.in/wp-content/uploads/2025/07/Nutcracker.jpg', is_featured: 1, sort_order: 1 },
       { name: 'FOO Asian Tapas', category: 'Fine Dining & Hospitality', logo_url: 'https://green-square.co.in/wp-content/uploads/2022/05/FOO.jpg', is_featured: 1, sort_order: 2 },
+      { name: 'Cafe Niloufer', category: 'Heritage Tea Lounge & Dining', logo_url: '/uploads/cafe-niloufer-logo.png', is_featured: 1, sort_order: 3 },
     ].filter((c) => !deletedNames.has(c.name) && !decommissionedSet.has(c.name));
 
     for (const c of sampleClients) {

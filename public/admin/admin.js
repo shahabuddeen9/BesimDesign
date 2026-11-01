@@ -1367,7 +1367,7 @@ function renderAdminClientsTable(clients) {
   tbody.innerHTML = clients.map((c) => `
     <tr>
       <td style="width: 80px;">
-        ${c.logo_url ? `<img src="${escapeHtml(c.logo_url)}" alt="${escapeHtml(c.name)}" style="width: 60px; height: 40px; object-fit: contain; background: #fff; padding: 4px; border-radius: 4px; border: 1px solid var(--admin-border);" onerror="this.onerror=null;this.parentElement.innerHTML='<span style=\\'font-size:0.7rem;color:var(--gold);\\'>LOGO</span>';">` : '<div style="width: 60px; height: 40px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--text-dim);">No logo</div>'}
+        ${c.logo_url ? `<img src="${escapeHtml(c.logo_url)}" alt="${escapeHtml(c.name)}" style="width: 60px; height: 40px; object-fit: contain; background: #fff; padding: 4px; border-radius: 4px; border: 1px solid var(--admin-border);" onerror="this.onerror=null;this.parentElement.innerHTML='<span style=\\'font-size:0.72rem;font-weight:600;color:var(--gold);line-height:1.2;text-align:center;display:block;\\'>${escapeHtml(c.name)}</span>';">` : '<div style="width: 60px; height: 40px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--text-dim);">No logo</div>'}
       </td>
       <td>
         <strong style="color: #fff; font-size: 0.95rem;">${escapeHtml(c.name)}</strong>

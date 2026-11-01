@@ -182,4 +182,31 @@ describe('Brand Client Logo Upload & 413 Payload Protection', () => {
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
   });
+
+  it('9. Cafe Niloufer is present in public and admin clients with accessible permanent logo', async () => {
+    // Check public endpoint
+    const pubRes = await request(app).get('/api/clients');
+    expect(pubRes.status).toBe(200);
+    expect(pubRes.body.success).toBe(true);
+
+    const nilouferPub = pubRes.body.data.find((c) => c.name === 'Cafe Niloufer');
+    expect(nilouferPub).toBeTruthy();
+    expect(nilouferPub.logo_url).toBeTruthy();
+    expect(nilouferPub.logo_url).not.toMatch(/^data:image\//);
+
+    // Verify logo URL responds with valid 200 and image mime type
+    const logoRes = await request(app).get(nilouferPub.logo_url);
+    expect(logoRes.status).toBe(200);
+    expect(logoRes.headers['content-type']).toMatch(/^image\//);
+
+    // Check admin endpoint and ensure exactly ONE record exists (no duplicates)
+    const adminRes = await request(app)
+      .get('/api/admin/clients')
+      .set('Cookie', [authCookie]);
+    expect(adminRes.status).toBe(200);
+
+    const matchingAdminRecords = adminRes.body.data.filter((c) => c.name.toLowerCase() === 'cafe niloufer');
+    expect(matchingAdminRecords.length).toBe(1);
+    expect(matchingAdminRecords[0].logo_url).toBe(nilouferPub.logo_url);
+  });
 });

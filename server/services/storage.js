@@ -96,7 +96,24 @@ export async function processUploadedFile(file) {
     }
   }
 
-  // 2. Persist to database fallback table for bulletproof permanence across serverless restarts
+  // 2. Ensure physical copies exist in disk upload directories (uploads and public/uploads)
+  if (buffer) {
+    try {
+      const diskDirs = [
+        path.resolve(process.cwd(), 'uploads'),
+        path.resolve(process.cwd(), 'public/uploads'),
+      ];
+      for (const dir of diskDirs) {
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        const filePath = path.resolve(dir, filename);
+        if (!fs.existsSync(filePath)) {
+          fs.writeFileSync(filePath, buffer);
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 3. Persist to database fallback table for bulletproof permanence across serverless restarts
   if (buffer && file.mimetype) {
     try {
       const base64Data = buffer.toString('base64');

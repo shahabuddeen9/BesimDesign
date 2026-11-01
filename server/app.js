@@ -130,15 +130,33 @@ if (process.env.VERCEL && fs.existsSync(projectUploadsPath)) {
   app.use('/uploads', express.static(projectUploadsPath));
 }
 
-// Fallback serving for uploaded assets from persistent DB storage (if disk was cleared in serverless)
-app.get('/uploads/:filename', async (req, res, next) => {
+// Fallback serving for uploaded assets from disk and persistent DB storage (if disk was cleared in serverless)
+app.get(['/uploads/:filename', '/api/uploads/:filename'], async (req, res, next) => {
   try {
     const filename = path.basename(req.params.filename);
+
+    // 1. Check physical disk locations
+    const candidatePaths = [
+      path.resolve(projectUploadsPath, filename),
+      path.resolve(uploadsPath, filename),
+      path.resolve(publicPath, 'uploads', filename),
+      path.resolve('/tmp/uploads', filename),
+    ];
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        return res.sendFile(p);
+      }
+    }
+
+    // 2. Query persistent DB storage (uploaded_assets)
     const row = await db.get('SELECT mimetype, data FROM uploaded_assets WHERE filename = ?', filename);
     if (row && row.data) {
       const buffer = Buffer.from(row.data, 'base64');
-      res.setHeader('Content-Type', row.mimetype || 'image/jpeg');
+      const ext = path.extname(filename).toLowerCase();
+      const detectedMime = ext === '.png' ? 'image/png' : (ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : (ext === '.webp' ? 'image/webp' : 'application/octet-stream'));
+      res.setHeader('Content-Type', row.mimetype || detectedMime);
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      res.setHeader('Access-Control-Allow-Origin', '*');
       return res.send(buffer);
     }
     return res.status(404).json({ error: 'Uploaded file not found' });

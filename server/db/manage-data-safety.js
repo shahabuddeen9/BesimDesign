@@ -41,6 +41,7 @@ function getSqlitePath() {
 export const DESIRED_ACTIVE_CLIENTS = [
   { name: 'The Nutcracker', category: 'Hospitality & F&B' },
   { name: 'FOO Asian Tapas', category: 'Fine Dining & Hospitality' },
+  { name: 'Cafe Niloufer', category: 'Heritage Tea Lounge & Dining' },
 ];
 
 /**

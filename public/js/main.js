@@ -335,6 +335,20 @@ function renderProjects(projectsList) {
   attachProjectModalTriggers();
 }
 
+// Global helper for client logo rendering error recovery
+window.handleClientLogoError = function (img, clientName, fallbackUrl) {
+  if (!img) return;
+  img.onerror = null; // Prevent loop
+  if (fallbackUrl && img.src !== fallbackUrl) {
+    img.src = fallbackUrl;
+    return;
+  }
+  const parent = img.parentElement;
+  if (parent) {
+    parent.innerHTML = `<span class="client-logo-text">${escapeHtml(clientName)}</span>`;
+  }
+};
+
 async function loadClients() {
   const container = document.getElementById('clientsGrid');
   if (!container) return;
@@ -358,13 +372,35 @@ async function loadClients() {
           </div>
         `;
       } else {
-        container.innerHTML = json.data.map((c) => `
-          <div class="client-logo-card">
-            ${c.logo_url ? `<img src="${c.logo_url}" alt="${c.name}" class="client-logo-img" loading="lazy" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'client-logo-text\\'>${c.name}</span>';">` : `<span class="client-logo-text">${c.name}</span>`}
-            <span class="client-name-label">${c.name}</span>
-            ${c.category ? `<span class="client-cat-label">${c.category}</span>` : ''}
-          </div>
-        `).join('');
+        container.innerHTML = json.data.map((c) => {
+          const rawUrl = (c.logo_url || '').trim();
+          let logoSrc = rawUrl;
+          if (logoSrc && !logoSrc.startsWith('http://') && !logoSrc.startsWith('https://') && !logoSrc.startsWith('//') && !logoSrc.startsWith('/')) {
+            logoSrc = '/' + logoSrc;
+          }
+          const isNiloufer = (c.name || '').toLowerCase().includes('niloufer');
+          const fallbackUrl = isNiloufer ? 'https://cafeniloufer.com/cdn/shop/files/logo_360x_3a3f6a04-b109-4e88-97f9-b49ac4675c0d_360x.png?v=1619422169' : '';
+          const escapedName = escapeHtml(c.name);
+          const escapedCat = escapeHtml(c.category || '');
+
+          return `
+            <div class="client-logo-card" data-client-name="${escapedName}">
+              <div class="client-logo-wrap" style="min-height: 52px; display: flex; align-items: center; justify-content: center; width: 100%;">
+                ${logoSrc ? `
+                  <img src="${escapeHtml(logoSrc)}"
+                       alt="${escapedName} Logo"
+                       class="client-logo-img"
+                       loading="lazy"
+                       onerror="window.handleClientLogoError && window.handleClientLogoError(this, '${escapedName}', '${fallbackUrl}');" />
+                ` : `
+                  <span class="client-logo-text">${escapedName}</span>
+                `}
+              </div>
+              <span class="client-name-label">${escapedName}</span>
+              ${escapedCat ? `<span class="client-cat-label">${escapedCat}</span>` : ''}
+            </div>
+          `;
+        }).join('');
       }
     }
   } catch (err) {

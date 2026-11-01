@@ -141,20 +141,23 @@ describe('Permanent Client Deletion Lifecycle & Anti-Resurrection', () => {
     expect(whiteOakFound).toBe(false);
   });
 
-  it('Step 9: Verifies that ONLY the 2 intended clients are active in the public showcase', async () => {
+  it('Step 9: Verifies that the intended clients (The Nutcracker, FOO Asian Tapas, and Cafe Niloufer) are active in the public showcase', async () => {
     const pubRes = await request(app).get('/api/clients');
     expect(pubRes.status).toBe(200);
     expect(pubRes.body.success).toBe(true);
-    expect(pubRes.body.data.length).toBe(2);
+    expect(pubRes.body.data.length).toBe(3);
 
     const clientNames = pubRes.body.data.map((c) => c.name).sort();
-    expect(clientNames).toEqual(['FOO Asian Tapas', 'The Nutcracker']);
+    expect(clientNames).toEqual(['Cafe Niloufer', 'FOO Asian Tapas', 'The Nutcracker']);
 
     const nutcracker = pubRes.body.data.find((c) => c.name === 'The Nutcracker');
     expect(nutcracker.category).toBe('Hospitality & F&B');
 
     const foo = pubRes.body.data.find((c) => c.name === 'FOO Asian Tapas');
     expect(foo.category).toBe('Fine Dining & Hospitality');
+
+    const niloufer = pubRes.body.data.find((c) => c.name === 'Cafe Niloufer');
+    expect(niloufer.category).toBe('Heritage Tea Lounge & Dining');
   });
 
   it('Step 10: Verifies that all 15 decommissioned brands have tombstones and never appear in public or admin APIs', async () => {
