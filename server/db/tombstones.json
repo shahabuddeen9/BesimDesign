@@ -13,6 +13,7 @@
     "Luxury Cafe & Lounge 1793545627566 (Updated)",
     "Luxury Cafe & Lounge 1793546099756 (Updated)",
     "Luxury Cafe & Lounge 1793546130600 (Updated)",
+    "Luxury Cafe & Lounge 1793546872675 (Updated)",
     "Nikita",
     "Otoki",
     "Parinee Group",
@@ -30,6 +31,7 @@
     "Persistence Client Brand 1793545625079",
     "Persistence Client Brand 1793546096976",
     "Persistence Client Brand 1793546127577",
+    "Persistence Client Brand 1793546870683",
     "Ping's Orient",
     "Ping’s Orient",
     "RSVP",
@@ -91,6 +93,10 @@
     {
       "id": 1445,
       "client_name": "Testimonial Author 1793546127578"
+    },
+    {
+      "id": 1446,
+      "client_name": "Testimonial Author 1793546870684"
     }
   ],
   "projects": [
@@ -153,7 +159,12 @@
       "id": 836,
       "slug": "persistence-test-hotel-1793546127575",
       "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 838,
+      "slug": "persistence-test-hotel-1793546870682",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
     }
   ],
-  "updated_at": "2026-11-01T15:15:31.350Z"
+  "updated_at": "2026-11-01T15:27:53.448Z"
 }

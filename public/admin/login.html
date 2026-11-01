@@ -173,6 +173,21 @@
           }
         }
 
+        // Defensive dual-path fallback in case reverse proxy or serverless layer routes without /api/ prefix
+        if (res && res.status === 404) {
+          try {
+            const fallbackRes = await fetch('/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin',
+              body: payload,
+            });
+            if (fallbackRes.status !== 404) {
+              res = fallbackRes;
+            }
+          } catch (_) {}
+        }
+
         const text = await res.text();
         let data = {};
         let isJson = false;

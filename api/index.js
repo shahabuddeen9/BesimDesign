@@ -20,51 +20,38 @@ export default async function handler(req, res) {
     }
   }
 
-  // 1. Recover full path from Vercel headers or slug parameters if req.url was truncated or rewritten
-  let incomingUrl = req.url || '/';
+  // 1. Recover full path from incoming URL or Vercel forwarding headers
+  const rawOriginal = req.headers && (req.headers['x-forwarded-url'] || req.headers['x-forwarded-uri']);
+  let incomingUrl = (typeof rawOriginal === 'string' && rawOriginal.length > 0) ? rawOriginal : (req.url || '/');
+
   const [pathname, search] = incomingUrl.split('?');
-  const querySuffix = search ? `?${search}` : '';
+  const querySuffix = search ? `?${search}` : (req.url && req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '');
 
-  const matchedPath = req.headers && typeof req.headers['x-matched-path'] === 'string' ? req.headers['x-matched-path'] : '';
-  const originalUri = req.headers && typeof req.headers['x-forwarded-url'] === 'string'
-    ? req.headers['x-forwarded-url']
-    : (req.headers && typeof req.headers['x-forwarded-uri'] === 'string' ? req.headers['x-forwarded-uri'] : '');
+  let resolvedPath = '';
 
-  let resolvedPath = pathname;
-
-  // Detect /uploads request from vercel.json rewrite or direct URI
-  const isUploadReq =
-    pathname.startsWith('/uploads') ||
-    matchedPath.startsWith('/uploads') ||
-    originalUri.includes('/uploads/') ||
-    (req.query && req.query.match && !req.query.slug);
-
-  if (isUploadReq) {
-    if (pathname.startsWith('/uploads')) {
-      resolvedPath = pathname;
-    } else if (originalUri && originalUri.includes('/uploads/')) {
-      const match = originalUri.match(/\/uploads\/[^?]+/);
-      resolvedPath = match ? match[0] : pathname;
-    } else if (req.query && req.query.match) {
-      const parts = Array.isArray(req.query.match) ? req.query.match : [req.query.match];
-      resolvedPath = `/uploads/${parts.join('/')}`;
-    } else {
-      resolvedPath = pathname;
-    }
-  } else if (matchedPath.startsWith('/api')) {
-    resolvedPath = matchedPath;
-  } else if (req.query && (req.query.slug || req.query.match)) {
-    const slug = req.query.slug || req.query.match;
-    const parts = Array.isArray(slug) ? slug : [slug];
-    resolvedPath = `/api/${parts.join('/')}`;
-  } else if (pathname === '/' || pathname === '/api' || pathname === '/api/') {
-    if (originalUri.startsWith('/api')) {
-      resolvedPath = originalUri.split('?')[0];
-    }
+  // 2. Resolve true concrete request path (avoiding any Vercel internal wildcard template strings)
+  if (typeof rawOriginal === 'string' && (rawOriginal.startsWith('/api') || rawOriginal.startsWith('/uploads'))) {
+    resolvedPath = rawOriginal.split('?')[0];
+  } else if (pathname.startsWith('/api/') || pathname.startsWith('/uploads/')) {
+    resolvedPath = pathname;
+  } else if (req.query && (req.query.slug || req.query.match || req.query.path)) {
+    const rawParts = req.query.slug || req.query.match || req.query.path;
+    const parts = Array.isArray(rawParts) ? rawParts : [rawParts];
+    const isUpload = pathname.includes('uploads') || (rawOriginal && rawOriginal.includes('uploads'));
+    resolvedPath = isUpload ? `/uploads/${parts.join('/')}` : `/api/${parts.join('/')}`;
+  } else if (pathname.startsWith('/auth/') || pathname.startsWith('/admin/')) {
+    resolvedPath = `/api${pathname}`;
+  } else {
+    resolvedPath = pathname;
   }
 
-  // Ensure path starts with /api if not an upload or public file
-  if (!resolvedPath.startsWith('/api') && !resolvedPath.startsWith('/uploads')) {
+  // Ensure path starts with leading slash
+  if (!resolvedPath.startsWith('/')) {
+    resolvedPath = `/${resolvedPath}`;
+  }
+
+  // Ensure /api prefix exists if not an upload or admin html page
+  if (!resolvedPath.startsWith('/api') && !resolvedPath.startsWith('/uploads') && !resolvedPath.startsWith('/admin')) {
     resolvedPath = `/api${resolvedPath.startsWith('/') ? '' : '/'}${resolvedPath}`;
   }
 
