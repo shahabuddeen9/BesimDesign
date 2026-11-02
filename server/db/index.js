@@ -92,12 +92,12 @@ export function transformSqlForPostgres(sql) {
   } else if (/INSERT\s+OR\s+REPLACE\s+INTO\s+deleted_projects/i.test(out)) {
     out = out.replace(/INSERT\s+OR\s+REPLACE\s+INTO\s+deleted_projects/i, 'INSERT INTO deleted_projects');
     if (!out.includes('ON CONFLICT')) {
-      out = `${out.trim().replace(/;$/, '')} ON CONFLICT (slug) DO UPDATE SET deleted_at = NOW()`;
+      out = `${out.trim().replace(/;$/, '')} ON CONFLICT (slug) WHERE slug IS NOT NULL DO UPDATE SET deleted_at = NOW()`;
     }
   } else if (/INSERT\s+OR\s+IGNORE\s+INTO\s+deleted_projects/i.test(out)) {
     out = out.replace(/INSERT\s+OR\s+IGNORE\s+INTO\s+deleted_projects/i, 'INSERT INTO deleted_projects');
     if (!out.includes('ON CONFLICT')) {
-      out = `${out.trim().replace(/;$/, '')} ON CONFLICT (slug) DO NOTHING`;
+      out = `${out.trim().replace(/;$/, '')} ON CONFLICT (slug) WHERE slug IS NOT NULL DO NOTHING`;
     }
   } else if (/INSERT\s+OR\s+(REPLACE|IGNORE)\s+INTO\s+deleted_testimonials/i.test(out)) {
     out = out.replace(/INSERT\s+OR\s+(REPLACE|IGNORE)\s+INTO\s+deleted_testimonials/i, 'INSERT INTO deleted_testimonials');
@@ -217,6 +217,9 @@ async function initPostgresSchema(pool) {
         title VARCHAR(255),
         deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_deleted_projects_slug_unique
+        ON deleted_projects (slug)
+        WHERE slug IS NOT NULL;
       CREATE TABLE IF NOT EXISTS enquiries (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
@@ -254,6 +257,15 @@ async function initPostgresSchema(pool) {
     `);
     logger.info('PostgreSQL schema initialized from fallback definitions.');
   }
+
+  // 0. Ensure deleted_projects partial unique index exists (matches schema.postgres.sql)
+  try {
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_deleted_projects_slug_unique
+        ON deleted_projects (slug)
+        WHERE slug IS NOT NULL;
+    `);
+  } catch (_) {}
 
   // 1. Ensure decommissioned clients have permanent tombstones in PostgreSQL
   for (const name of DECOMMISSIONED_CLIENTS) {
@@ -865,13 +877,13 @@ export async function recordDeletedProject(id, slug = null, title = null, tx = n
   if (isPostgres) {
     if (tx && tx.client) {
       await tx.client.query(
-        'INSERT INTO deleted_projects (project_id, slug, title, deleted_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT (slug) DO NOTHING',
+        'INSERT INTO deleted_projects (project_id, slug, title, deleted_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT (slug) WHERE slug IS NOT NULL DO NOTHING',
         [id || null, slug ? slug.trim() : null, title ? title.trim() : null]
       );
     } else {
       if (!pgPool) await initDb();
       await pgPool.query(
-        'INSERT INTO deleted_projects (project_id, slug, title, deleted_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT (slug) DO NOTHING',
+        'INSERT INTO deleted_projects (project_id, slug, title, deleted_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT (slug) WHERE slug IS NOT NULL DO NOTHING',
         [id || null, slug ? slug.trim() : null, title ? title.trim() : null]
       );
     }

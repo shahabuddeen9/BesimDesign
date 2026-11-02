@@ -8,6 +8,7 @@ import request from 'supertest';
 import { beforeAll, describe, expect, it } from 'vitest';
 import app from '../server/app.js';
 import env from '../server/config/env.js';
+import { transformSqlForPostgres } from '../server/db/index.js';
 
 describe('Projects Lifecycle & Public Filtering', () => {
   let authCookie = null;
@@ -180,16 +181,49 @@ describe('Projects Lifecycle & Public Filtering', () => {
     expect(res.body.data.gallery.includes(photoToDelete)).toBe(false);
   });
 
-  it('should allow admin to delete a project', async () => {
+  it('should transform SQLite deleted_projects queries into valid PostgreSQL with WHERE slug IS NOT NULL', () => {
+    const replaceSql = transformSqlForPostgres('INSERT OR REPLACE INTO deleted_projects (project_id, slug, title) VALUES (?, ?, ?)');
+    expect(replaceSql).toContain('ON CONFLICT (slug) WHERE slug IS NOT NULL DO UPDATE SET deleted_at = NOW()');
+
+    const ignoreSql = transformSqlForPostgres('INSERT OR IGNORE INTO deleted_projects (project_id, slug, title) VALUES (?, ?, ?)');
+    expect(ignoreSql).toContain('ON CONFLICT (slug) WHERE slug IS NOT NULL DO NOTHING');
+  });
+
+  it('should allow admin to delete a project and verify removal while preserving unrelated projects', async () => {
+    // 1. Get initial project list to verify other projects exist
+    const initialList = await request(app).get('/api/projects');
+    expect(initialList.status).toBe(200);
+    const otherProjects = initialList.body.data.filter((p) => p.id !== createdProjectId);
+    expect(otherProjects.length).toBeGreaterThan(0);
+
+    // 2. Perform deletion
     const res = await request(app)
       .delete(`/api/admin/projects/${createdProjectId}`)
       .set('Cookie', [authCookie]);
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
+    expect(res.body.deletedId).toBe(createdProjectId);
+    expect(res.body.deletedSlug).toBe(uniqueSlug);
 
-    // Verify it is no longer retrievable
+    // 3. Verify deleted project is no longer retrievable by slug or in public list
     const checkRes = await request(app).get(`/api/projects/${uniqueSlug}`);
     expect(checkRes.status).toBe(404);
+
+    const publicList = await request(app).get('/api/projects');
+    expect(publicList.body.data.some((p) => p.slug === uniqueSlug)).toBe(false);
+
+    // 4. Verify unrelated projects are preserved
+    expect(publicList.body.data.length).toBe(otherProjects.length);
+    for (const other of otherProjects) {
+      expect(publicList.body.data.some((p) => p.id === other.id)).toBe(true);
+    }
+
+    // 5. Verify deleted project is removed from admin portal list as well
+    const adminList = await request(app)
+      .get('/api/admin/projects')
+      .set('Cookie', [authCookie]);
+    expect(adminList.status).toBe(200);
+    expect(adminList.body.data.some((p) => p.slug === uniqueSlug)).toBe(false);
   });
 });

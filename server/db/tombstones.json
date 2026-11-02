@@ -13,7 +13,6 @@
     "Luxury Cafe & Lounge 1793545627566 (Updated)",
     "Luxury Cafe & Lounge 1793546099756 (Updated)",
     "Luxury Cafe & Lounge 1793546130600 (Updated)",
-    "Luxury Cafe & Lounge 1793546872675 (Updated)",
     "Nikita",
     "Otoki",
     "Parinee Group",
@@ -32,6 +31,8 @@
     "Persistence Client Brand 1793546096976",
     "Persistence Client Brand 1793546127577",
     "Persistence Client Brand 1793546870683",
+    "Persistence Client Brand 1793598335422",
+    "Persistence Client Brand 1793598686848",
     "Ping's Orient",
     "Ping’s Orient",
     "RSVP",
@@ -83,10 +84,6 @@
       "client_name": "Testimonial Author 1793545625080"
     },
     {
-      "id": 1443,
-      "client_name": "Anil Kapoor"
-    },
-    {
       "id": 1444,
       "client_name": "Testimonial Author 1793546096976"
     },
@@ -97,6 +94,18 @@
     {
       "id": 1446,
       "client_name": "Testimonial Author 1793546870684"
+    },
+    {
+      "id": 1447,
+      "client_name": "Testimonial Author 1793598335423"
+    },
+    {
+      "id": 1448,
+      "client_name": "Anil Kapoor"
+    },
+    {
+      "id": 1449,
+      "client_name": "Testimonial Author 1793598686848"
     }
   ],
   "projects": [
@@ -164,7 +173,22 @@
       "id": 838,
       "slug": "persistence-test-hotel-1793546870682",
       "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 839,
+      "slug": "persistence-test-hotel-1793598335421",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 840,
+      "slug": "persistence-test-hotel-1793598686847",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 841,
+      "slug": "test-luxury-bistro-1793598689620",
+      "title": "Aura Modern Bistronomy & Rooftop Lounge (Updated)"
     }
   ],
-  "updated_at": "2026-11-01T15:27:53.448Z"
+  "updated_at": "2026-11-02T05:51:30.509Z"
 }
