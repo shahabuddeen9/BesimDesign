@@ -1,8 +1,9 @@
 /**
  * @file /public/js/hotels.js
- * @description Dedicated Controller for Hotels & Boutique Resorts Showcase.
- * Fetches exclusively category=hotels from /api/projects, renders turnkey hotel landmarks,
- * manages interactive suite & lobby blueprint modals, and submits RFP briefs to /api/enquiries.
+ * @description Dedicated Controller for Hotels & Boutique Resorts Long-Scroll Portfolio.
+ * Directly renders all active hotel & resort projects in continuous full-detail format
+ * (3-column top section + 4-photo horizontal gallery below) matching the finalized Hospitality portfolio,
+ * with independent gallery carousels, fullscreen lightbox, WhatsApp discussion, and RFP tender submission.
  */
 
 const CONFIG = {
@@ -11,6 +12,8 @@ const CONFIG = {
 
 const state = {
   projects: [],
+  activeLightboxSlug: null,
+  activeLightboxIndex: 0,
 };
 
 function escapeHtml(str) {
@@ -45,12 +48,12 @@ function showToast(message, type = 'success') {
 }
 
 // =============================================================================
-// Load & Render Hotel Projects
+// Load & Render Hotel Projects (Continuous Long Scroll)
 // =============================================================================
 
 async function loadHotelProjects() {
-  const grid = document.getElementById('hotelsGrid');
-  if (!grid) return;
+  const container = document.getElementById('hotelsProjectsContainer');
+  if (!container) return;
 
   try {
     const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects?category=hotels&_t=${Date.now()}`, {
@@ -61,247 +64,365 @@ async function loadHotelProjects() {
 
     if (json.success && Array.isArray(json.data)) {
       state.projects = json.data;
-      renderProjects(state.projects);
+      renderLongScrollProjects(state.projects);
+
+      if (window.location.hash) {
+        const hash = window.location.hash.substring(1);
+        setTimeout(() => {
+          const target = document.getElementById(hash) || document.getElementById(`project-${hash}`);
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 150);
+      }
     }
   } catch (err) {
     console.warn('API error loading hotel projects:', err);
+    if (container) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 48px 20px; color: #ef4444;">
+          Failed to load hotel & resort projects. Please refresh the page.
+        </div>
+      `;
+    }
   }
 }
 
-function renderProjects(projectsList) {
-  const grid = document.getElementById('hotelsGrid');
-  if (!grid) return;
+function renderLongScrollProjects(projectsList) {
+  const container = document.getElementById('hotelsProjectsContainer');
+  if (!container) return;
 
   if (projectsList.length === 0) {
-    grid.innerHTML = `
-      <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--text-dim, #888); background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.1);">
-        <p style="font-size: 1.05rem; margin-bottom: 8px; color: #fff;">No hotel projects are currently published.</p>
-        <p style="font-size: 0.85rem; color: var(--text-muted);">Check back soon or contact our architectural team for a bespoke hospitality brief.</p>
+    container.innerHTML = `
+      <div style="text-align: center; padding: 48px 20px; color: #6b7280; background: #f9fafb; border-radius: 8px; border: 1px dashed #e5e7eb;">
+        <p style="font-size: 1.05rem; margin-bottom: 8px; color: #111827; font-weight: 600;">No hotel projects are currently published.</p>
+        <p style="font-size: 0.88rem; color: #6b7280;">Add or publish hotel projects in the Admin Dashboard to feature them here.</p>
       </div>
     `;
     return;
   }
 
-  grid.innerHTML = projectsList.map((p) => {
-    let scopes = [];
-    if (Array.isArray(p.scope)) {
-      scopes = p.scope;
-    } else if (typeof p.scope === 'string') {
-      try { scopes = JSON.parse(p.scope); } catch (_) { scopes = p.scope.split(',').map(s => s.trim()); }
-    }
+  container.innerHTML = projectsList
+    .map((p, pIdx) => {
+      let scopes = [];
+      if (Array.isArray(p.scope)) {
+        scopes = p.scope;
+      } else if (typeof p.scope === 'string') {
+        try {
+          scopes = JSON.parse(p.scope);
+        } catch (_) {
+          scopes = p.scope.split(',').map((s) => s.trim()).filter(Boolean);
+        }
+      }
 
-    const scopeBadges = scopes.map(s => `<span class="project-scope-item">${escapeHtml(s)}</span>`).join('');
+      let displayHeading = p.title;
+      if (p.location && !p.title.toLowerCase().includes(p.location.toLowerCase().split(',')[0])) {
+        const city = p.location.split(',')[0].trim();
+        displayHeading = `${p.title} – ${city}`;
+      }
 
-    return `
-      <div class="project-card" data-category="hotels">
-        <div class="project-img-wrap">
-          <img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.title)}" loading="lazy">
-          <span class="project-cat-badge">HOTEL LANDMARK</span>
-        </div>
-        <div class="project-body">
-          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
-            <span style="font-size: 0.75rem; color: var(--accent-gold); font-weight: 600; text-transform: uppercase;">
-              ${escapeHtml(p.client_name || 'Boutique Hotel & Resort')}
+      const durationMatch = scopes.find((s) =>
+        /day|month|week|handover|schedule|fast-track/i.test(s)
+      );
+      const durationText = durationMatch || '120 Days (Turnkey Architectural Handover)';
+
+      const allPhotos = [];
+      if (p.image_url) allPhotos.push(p.image_url);
+      let rawGallery = [];
+      if (Array.isArray(p.gallery)) {
+        rawGallery = p.gallery;
+      } else if (typeof p.gallery === 'string') {
+        try {
+          rawGallery = JSON.parse(p.gallery);
+        } catch (_) {
+          rawGallery = [p.gallery];
+        }
+      }
+      rawGallery.forEach((img) => {
+        if (img && typeof img === 'string' && !allPhotos.includes(img)) {
+          allPhotos.push(img);
+        }
+      });
+
+      const galleryItemsHtml = allPhotos
+        .map(
+          (imgUrl, imgIdx) => `
+          <div class="gallery-item" data-project="${p.slug}" data-index="${imgIdx}">
+            <img
+              src="${escapeHtml(imgUrl)}"
+              alt="${escapeHtml(p.title)} – Photograph ${imgIdx + 1}"
+              class="gallery-img"
+              loading="lazy"
+              onclick="openPortfolioLightbox('${p.slug}', ${imgIdx})"
+            >
+            <span style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.72); color: #fff; font-size: 0.72rem; padding: 2px 6px; border-radius: 3px; pointer-events: none;">
+              ${imgIdx + 1}/${allPhotos.length}
             </span>
           </div>
-          <h3 class="project-title">${escapeHtml(p.title)}</h3>
-          ${p.location ? `<div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px;">📍 ${escapeHtml(p.location)}</div>` : ''}
-          <p class="project-desc">${escapeHtml(p.description)}</p>
-          <div class="project-scope-list">
-            ${scopeBadges}
-          </div>
-          <div class="project-card-footer">
-            <button class="btn-link view-hotel-blueprint-btn" data-slug="${escapeHtml(p.slug)}">
-              View Architectural Blueprint →
-            </button>
-            <button class="btn btn-gold btn-xs request-hotel-rfp-btn" data-title="${escapeHtml(p.title)}" data-area="${p.area_sqft || ''}">
-              Request Hotel RFP ↗
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
+        `
+        )
+        .join('');
 
-  attachListeners();
+      const dotsHtml = Array.from({ length: Math.max(1, allPhotos.length) })
+        .map(
+          (_, dIdx) => `
+          <button
+            class="gallery-dot ${dIdx === 0 ? 'active' : ''}"
+            id="dot-${p.slug}-${dIdx}"
+            aria-label="Go to photo ${dIdx + 1}"
+            onclick="scrollProjectGalleryToIndex('${p.slug}', ${dIdx})"
+          ></button>
+        `
+        )
+        .join('');
+
+      return `
+        <article class="hospitality-project-block" id="${p.slug}" data-slug="${p.slug}">
+          <!-- Top Section: 3-Column Layout -->
+          <div class="hospitality-detail-grid">
+            
+            <!-- LEFT COLUMN: Project Identity -->
+            <div class="col-identity">
+              <span class="hospitality-kicker">HOTEL & BOUTIQUE RESORT PROJECT</span>
+              <h2 class="hospitality-main-title">${escapeHtml(displayHeading)}</h2>
+              <div class="hospitality-green-line"></div>
+            </div>
+
+            <!-- MIDDLE COLUMN: Project Information -->
+            <div class="col-info">
+              <div class="project-info-header">PROJECT INFORMATION</div>
+
+              <div class="project-info-item">
+                <span class="project-info-label">EXECUTED BY:</span>
+                <span class="project-info-accent"></span>
+                <span class="project-info-value">Besim Design (Turnkey Architectural Execution)</span>
+              </div>
+
+              <div class="project-info-item">
+                <span class="project-info-label">DESIGNED BY:</span>
+                <span class="project-info-accent"></span>
+                <span class="project-info-value">${escapeHtml(p.client_name || 'Besim Design Architecture Studio')}</span>
+              </div>
+
+              <div class="project-info-item">
+                <span class="project-info-label">AREA:</span>
+                <span class="project-info-accent"></span>
+                <span class="project-info-value">${p.area_sqft ? Number(p.area_sqft).toLocaleString() + ' Sq. Ft.' : '—'}</span>
+              </div>
+
+              <div class="project-info-item">
+                <span class="project-info-label">LOCATION:</span>
+                <span class="project-info-accent"></span>
+                <span class="project-info-value">${escapeHtml(p.location || 'Goa / Mumbai')}</span>
+              </div>
+
+              <div class="project-info-item">
+                <span class="project-info-label">PROJECT DURATION:</span>
+                <span class="project-info-accent"></span>
+                <span class="project-info-value">${escapeHtml(durationText)}</span>
+              </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Main Featured Cover Photograph -->
+            <div class="col-cover">
+              <div class="cover-img-wrapper" onclick="openPortfolioLightbox('${p.slug}', 0)">
+                <img
+                  src="${escapeHtml(p.image_url)}"
+                  alt="${escapeHtml(p.title)} – Featured Cover Photograph"
+                  class="project-featured-cover"
+                  loading="${pIdx === 0 ? 'eager' : 'lazy'}"
+                >
+                <div class="cover-zoom-hint">🔍 View Fullscreen</div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Photographic Gallery Below (Wide Horizontal Strip) -->
+          <div class="hospitality-gallery-section" style="padding: 36px 0 20px 0;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; border-bottom: 1px solid #f3f4f6; padding-bottom: 10px;">
+              <span style="font-size: 0.82rem; font-weight: 700; color: #16a34a; letter-spacing: 0.08em; text-transform: uppercase;">
+                PROJECT PHOTOGRAPHIC GALLERY
+              </span>
+              <span style="font-size: 0.82rem; color: #6b7280;">
+                ${allPhotos.length} High-Resolution Photographs
+              </span>
+            </div>
+
+            <div class="gallery-carousel-wrapper" data-slug="${p.slug}">
+              <button class="gallery-nav-btn gallery-nav-prev" onclick="scrollProjectGallery('${p.slug}', -1)" aria-label="Previous photograph">
+                ‹
+              </button>
+
+              <div class="gallery-track" id="gallery-track-${p.slug}">
+                ${galleryItemsHtml}
+              </div>
+
+              <button class="gallery-nav-btn gallery-nav-next" onclick="scrollProjectGallery('${p.slug}', 1)" aria-label="Next photograph">
+                ›
+              </button>
+            </div>
+
+            <!-- Carousel Indicators -->
+            <div class="gallery-dots" id="gallery-dots-${p.slug}">
+              ${dotsHtml}
+            </div>
+          </div>
+
+          <!-- Bottom Action Bar for Project -->
+          <div style="display: flex; justify-content: flex-end; align-items: center; padding: 12px 0; margin-top: 8px;">
+            <a
+              href="https://wa.me/919892699850?text=Hello%20Besim%20Design%2C%20I%20am%20interested%20in%20a%20hotel%20architectural%20fit-out%20inspired%20by%20${encodeURIComponent(p.title)}."
+              target="_blank"
+              rel="noopener noreferrer"
+              style="font-size: 0.84rem; color: #16a34a; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
+            >
+              Discuss ${escapeHtml(p.title)} on WhatsApp 💬
+            </a>
+          </div>
+        </article>
+      `;
+    })
+    .join('');
+
+  attachPortfolioListeners();
 }
 
-function attachListeners() {
-  document.querySelectorAll('.view-hotel-blueprint-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const slug = btn.dataset.slug;
-      const project = state.projects.find((p) => p.slug === slug);
-      if (project) openHotelModal(project);
-    });
-  });
+function attachPortfolioListeners() {
+  state.projects.forEach((p) => {
+    const track = document.getElementById(`gallery-track-${p.slug}`);
+    if (!track) return;
 
-  document.querySelectorAll('.request-hotel-rfp-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const title = btn.dataset.title;
-      const area = btn.dataset.area;
-
-      const formSec = document.getElementById('hotelRfpSection');
-      const messageEl = document.getElementById('hotelMessage');
-      const areaEl = document.getElementById('hotelArea');
-
-      if (area && areaEl && !areaEl.value) {
-        areaEl.value = area;
-      }
-
-      if (messageEl) {
-        messageEl.value = `We are seeking turnkey architectural fit-out and engineering for a hotel property similar to "${title}". We require guest room mockups, acoustic STC 55+ corridor isolation, lobby millwork, and full MEP handover.`;
-      }
-
-      if (formSec) {
-        formSec.scrollIntoView({ behavior: 'smooth' });
-        formSec.style.outline = '2px solid var(--accent-gold)';
-        setTimeout(() => { formSec.style.outline = 'none'; }, 2000);
-      }
-
-      showToast(`Form pre-filled with ${title} hotel specifications!`, 'success');
-    });
+    track.addEventListener(
+      'scroll',
+      () => {
+        const itemWidth = track.firstElementChild
+          ? track.firstElementChild.getBoundingClientRect().width + 16
+          : 280;
+        const activeIdx = Math.round(track.scrollLeft / itemWidth);
+        const dots = document.querySelectorAll(`#gallery-dots-${p.slug} .gallery-dot`);
+        dots.forEach((dot, idx) => {
+          if (idx === Math.min(activeIdx, dots.length - 1)) {
+            dot.classList.add('active');
+          } else {
+            dot.classList.remove('active');
+          }
+        });
+      },
+      { passive: true }
+    );
   });
 }
 
 // =============================================================================
-// Blueprint Modal
+// Carousel Scrolling Helpers
 // =============================================================================
 
-function openHotelModal(project) {
-  const modal = document.getElementById('hotelModal');
-  const modalBody = document.getElementById('hotelModalBody');
-  if (!modal || !modalBody) return;
+window.scrollProjectGallery = function (slug, direction) {
+  const track = document.getElementById(`gallery-track-${slug}`);
+  if (!track) return;
+  const itemWidth = track.firstElementChild
+    ? track.firstElementChild.getBoundingClientRect().width + 16
+    : 300;
+  track.scrollBy({ left: direction * itemWidth, behavior: 'smooth' });
+};
 
+window.scrollProjectGalleryToIndex = function (slug, index) {
+  const track = document.getElementById(`gallery-track-${slug}`);
+  if (!track) return;
+  const item = track.children[index];
+  if (item) {
+    item.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+  }
+};
+
+// =============================================================================
+// Fullscreen Lightbox for Portfolio Gallery
+// =============================================================================
+
+window.openPortfolioLightbox = function (slug, index) {
+  const project = state.projects.find((p) => p.slug === slug);
+  if (!project) return;
+
+  const allPhotos = [];
+  if (project.image_url) allPhotos.push(project.image_url);
   let rawGallery = [];
   if (Array.isArray(project.gallery)) {
     rawGallery = project.gallery;
   } else if (typeof project.gallery === 'string') {
-    try { rawGallery = JSON.parse(project.gallery); } catch (_) { rawGallery = [project.image_url]; }
-  }
-
-  const allPhotos = [];
-  if (project.image_url) allPhotos.push(project.image_url);
-  rawGallery.forEach((img) => {
-    if (img && !allPhotos.includes(img)) allPhotos.push(img);
-  });
-
-  const galleryHtml = allPhotos.map((img, idx) => `
-    <div style="border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border-subtle); height: 190px; position: relative; background: #000;">
-      <a href="${escapeHtml(img)}" target="_blank" rel="noopener noreferrer" title="Click to view high-resolution photo ${idx + 1}" style="display: block; width: 100%; height: 100%;">
-        <img src="${escapeHtml(img)}" alt="${escapeHtml(project.title)} - Suite View ${idx + 1}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;">
-      </a>
-      <span style="position: absolute; bottom: 6px; right: 6px; background: rgba(0,0,0,0.75); color: var(--accent-gold); font-size: 0.7rem; font-weight: 600; padding: 2px 6px; border-radius: 3px; border: 1px solid rgba(197, 168, 128, 0.3);">
-        Photo ${idx + 1} of ${allPhotos.length}
-      </span>
-    </div>
-  `).join('');
-
-  let scopes = [];
-  if (Array.isArray(project.scope)) {
-    scopes = project.scope;
-  } else if (typeof project.scope === 'string') {
     try {
-      scopes = JSON.parse(project.scope);
+      rawGallery = JSON.parse(project.gallery);
     } catch (_) {
-      scopes = project.scope.split(',').map((s) => s.trim()).filter(Boolean);
+      rawGallery = [project.gallery];
     }
   }
+  rawGallery.forEach((img) => {
+    if (img && typeof img === 'string' && !allPhotos.includes(img)) {
+      allPhotos.push(img);
+    }
+  });
 
-  const scopesHtml = scopes.map((s) => `
-    <li style="margin-bottom: 8px; display: flex; align-items: baseline; gap: 8px;">
-      <span style="color: var(--accent-gold);">✓</span>
-      <span>${escapeHtml(s)}</span>
-    </li>
-  `).join('');
+  if (allPhotos.length === 0) return;
 
-  modalBody.innerHTML = `
-    <div style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 20px; margin-bottom: 24px;">
-      <div class="section-badge" style="margin-bottom: 10px;">HOTEL ARCHITECTURAL BLUEPRINT</div>
-      <h2 style="font-family: var(--font-serif); font-size: 1.85rem; color: #fff; margin-bottom: 8px;">
-        ${escapeHtml(project.title)}
-      </h2>
-      <div style="display: flex; gap: 20px; flex-wrap: wrap; color: var(--text-dim); font-size: 0.85rem;">
-        ${project.client_name ? `<span>🏨 Hospitality Client: <strong>${escapeHtml(project.client_name)}</strong></span>` : ''}
-        ${project.location ? `<span>📍 Location: <strong>${escapeHtml(project.location)}</strong></span>` : ''}
-      </div>
-    </div>
+  state.activeLightboxSlug = slug;
+  state.activeLightboxIndex = index >= 0 && index < allPhotos.length ? index : 0;
 
-    <div style="margin-bottom: 24px;">
-      <h4 style="font-family: var(--font-serif); font-size: 1.15rem; color: var(--accent-gold); margin-bottom: 8px;">
-        Architectural Execution & Spatial Engineering
-      </h4>
-      <p style="color: var(--text-muted); line-height: 1.8; font-size: 0.95rem;">
-        ${escapeHtml(project.description)}
-      </p>
-    </div>
+  const modal = document.getElementById('portfolioLightboxModal');
+  const img = document.getElementById('portfolioLightboxImg');
+  const counter = document.getElementById('portfolioLightboxCounter');
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 24px;">
-      <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 18px;">
-        <h5 style="color: var(--accent-gold); font-size: 0.9rem; text-transform: uppercase; margin-bottom: 8px;">Acoustic Isolation (STC 55+)</h5>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0; line-height: 1.6;">High-performance acoustic wall assemblies, drop-down door seals, and corridor sound-baffling for guest privacy.</p>
-      </div>
-      <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 18px;">
-        <h5 style="color: var(--accent-gold); font-size: 0.9rem; text-transform: uppercase; margin-bottom: 8px;">Factory Millwork & Teak Joinery</h5>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0; line-height: 1.6;">Precision-manufactured headboards, vanities, luggage credenzas, and entry portal frames crafted in Nalasopara.</p>
-      </div>
-    </div>
+  if (!modal || !img) return;
 
-    ${scopes.length > 0 ? `
-      <div style="margin-bottom: 24px; background: rgba(197, 168, 128, 0.04); padding: 20px; border-radius: var(--radius-sm); border: 1px solid var(--border-gold);">
-        <h4 style="font-family: var(--font-serif); font-size: 1.05rem; color: #fff; margin-bottom: 12px;">Turnkey Hotel Fit-Out Scope</h4>
-        <ul style="list-style: none; padding: 0; color: var(--text-muted); font-size: 0.88rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px;">
-          ${scopesHtml}
-        </ul>
-      </div>
-    ` : ''}
+  img.src = allPhotos[state.activeLightboxIndex];
+  img.alt = `${project.title} – Photo ${state.activeLightboxIndex + 1}`;
 
-    <div style="margin-bottom: 28px;">
-      <h4 style="font-family: var(--font-serif); font-size: 1.05rem; color: var(--text-main); margin-bottom: 14px;">Hotel Architecture & Finishes Gallery</h4>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
-        ${galleryHtml}
-      </div>
-    </div>
-
-    <div style="display: flex; gap: 14px; justify-content: flex-end; padding-top: 18px; border-top: 1px solid var(--border-subtle); flex-wrap: wrap;">
-      <button class="btn btn-secondary btn-sm" id="modalCloseAction">Close Blueprint</button>
-      <button class="btn btn-primary btn-sm" id="modalRequestRfpAction">Submit Hotel RFP For This Standard →</button>
-    </div>
-  `;
+  if (counter) {
+    counter.textContent = `Photo ${state.activeLightboxIndex + 1} of ${allPhotos.length} — ${project.title}`;
+  }
 
   modal.classList.add('active');
   document.body.style.overflow = 'hidden';
+};
 
-  const closeBtn = document.getElementById('modalCloseAction');
-  if (closeBtn) closeBtn.onclick = closeHotelModal;
-
-  const requestBtn = document.getElementById('modalRequestRfpAction');
-  if (requestBtn) {
-    requestBtn.onclick = () => {
-      closeHotelModal();
-      const formSec = document.getElementById('hotelRfpSection');
-      const messageEl = document.getElementById('hotelMessage');
-      const areaEl = document.getElementById('hotelArea');
-
-      if (project.area_sqft && areaEl && !areaEl.value) {
-        areaEl.value = project.area_sqft;
-      }
-      if (messageEl) {
-        messageEl.value = `We are preparing a turnkey tender for a boutique hotel development inspired by "${project.title}". Please review our room count, lobby architecture, and project timeline.`;
-      }
-      if (formSec) {
-        formSec.scrollIntoView({ behavior: 'smooth' });
-      }
-    };
-  }
-}
-
-function closeHotelModal() {
-  const modal = document.getElementById('hotelModal');
+window.closePortfolioLightbox = function () {
+  const modal = document.getElementById('portfolioLightboxModal');
   if (modal) {
     modal.classList.remove('active');
     document.body.style.overflow = '';
   }
-}
+};
+
+window.portfolioLightboxPrev = function () {
+  if (!state.activeLightboxSlug) return;
+  const project = state.projects.find((p) => p.slug === state.activeLightboxSlug);
+  if (!project) return;
+
+  const allPhotos = [];
+  if (project.image_url) allPhotos.push(project.image_url);
+  let raw = Array.isArray(project.gallery) ? project.gallery : [];
+  raw.forEach((img) => {
+    if (img && !allPhotos.includes(img)) allPhotos.push(img);
+  });
+
+  state.activeLightboxIndex = (state.activeLightboxIndex - 1 + allPhotos.length) % allPhotos.length;
+  window.openPortfolioLightbox(state.activeLightboxSlug, state.activeLightboxIndex);
+};
+
+window.portfolioLightboxNext = function () {
+  if (!state.activeLightboxSlug) return;
+  const project = state.projects.find((p) => p.slug === state.activeLightboxSlug);
+  if (!project) return;
+
+  const allPhotos = [];
+  if (project.image_url) allPhotos.push(project.image_url);
+  let raw = Array.isArray(project.gallery) ? project.gallery : [];
+  raw.forEach((img) => {
+    if (img && !allPhotos.includes(img)) allPhotos.push(img);
+  });
+
+  state.activeLightboxIndex = (state.activeLightboxIndex + 1) % allPhotos.length;
+  window.openPortfolioLightbox(state.activeLightboxSlug, state.activeLightboxIndex);
+};
 
 // =============================================================================
 // Hotel RFP Form Submission
@@ -348,7 +469,7 @@ function initHotelForm() {
       if (submitSpinner) submitSpinner.style.display = 'inline';
 
       const fullMessage = [
-        propertyName ? `Hotel Property / Chain: ${propertyName}` : '',
+        propertyName ? `Hotel / Resort Property: ${propertyName}` : '',
         location ? `Location / City: ${location}` : '',
         scopes.length > 0 ? `Required Scope: ${scopes.join(', ')}` : '',
         notes ? `\nHotel Specifications:\n${notes}` : '',
@@ -381,21 +502,21 @@ function initHotelForm() {
       const waPhone = '919892699850';
       const formattedId = json.id ? `#MSF-${json.id.toString().padStart(4, '0')}` : '';
       const waLines = [
-        `*🏛️ BESIM DESIGN - HOTEL DEVELOPMENT BRIEF* ${formattedId}`,
+        `*🏛️ BESIM DESIGN - HOTEL & RESORT BRIEF* ${formattedId}`,
         `*Client:* ${name}`,
         `*Phone:* ${phone}`,
         `*Email:* ${email}`,
-        `*Sector:* HOTELS & RESORTS`,
-        propertyName ? `*Hotel / Chain:* ${propertyName}` : '',
+        `*Sector:* HOTELS & BOUTIQUE RESORTS`,
+        propertyName ? `*Property / Brand:* ${propertyName}` : '',
         location ? `*Location:* ${location}` : '',
-        area ? `*Area / Keys:* ${area} sq.ft` : '',
+        area ? `*Area:* ${area} sq.ft` : '',
         scopes.length > 0 ? `*Required Scope:* ${scopes.join(', ')}` : '',
-        notes ? `\n*Specifications:*\n${notes}` : '',
+        notes ? `\n*Hotel Specifications:*\n${notes}` : '',
       ].filter(Boolean).join('\n');
 
       const waUrl = json.whatsapp_url || `https://wa.me/${waPhone}?text=${encodeURIComponent(waLines)}`;
 
-      showToast(`✓ Hotel development brief ${formattedId} received!`, 'success');
+      showToast(`✓ Hotel project tender inquiry ${formattedId} received!`, 'success');
       form.reset();
 
       try {
@@ -412,23 +533,35 @@ function initHotelForm() {
 }
 
 // =============================================================================
-// Initialization
+// Lifecycle Initialization
 // =============================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-  const modalClose = document.getElementById('hotelModalClose');
-  const modal = document.getElementById('hotelModal');
-  if (modalClose) modalClose.addEventListener('click', closeHotelModal);
+  const closeBtn = document.getElementById('portfolioLightboxClose');
+  if (closeBtn) closeBtn.onclick = closePortfolioLightbox;
+
+  const prevBtn = document.getElementById('portfolioLightboxPrev');
+  if (prevBtn) prevBtn.onclick = portfolioLightboxPrev;
+
+  const nextBtn = document.getElementById('portfolioLightboxNext');
+  if (nextBtn) nextBtn.onclick = portfolioLightboxNext;
+
+  const modal = document.getElementById('portfolioLightboxModal');
   if (modal) {
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) closeHotelModal();
+      if (e.target === modal) closePortfolioLightbox();
     });
   }
+
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeHotelModal();
+    const lb = document.getElementById('portfolioLightboxModal');
+    if (lb && lb.classList.contains('active')) {
+      if (e.key === 'Escape') closePortfolioLightbox();
+      if (e.key === 'ArrowLeft') portfolioLightboxPrev();
+      if (e.key === 'ArrowRight') portfolioLightboxNext();
+    }
   });
 
-  attachListeners();
   initHotelForm();
   loadHotelProjects();
 });

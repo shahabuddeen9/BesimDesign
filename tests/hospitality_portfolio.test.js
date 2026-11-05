@@ -44,7 +44,8 @@ describe('Hospitality Projects Portfolio & Detail Suite', () => {
     const res = await request(app).get('/hospitality');
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toContain('text/html');
-    expect(res.text).toContain('Hospitality & Fine Dining');
+    expect(res.text).toContain('Hospitality');
+    expect(res.text).not.toContain('& Fine Dining');
     expect(res.text).toContain('Pillars of Hospitality Fit-Out');
     expect(res.text).toContain('id="projectsPortfolio"');
     expect(res.text).not.toContain('id="hospitalityJumpNav"');
@@ -61,9 +62,31 @@ describe('Hospitality Projects Portfolio & Detail Suite', () => {
     expect(res.text).not.toContain('Explore Dining Landmarks');
     expect(res.text).not.toContain('REQUEST DINING TENDER');
 
-    // Verify footer is preserved on other pages (e.g. /hotels)
+    // Verify footer is removed from showcase categories (/hotels, /residential, /central-kitchen)
     const hotelsRes = await request(app).get('/hotels');
-    expect(hotelsRes.text).toContain('<footer class="footer">');
+    expect(hotelsRes.text).not.toContain('<footer class="footer">');
+    expect(hotelsRes.text).toContain('Hotels & Boutique Resorts');
+    expect(hotelsRes.text).toContain('Pillars of Hotel Engineering');
+    expect(hotelsRes.text).toContain('id="hotelsProjectsContainer"');
+    expect(hotelsRes.text).not.toContain('showcase-breadcrumb');
+
+    const resiRes = await request(app).get('/residential');
+    expect(resiRes.text).not.toContain('<footer class="footer">');
+    expect(resiRes.text).toContain('Luxury Residential & Penthouses');
+    expect(resiRes.text).toContain('Pillars of Residential Engineering');
+    expect(resiRes.text).toContain('id="residentialProjectsContainer"');
+    expect(resiRes.text).not.toContain('showcase-breadcrumb');
+
+    const ckRes = await request(app).get('/central-kitchen');
+    expect(ckRes.text).not.toContain('<footer class="footer">');
+    expect(ckRes.text).toContain('Central Kitchens & Food Commissaries');
+    expect(ckRes.text).toContain('Pillars of Commissary Engineering');
+    expect(ckRes.text).toContain('id="centralKitchenProjectsContainer"');
+    expect(ckRes.text).not.toContain('showcase-breadcrumb');
+
+    // Verify footer is preserved on unrelated pages (e.g. /about)
+    const aboutRes = await request(app).get('/about');
+    expect(aboutRes.text).toContain('<footer class="footer">');
 
     // Verify uploaded restaurant photo is active as hero background in CSS
     expect(res.text).toContain('hospitality-hero-banner');

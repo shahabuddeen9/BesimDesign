@@ -63,36 +63,11 @@
 
   <main>
     <!-- Central Kitchen Hero Banner -->
-    <section class="showcase-hero" style="background: radial-gradient(circle at 75% 25%, rgba(197, 168, 128, 0.15) 0%, transparent 60%), radial-gradient(circle at 20% 75%, rgba(20, 27, 43, 0.6) 0%, transparent 50%);">
-      <div class="container">
-        <!-- Breadcrumb Navigation -->
-        <div class="showcase-breadcrumb">
-          <a href="/index.html">Home</a>
-          <span>/</span>
-          <a href="/showcase.html">Showcases</a>
-          <span>/</span>
-          <span style="color: var(--accent-gold); font-weight: 600;">Commercial Central Kitchens</span>
-        </div>
-
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
-          <div style="max-width: 820px;">
-            <div class="section-badge">
-              ★ Dedicated Industrial Showcase • Culinary Infrastructure
-            </div>
-            <h1 class="hero-title" style="font-size: 3rem; margin-bottom: 0;">
-              Central Kitchens & Food Commissaries
-            </h1>
-          </div>
-
-          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-            <a href="#projectsSection" class="btn btn-gold btn-sm">
-              Explore Facilities ↓
-            </a>
-            <a href="#feasibilitySection" class="btn btn-primary btn-sm">
-              Request Facility Tender ↗
-            </a>
-          </div>
-        </div>
+    <section class="showcase-hero central-kitchen-hero-banner">
+      <div class="container" style="position: relative; z-index: 2; width: 100%;">
+        <h1 class="hero-title" style="font-family: var(--font-serif); font-size: clamp(2.5rem, 5vw, 3.8rem); font-weight: 700; color: #ffffff; letter-spacing: 0.02em; line-height: 1.15; text-shadow: 0 4px 24px rgba(0, 0, 0, 0.9); margin: 0;">
+          Central Kitchens & Food Commissaries
+        </h1>
       </div>
     </section>
 
@@ -171,20 +146,13 @@
       </div>
     </section>
 
-    <!-- Exclusively Central Kitchen Projects Showcase Grid -->
-    <section class="section-padding" id="projectsSection">
+    <!-- Continuous Long-Scroll Central Kitchen Projects Portfolio -->
+    <section id="projectsPortfolio" style="background-color: #ffffff; color: #111827; padding: 56px 0 32px 0;">
       <div class="container">
-        <div class="section-header">
-          <div class="section-badge">Executed Landmarks</div>
-          <h2 class="section-title">Central Kitchen Portfolios</h2>
-          <p class="section-subtitle">
-            Commercial food commissaries and culinary production plants executed turnkey by Besim Design.
-          </p>
-        </div>
-
-        <div class="portfolio-grid" id="centralKitchenGrid">
-          <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--text-dim);">
-            Loading industrial central kitchen facilities...
+        <!-- Continuous Project List Container -->
+        <div id="centralKitchenProjectsContainer">
+          <div style="text-align: center; padding: 48px 20px; color: #6b7280;">
+            Loading central kitchen & food commissary architectural portfolio...
           </div>
         </div>
       </div>
@@ -292,65 +260,17 @@
     </section>
   </main>
 
-  <!-- Technical Blueprint Modal Dialog -->
-  <div class="modal-overlay" id="technicalModal">
-    <div class="modal-content">
-      <button class="modal-close" id="technicalModalClose">&times;</button>
-      <div id="technicalModalBody">
-        <!-- Rendered dynamically by central-kitchen.js -->
-      </div>
-    </div>
+  <!-- Fullscreen Lightbox Modal Dialog -->
+  <div class="lightbox-modal" id="portfolioLightboxModal" role="dialog" aria-modal="true" aria-label="Project photograph fullscreen view">
+    <button class="lightbox-close" id="portfolioLightboxClose" aria-label="Close lightbox">&times;</button>
+    <button class="lightbox-prev" id="portfolioLightboxPrev" aria-label="Previous photograph">&#8249;</button>
+    <button class="lightbox-next" id="portfolioLightboxNext" aria-label="Next photograph">&#8250;</button>
+    <img id="portfolioLightboxImg" class="lightbox-img" src="" alt="Project Photo">
+    <div id="portfolioLightboxCounter" class="lightbox-counter"></div>
   </div>
 
   <!-- Toast Container -->
   <div class="toast-container" id="toastContainer"></div>
-
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="container">
-      <div class="footer-grid">
-        <div class="footer-brand">
-          <div class="nav-logo" style="margin-bottom: 16px;">
-            <div class="nav-logo-mark">BD</div>
-            <div class="nav-logo-text">
-              <span class="nav-logo-name">BESIM</span>
-              <span class="nav-logo-sub">DESIGN</span>
-            </div>
-          </div>
-          <p style="font-size: 0.88rem; color: var(--text-dim); line-height: 1.7; max-width: 320px;">
-            Turnkey architectural contracting, factory finished joinery from our Nalasopara plant, and comprehensive MEP engineering across Mumbai.
-          </p>
-        </div>
-
-        <div class="footer-column">
-          <h5>Dedicated Portfolios</h5>
-          <ul>
-            <li><a href="/hotels.html">Hotels & Resorts ↗</a></li>
-            <li><a href="/hospitality.html">Hospitality & Dining ↗</a></li>
-            <li><a href="/residential.html">Luxury Residential ↗</a></li>
-            <li><a href="/central-kitchen.html" style="color: var(--accent-gold);">Central Kitchens ↗</a></li>
-            <li><a href="/about.html">About Studio ↗</a></li>
-          </ul>
-        </div>
-
-        <div class="footer-column">
-          <h5>Studio Contact</h5>
-          <ul>
-            <li><a href="tel:+919892699850">+91 98926 99850</a></li>
-            <li><a href="mailto:besimdesigne@gmail.com">besimdesigne@gmail.com</a></li>
-            <li><a href="/privacy.html">Privacy & DPDP Policy</a></li>
-            <li><a href="/admin/login.html" class="stealth-admin-link">Staff CRM Login</a></li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="footer-bottom">
-        <div>
-          <a href="/admin/login.html" class="stealth-admin-link">© 2026 Besim Design</a>. All Rights Reserved.
-        </div>
-      </div>
-    </div>
-  </footer>
 
   <script src="/js/nav.js"></script>
   <script src="/js/central-kitchen.js"></script>
