@@ -52,6 +52,12 @@ describe('Hospitality Projects Portfolio & Detail Suite', () => {
     expect(res.text).not.toContain('Executed Dining & Lounge Landmarks');
     expect(res.text).toContain('id="hospitalityProjectsContainer"');
     expect(res.text).toContain('id="portfolioLightboxModal"');
+    expect(res.text).not.toContain('<footer class="footer">');
+    expect(res.text).not.toContain('request-hospitality-rfp-btn');
+
+    // Verify footer is preserved on other pages (e.g. /hotels)
+    const hotelsRes = await request(app).get('/hotels');
+    expect(hotelsRes.text).toContain('<footer class="footer">');
   });
 
   it('2. GET /api/projects?category=hospitality returns published hospitality projects', async () => {

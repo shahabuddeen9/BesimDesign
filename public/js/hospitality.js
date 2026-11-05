@@ -278,17 +278,7 @@ function renderLongScrollProjects(projectsList) {
           </div>
 
           <!-- Bottom Action Bar for Project -->
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding: 16px 0; margin-top: 12px;">
-            <a
-              href="#hospitalityRfpSection"
-              class="btn btn-primary btn-xs request-hospitality-rfp-btn"
-              data-title="${escapeHtml(p.title)}"
-              data-area="${p.area_sqft || ''}"
-              style="background: #16a34a; border-color: #16a34a; color: #fff; font-weight: 600;"
-            >
-              Request Dining Tender for ${escapeHtml(p.title)} ↗
-            </a>
-
+          <div style="display: flex; justify-content: flex-end; align-items: center; padding: 12px 0; margin-top: 8px;">
             <a
               href="https://wa.me/919892699850?text=Hello%20Besim%20Design%2C%20I%20am%20interested%20in%20a%20hospitality%20architectural%20fit-out%20inspired%20by%20${encodeURIComponent(p.title)}."
               target="_blank"
@@ -330,39 +320,6 @@ function attachPortfolioListeners() {
       },
       { passive: true }
     );
-  });
-
-  // RFP Buttons prefill
-  document.querySelectorAll('.request-hospitality-rfp-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const title = btn.dataset.title;
-      const area = btn.dataset.area;
-
-      const formSec = document.getElementById('hospitalityRfpSection');
-      const messageEl = document.getElementById('hospitalityMessage');
-      const venueEl = document.getElementById('hospitalityVenueName');
-      const areaEl = document.getElementById('hospitalityArea');
-
-      if (venueEl && !venueEl.value) {
-        venueEl.value = title;
-      }
-      if (area && areaEl && !areaEl.value) {
-        areaEl.value = area;
-      }
-      if (messageEl) {
-        messageEl.value = `We are planning a turnkey hospitality / restaurant project inspired by "${title}". We require architectural fit-out, acoustic isolation, commercial kitchen MEP, and bespoke factory banquette millwork.`;
-      }
-
-      if (formSec) {
-        formSec.scrollIntoView({ behavior: 'smooth' });
-        formSec.style.outline = '2px solid #16a34a';
-        setTimeout(() => {
-          formSec.style.outline = 'none';
-        }, 2000);
-      }
-
-      showToast(`Tender form pre-filled for ${title}!`, 'success');
-    });
   });
 }
 
