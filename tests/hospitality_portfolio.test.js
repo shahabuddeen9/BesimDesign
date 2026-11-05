@@ -65,21 +65,24 @@ describe('Hospitality Projects Portfolio & Detail Suite', () => {
     // Verify footer is removed from showcase categories (/hotels, /residential, /central-kitchen)
     const hotelsRes = await request(app).get('/hotels');
     expect(hotelsRes.text).not.toContain('<footer class="footer">');
-    expect(hotelsRes.text).toContain('Hotels & Boutique Resorts');
+    expect(hotelsRes.text).toContain('Hotels');
+    expect(hotelsRes.text).not.toContain('& Boutique Resorts');
     expect(hotelsRes.text).toContain('Pillars of Hotel Engineering');
     expect(hotelsRes.text).toContain('id="hotelsProjectsContainer"');
     expect(hotelsRes.text).not.toContain('showcase-breadcrumb');
 
     const resiRes = await request(app).get('/residential');
     expect(resiRes.text).not.toContain('<footer class="footer">');
-    expect(resiRes.text).toContain('Luxury Residential & Penthouses');
+    expect(resiRes.text).toContain('Luxury Residential');
+    expect(resiRes.text).not.toContain('& Penthouses');
     expect(resiRes.text).toContain('Pillars of Residential Engineering');
     expect(resiRes.text).toContain('id="residentialProjectsContainer"');
     expect(resiRes.text).not.toContain('showcase-breadcrumb');
 
     const ckRes = await request(app).get('/central-kitchen');
     expect(ckRes.text).not.toContain('<footer class="footer">');
-    expect(ckRes.text).toContain('Central Kitchens & Food Commissaries');
+    expect(ckRes.text).toContain('Central Kitchens');
+    expect(ckRes.text).not.toContain('& Food Commissaries');
     expect(ckRes.text).toContain('Pillars of Commissary Engineering');
     expect(ckRes.text).toContain('id="centralKitchenProjectsContainer"');
     expect(ckRes.text).not.toContain('showcase-breadcrumb');

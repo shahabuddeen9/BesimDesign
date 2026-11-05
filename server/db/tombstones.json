@@ -21,6 +21,8 @@
     "Luxury Cafe & Lounge 1793864457154 (Updated)",
     "Luxury Cafe & Lounge 1793864732591 (Updated)",
     "Luxury Cafe & Lounge 1793866697123 (Updated)",
+    "Luxury Cafe & Lounge 1793867203291 (Updated)",
+    "Luxury Cafe & Lounge 1793867295333 (Updated)",
     "Nikita",
     "Otoki",
     "Parinee Group",
@@ -52,6 +54,8 @@
     "Persistence Client Brand 1793864450055",
     "Persistence Client Brand 1793864727144",
     "Persistence Client Brand 1793866690945",
+    "Persistence Client Brand 1793867200033",
+    "Persistence Client Brand 1793867289682",
     "Ping's Orient",
     "Ping’s Orient",
     "RSVP",
@@ -74,6 +78,8 @@
     "Test Brand Unique 1793864453224",
     "Test Brand Unique 1793864730155",
     "Test Brand Unique 1793866692919",
+    "Test Brand Unique 1793867204625",
+    "Test Brand Unique 1793867291526",
     "The Silver Train",
     "White Oak"
   ],
@@ -175,7 +181,15 @@
       "client_name": "Testimonial Author 1793866690945"
     },
     {
-      "id": 1476,
+      "id": 1478,
+      "client_name": "Testimonial Author 1793867200033"
+    },
+    {
+      "id": 1481,
+      "client_name": "Testimonial Author 1793867289682"
+    },
+    {
+      "id": 1482,
       "client_name": "Anil Kapoor"
     }
   ],
@@ -351,10 +365,30 @@
       "title": "Aura Modern Bistronomy & Rooftop Lounge (Updated)"
     },
     {
-      "id": 870,
-      "slug": "test-bistro-portfolio-1793866698554",
+      "id": 871,
+      "slug": "persistence-test-hotel-1793867200032",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 872,
+      "slug": "test-luxury-bistro-1793867201946",
+      "title": "Aura Modern Bistronomy & Rooftop Lounge (Updated)"
+    },
+    {
+      "id": 874,
+      "slug": "test-bistro-portfolio-1793867288346",
       "title": "Velvet Oak Cocktail Bar"
+    },
+    {
+      "id": 875,
+      "slug": "persistence-test-hotel-1793867289680",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 876,
+      "slug": "test-luxury-bistro-1793867294036",
+      "title": "Aura Modern Bistronomy & Rooftop Lounge (Updated)"
     }
   ],
-  "updated_at": "2026-11-05T08:18:19.090Z"
+  "updated_at": "2026-11-05T08:28:15.820Z"
 }

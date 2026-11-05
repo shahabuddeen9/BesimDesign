@@ -183,7 +183,7 @@ function renderLongScrollProjects(projectsList) {
             
             <!-- LEFT COLUMN: Project Identity -->
             <div class="col-identity">
-              <span class="hospitality-kicker">HOTEL & BOUTIQUE RESORT PROJECT</span>
+              <span class="hospitality-kicker">HOTEL PROJECT</span>
               <h2 class="hospitality-main-title">${escapeHtml(displayHeading)}</h2>
               <div class="hospitality-green-line"></div>
             </div>
