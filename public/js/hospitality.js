@@ -91,7 +91,6 @@ async function loadHospitalityProjects() {
 
 function renderLongScrollProjects(projectsList) {
   const container = document.getElementById('hospitalityProjectsContainer');
-  const jumpNav = document.getElementById('hospitalityJumpNav');
   if (!container) return;
 
   if (projectsList.length === 0) {
@@ -101,35 +100,13 @@ function renderLongScrollProjects(projectsList) {
         <p style="font-size: 0.88rem; color: #6b7280;">Add or publish projects in the Admin Dashboard to feature them here.</p>
       </div>
     `;
-    if (jumpNav) jumpNav.style.display = 'none';
     return;
   }
 
-  // 1. Render Quick Jump Navigation Submenu
-  if (jumpNav) {
-    jumpNav.style.display = 'flex';
-    jumpNav.innerHTML = `
-      <span style="font-size: 0.78rem; font-weight: 800; color: #111827; text-transform: uppercase; letter-spacing: 0.05em; margin-right: 4px;">
-        Jump to Landmark:
-      </span>
-      ${projectsList
-        .map((p) => {
-          const city = p.location ? p.location.split(',')[0].trim() : '';
-          const label = city ? `${p.title} (${city})` : p.title;
-          return `
-            <a href="#${p.slug}" class="jump-proj-btn" style="padding: 6px 12px; background: #ffffff; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.82rem; font-weight: 600; color: #111827; text-decoration: none; transition: all 0.2s; white-space: nowrap;">
-              ${escapeHtml(label)} ↓
-            </a>
-          `;
-        })
-        .join('')}
-    `;
-  }
-
-  // 2. Render Each Project in Continuous Full-Detail Format (Matching Reference Screenshot 2)
+  // Render Each Project in Continuous Full-Detail Format
   container.innerHTML = projectsList
     .map((p, pIdx) => {
-      // Extract scope tags
+      // Extract scope strictly for duration metadata
       let scopes = [];
       if (Array.isArray(p.scope)) {
         scopes = p.scope;
@@ -140,16 +117,6 @@ function renderLongScrollProjects(projectsList) {
           scopes = p.scope.split(',').map((s) => s.trim()).filter(Boolean);
         }
       }
-
-      const scopeTagsHtml = scopes
-        .map(
-          (s) => `
-          <span style="display: inline-block; font-size: 0.8rem; background: #f3f4f6; color: #374151; padding: 4px 10px; border-radius: 4px; margin-right: 6px; margin-bottom: 6px; border: 1px solid #e5e7eb;">
-            ✓ ${escapeHtml(s)}
-          </span>
-        `
-        )
-        .join('');
 
       // Formatted Title: "Title – City" if city not already present in title
       let displayHeading = p.title;
@@ -219,7 +186,7 @@ function renderLongScrollProjects(projectsList) {
 
       return `
         <article class="hospitality-project-block" id="${p.slug}" data-slug="${p.slug}">
-          <!-- Top Section: 3-Column Layout (Matching Screenshot 2) -->
+          <!-- Top Section: 3-Column Layout -->
           <div class="hospitality-detail-grid">
             
             <!-- LEFT COLUMN: Project Identity -->
@@ -227,11 +194,6 @@ function renderLongScrollProjects(projectsList) {
               <span class="hospitality-kicker">HOSPITALITY PROJECT</span>
               <h2 class="hospitality-main-title">${escapeHtml(displayHeading)}</h2>
               <div class="hospitality-green-line"></div>
-              <p class="hospitality-narrative">${escapeHtml(p.description)}</p>
-              
-              <div style="margin-bottom: 24px;">
-                ${scopeTagsHtml}
-              </div>
             </div>
 
             <!-- MIDDLE COLUMN: Project Information -->

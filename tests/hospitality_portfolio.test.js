@@ -47,7 +47,9 @@ describe('Hospitality Projects Portfolio & Detail Suite', () => {
     expect(res.text).toContain('Hospitality & Fine Dining');
     expect(res.text).toContain('Pillars of Hospitality Fit-Out');
     expect(res.text).toContain('id="projectsPortfolio"');
-    expect(res.text).toContain('id="hospitalityJumpNav"');
+    expect(res.text).not.toContain('id="hospitalityJumpNav"');
+    expect(res.text).not.toContain('HOSPITALITY ARCHITECTURAL PORTFOLIO');
+    expect(res.text).not.toContain('Executed Dining & Lounge Landmarks');
     expect(res.text).toContain('id="hospitalityProjectsContainer"');
     expect(res.text).toContain('id="portfolioLightboxModal"');
   });
