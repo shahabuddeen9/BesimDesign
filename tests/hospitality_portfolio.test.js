@@ -55,6 +55,12 @@ describe('Hospitality Projects Portfolio & Detail Suite', () => {
     expect(res.text).not.toContain('<footer class="footer">');
     expect(res.text).not.toContain('request-hospitality-rfp-btn');
 
+    // Verify minimalist hero: no breadcrumbs, no dedicated badge, no hero CTA buttons
+    expect(res.text).not.toContain('showcase-breadcrumb');
+    expect(res.text).not.toContain('Dedicated Architectural Showcase');
+    expect(res.text).not.toContain('Explore Dining Landmarks');
+    expect(res.text).not.toContain('REQUEST DINING TENDER');
+
     // Verify footer is preserved on other pages (e.g. /hotels)
     const hotelsRes = await request(app).get('/hotels');
     expect(hotelsRes.text).toContain('<footer class="footer">');
