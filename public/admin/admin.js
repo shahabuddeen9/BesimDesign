@@ -783,7 +783,7 @@ function updateProjectImagePreview(url) {
 function getProjectPublicUrl(category, slug) {
   const cat = (category || '').toLowerCase();
   if (cat === 'hotels') return `/hotels.html#${slug || ''}`;
-  if (cat === 'hospitality') return `/hospitality.html#${slug || ''}`;
+  if (cat === 'hospitality') return slug ? `/hospitality/${encodeURIComponent(slug)}` : '/hospitality.html';
   if (cat === 'residential') return `/residential.html#${slug || ''}`;
   if (cat === 'central_kitchen' || cat === 'central-kitchen') return `/central-kitchen.html#${slug || ''}`;
   return `/showcase.html#${slug || ''}`;

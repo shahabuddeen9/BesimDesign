@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hospitality Architectural Project | Besim Design Mumbai</title>
+  <meta name="description" content="Explore turnkey hospitality, restaurant, and bar architectural execution projects by Besim Design Mumbai. Complete spatial information and photography portfolio.">
+  <link rel="canonical" href="https://www.besimdesign.com/hospitality">
+  <meta property="og:title" content="Hospitality Architectural Project | Besim Design">
+  <meta property="og:description" content="Explore turnkey hospitality, restaurant, and bar architectural execution projects by Besim Design Mumbai.">
+  <meta property="og:type" content="article">
+
+  <!-- Google Fonts: Cinzel & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="hospitality-detail-page">
+
+  <!-- Navigation Bar -->
+  <header class="navbar" id="navbar">
+    <div class="container nav-container">
+      <a href="/index.html" class="nav-logo">
+        <div class="nav-logo-mark">BD</div>
+        <div class="nav-logo-text">
+          <span class="nav-logo-name">BESIM</span>
+          <span class="nav-logo-sub">DESIGN</span>
+        </div>
+      </a>
+
+      <ul class="nav-links" id="navLinks">
+        <li><a href="/index.html" class="nav-link">Home</a></li>
+        <li><a href="/about.html" class="nav-link">About</a></li>
+        <li><a href="/index.html#specialization" class="nav-link">Specialization</a></li>
+        <li class="nav-item-dropdown">
+          <a href="/index.html#projects" class="nav-link active" style="color: var(--accent-gold); font-weight: 600;">Project ▾</a>
+          <ul class="nav-dropdown-menu">
+            <li><a href="/index.html#projects" class="dropdown-item">All Projects</a></li>
+            <li><a href="/hotels.html" class="dropdown-item">Hotels & Resorts ↗</a></li>
+            <li><a href="/hospitality.html" class="dropdown-item" style="color: var(--accent-gold); font-weight: 600;">Hospitality & Dining ↗</a></li>
+            <li><a href="/residential.html" class="dropdown-item">Luxury Residential ↗</a></li>
+            <li><a href="/central-kitchen.html" class="dropdown-item">Central Kitchens ↗</a></li>
+          </ul>
+        </li>
+        <li><a href="/index.html#vision-mission" class="nav-link">Vision & Mission</a></li>
+        <li><a href="/index.html#advantages" class="nav-link">Advantages</a></li>
+        <li><a href="/index.html#clients" class="nav-link">Clients</a></li>
+        <li><a href="/index.html#contact" class="nav-link">Contact</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <a href="/hospitality.html#hospitalityRfpSection" class="btn btn-primary btn-sm">
+          Dining Tender RFP ↗
+        </a>
+        <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
+          ☰
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Clean Breadcrumb Navigation -->
+  <nav class="hospitality-detail-breadcrumb" aria-label="Breadcrumb">
+    <div class="container" style="display: flex; align-items: center; flex-wrap: wrap;">
+      <a href="/index.html">Home</a>
+      <span class="sep">/</span>
+      <a href="/hospitality.html">Hospitality & Dining</a>
+      <span class="sep">/</span>
+      <span id="projectBreadcrumbTitle" style="color: #111827; font-weight: 600;">Loading Project...</span>
+    </div>
+  </nav>
+
+  <main>
+    <!-- Loading State -->
+    <div id="projectLoadingState" style="padding: 120px 20px; text-align: center; color: #6b7280;">
+      <div style="display: inline-block; width: 40px; height: 40px; border: 3px solid #e5e7eb; border-top-color: #16a34a; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+      <p style="margin-top: 16px; font-size: 0.95rem;">Loading hospitality architectural project...</p>
+    </div>
+
+    <!-- Error / Not Found State -->
+    <div id="projectErrorState" style="display: none; padding: 100px 20px; text-align: center;">
+      <div class="container" style="max-width: 600px;">
+        <span style="font-size: 3rem; display: block; margin-bottom: 12px;">🏛️</span>
+        <h2 style="font-family: var(--font-sans); font-size: 1.8rem; color: #111827; margin-bottom: 12px;">
+          Project Not Found
+        </h2>
+        <p id="projectErrorMessage" style="color: #6b7280; margin-bottom: 24px; line-height: 1.6;">
+          The requested hospitality project could not be found or has been moved.
+        </p>
+        <a href="/hospitality.html" class="btn btn-primary btn-sm" style="display: inline-flex;">
+          ← Back to Hospitality Projects Portfolio
+        </a>
+      </div>
+    </div>
+
+    <!-- Main Project Content (Rendered by hospitality-detail.js) -->
+    <div id="projectContentState" style="display: none;">
+      <!-- TOP SECTION: Three-Column Layout (Matching Reference Screenshots) -->
+      <section class="hospitality-detail-hero">
+        <div class="container">
+          <div class="hospitality-detail-grid">
+            
+            <!-- LEFT COLUMN: Project Identity -->
+            <div class="col-identity">
+              <span class="hospitality-kicker">HOSPITALITY PROJECT</span>
+              <h1 class="hospitality-main-title" id="projectTitle">Project Name</h1>
+              <div class="hospitality-green-line"></div>
+              <p class="hospitality-narrative" id="projectNarrative"></p>
+              
+              <div id="projectScopeTags" style="margin-bottom: 24px;"></div>
+
+              <div>
+                <a href="/hospitality.html" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #16a34a; text-decoration: none; font-weight: 600; transition: color 0.2s;">
+                  ← Back to Hospitality Projects Portfolio
+                </a>
+              </div>
+            </div>
+
+            <!-- MIDDLE COLUMN: Structured Project Information -->
+            <div class="col-info">
+              <div class="project-info-header">PROJECT INFORMATION</div>
+
+              <div class="project-info-item">
+                <span class="project-info-label">EXECUTED BY:</span>
+                <span class="project-info-accent"></span>
+                <span class="project-info-value" id="infoExecutedBy">Besim Design</span>
+              </div>
+
+              <div class="project-info-item">
+                <span class="project-info-label">DESIGNED BY:</span>
+                <span class="project-info-accent"></span>
+                <span class="project-info-value" id="infoDesignedBy">—</span>
+              </div>
+
+              <div class="project-info-item">
+                <span class="project-info-label">AREA:</span>
+                <span class="project-info-accent"></span>
+                <span class="project-info-value" id="infoArea">—</span>
+              </div>
+
+              <div class="project-info-item">
+                <span class="project-info-label">LOCATION:</span>
+                <span class="project-info-accent"></span>
+                <span class="project-info-value" id="infoLocation">—</span>
+              </div>
+
+              <div class="project-info-item">
+                <span class="project-info-label">PROJECT DURATION:</span>
+                <span class="project-info-accent"></span>
+                <span class="project-info-value" id="infoDuration">—</span>
+              </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Large Featured Cover Photograph -->
+            <div class="col-cover">
+              <div style="position: relative; overflow: hidden; border-radius: 4px;">
+                <img id="projectCoverImg" class="project-featured-cover" src="" alt="Project Featured Photograph" loading="eager">
+                <div style="position: absolute; bottom: 12px; right: 12px; background: rgba(0,0,0,0.7); color: #fff; font-size: 0.76rem; padding: 4px 10px; border-radius: 4px; pointer-events: none; display: flex; align-items: center; gap: 4px;">
+                  🔍 Click to View Fullscreen
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- BOTTOM SECTION: Wide Horizontal Photographic Gallery (4 across desktop) -->
+      <section class="hospitality-gallery-section">
+        <div class="container">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; border-bottom: 1px solid #f3f4f6; padding-bottom: 12px;">
+            <span style="font-size: 0.85rem; font-weight: 700; color: #16a34a; letter-spacing: 0.08em; text-transform: uppercase;">
+              PROJECT PHOTOGRAPHIC GALLERY
+            </span>
+            <span id="galleryCountText" style="font-size: 0.85rem; color: #6b7280;"></span>
+          </div>
+
+          <div class="gallery-carousel-wrapper">
+            <button class="gallery-nav-btn gallery-nav-prev" id="galleryPrevBtn" aria-label="Previous photograph">
+              ‹
+            </button>
+
+            <div class="gallery-track" id="galleryTrack">
+              <!-- Rendered by hospitality-detail.js -->
+            </div>
+
+            <button class="gallery-nav-btn gallery-nav-next" id="galleryNextBtn" aria-label="Next photograph">
+              ›
+            </button>
+          </div>
+
+          <!-- Subtle Carousel Indicators -->
+          <div class="gallery-dots" id="galleryDots"></div>
+        </div>
+      </section>
+
+      <!-- Callout / Tender Inquiry Action -->
+      <section style="background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; padding: 56px 0;">
+        <div class="container" style="max-width: 900px; text-align: center;">
+          <span style="font-size: 0.8rem; font-weight: 700; color: #16a34a; letter-spacing: 0.08em; text-transform: uppercase; display: block; margin-bottom: 8px;">
+            Turnkey Culinary Architecture
+          </span>
+          <h3 style="font-family: var(--font-sans); font-size: 1.85rem; color: #111827; margin-bottom: 12px; font-weight: 700;">
+            Planning an Ambitious Dining Destination or Hospitality Venue?
+          </h3>
+          <p style="color: #6b7280; font-size: 0.95rem; line-height: 1.7; margin-bottom: 28px;">
+            From bare-shell to launch handover, Besim Design provides comprehensive architectural fit-out, MEP engineering, ecology scrubbers, and bespoke factory banquette millwork.
+          </p>
+          <div style="display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;">
+            <a href="/hospitality.html#hospitalityRfpSection" id="projectRfpCtaBtn" class="btn btn-primary btn-sm" style="background: #16a34a; border-color: #16a34a; color: #fff;">
+              Request Dining Tender & Feasibility ↗
+            </a>
+            <a href="https://wa.me/919892699850?text=Hello%20Besim%20Design%2C%20I%20would%20like%20to%20discuss%20a%20turnkey%20hospitality%20architectural%20project." target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="border-color: #d1d5db; color: #111827;">
+              Chat on WhatsApp 💬
+            </a>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Fullscreen Lightbox Modal -->
+  <div class="lightbox-modal" id="lightboxModal" role="dialog" aria-modal="true" aria-label="Fullscreen photo viewer">
+    <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close photo viewer">&times;</button>
+    <button class="lightbox-prev" onclick="lightboxPrev()" aria-label="Previous photo">‹</button>
+    <img id="lightboxImg" class="lightbox-img" src="" alt="Fullscreen Project Photo">
+    <button class="lightbox-next" onclick="lightboxNext()" aria-label="Next photo">›</button>
+    <div class="lightbox-counter" id="lightboxCounter"></div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="nav-logo" style="margin-bottom: 16px;">
+            <div class="nav-logo-mark">BD</div>
+            <div class="nav-logo-text">
+              <span class="nav-logo-name">BESIM</span>
+              <span class="nav-logo-sub">DESIGN</span>
+            </div>
+          </div>
+          <p style="font-size: 0.88rem; color: var(--text-dim); line-height: 1.7; max-width: 320px;">
+            Turnkey architectural contracting, factory finished joinery from our Nalasopara plant, and comprehensive MEP engineering across Mumbai.
+          </p>
+        </div>
+
+        <div class="footer-column">
+          <h5>Dedicated Portfolios</h5>
+          <ul>
+            <li><a href="/hotels.html">Hotels & Resorts ↗</a></li>
+            <li><a href="/hospitality.html" style="color: var(--accent-gold);">Hospitality & Dining ↗</a></li>
+            <li><a href="/residential.html">Luxury Residential ↗</a></li>
+            <li><a href="/central-kitchen.html">Central Kitchens ↗</a></li>
+            <li><a href="/about.html">About Studio ↗</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-column">
+          <h5>Studio Contact</h5>
+          <ul>
+            <li><a href="tel:+919892699850">+91 98926 99850</a></li>
+            <li><a href="mailto:besimdesigne@gmail.com">besimdesigne@gmail.com</a></li>
+            <li><a href="/privacy.html">Privacy & DPDP Policy</a></li>
+            <li><a href="/admin/login.html" class="stealth-admin-link">Staff CRM Login</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>
+          <a href="/admin/login.html" class="stealth-admin-link">© 2026 Besim Design</a>. All Rights Reserved.
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/hospitality-detail.js"></script>
+</body>
+</html>

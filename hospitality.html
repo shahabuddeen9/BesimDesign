@@ -85,7 +85,7 @@
           </div>
 
           <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-            <a href="#projectsSection" class="btn btn-gold btn-sm">
+            <a href="#projectsPortfolio" class="btn btn-gold btn-sm">
               Explore Dining Landmarks ↓
             </a>
             <a href="#hospitalityRfpSection" class="btn btn-primary btn-sm">
@@ -171,20 +171,28 @@
       </div>
     </section>
 
-    <!-- Exclusively Hospitality Projects Showcase Grid -->
-    <section class="section-padding" id="projectsSection">
+    <!-- Exclusively Hospitality Projects Portfolio Section (One Continuous Long-Scroll) -->
+    <section id="projectsPortfolio" style="background-color: #ffffff; color: #111827; padding: 64px 0 40px 0;">
       <div class="container">
-        <div class="section-header">
-          <div class="section-badge">Executed Landmarks</div>
-          <h2 class="section-title">Hospitality & Dining Portfolios</h2>
-          <p class="section-subtitle">
-            Award-winning restaurants, cocktail bars, and cafes executed turnkey by Besim Design.
+        <div style="margin-bottom: 28px; border-bottom: 1px solid #e5e7eb; padding-bottom: 20px;">
+          <div style="font-size: 0.82rem; font-weight: 700; color: #16a34a; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px;">
+            HOSPITALITY ARCHITECTURAL PORTFOLIO
+          </div>
+          <h2 style="font-family: var(--font-sans); font-size: 2.4rem; color: #111827; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.02em;">
+            Executed Dining & Lounge Landmarks
+          </h2>
+          <p style="color: #6b7280; font-size: 0.95rem; margin: 0;">
+            Explore our complete turnkey architectural and engineering portfolio below in full detail.
           </p>
         </div>
 
-        <div class="portfolio-grid" id="hospitalityGrid">
-          <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--text-dim);">
-            Loading hospitality & restaurant projects...
+        <!-- Quick Jump Navigation Submenu -->
+        <div id="hospitalityJumpNav" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 52px; padding: 14px 18px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; align-items: center;"></div>
+
+        <!-- Continuous Project List Container -->
+        <div id="hospitalityProjectsContainer">
+          <div style="text-align: center; padding: 48px 20px; color: #6b7280;">
+            Loading hospitality architectural portfolio...
           </div>
         </div>
       </div>
@@ -292,14 +300,13 @@
     </section>
   </main>
 
-  <!-- Hospitality Blueprint Modal Dialog -->
-  <div class="modal-overlay" id="hospitalityModal">
-    <div class="modal-content">
-      <button class="modal-close" id="hospitalityModalClose">&times;</button>
-      <div id="hospitalityModalBody">
-        <!-- Rendered dynamically by hospitality.js -->
-      </div>
-    </div>
+  <!-- Fullscreen Lightbox Modal Dialog -->
+  <div class="lightbox-modal" id="portfolioLightboxModal" role="dialog" aria-modal="true" aria-label="Project photograph fullscreen view">
+    <button class="lightbox-close" id="portfolioLightboxClose" aria-label="Close lightbox">&times;</button>
+    <button class="lightbox-prev" id="portfolioLightboxPrev" aria-label="Previous photograph">&#8249;</button>
+    <button class="lightbox-next" id="portfolioLightboxNext" aria-label="Next photograph">&#8250;</button>
+    <img id="portfolioLightboxImg" class="lightbox-img" src="" alt="Project Photo">
+    <div id="portfolioLightboxCounter" class="lightbox-counter"></div>
   </div>
 
   <!-- Toast Container -->

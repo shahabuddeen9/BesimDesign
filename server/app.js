@@ -207,6 +207,16 @@ app.get(['/hospitality', '/hospitality.html'], (req, res) => {
   res.sendFile(target);
 });
 
+app.get('/hospitality/:slug', (req, res, next) => {
+  const { slug } = req.params;
+  if (slug && slug.includes('.')) return next();
+  const distFile = path.resolve(distPath, 'hospitality-detail.html');
+  const pubFile = path.resolve(publicPath, 'hospitality-detail.html');
+  const rootFile = path.resolve(projectRoot, 'hospitality-detail.html');
+  const target = fs.existsSync(distFile) ? distFile : (fs.existsSync(pubFile) ? pubFile : rootFile);
+  res.sendFile(target);
+});
+
 app.get(['/residential', '/residential.html'], (req, res) => {
   const distFile = path.resolve(distPath, 'residential.html');
   const pubFile = path.resolve(publicPath, 'residential.html');

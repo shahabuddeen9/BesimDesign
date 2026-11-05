@@ -19,6 +19,7 @@ export default defineConfig(() => {
           centralKitchen: path.resolve(import.meta.dirname, 'central-kitchen.html'),
           hotels: path.resolve(import.meta.dirname, 'hotels.html'),
           hospitality: path.resolve(import.meta.dirname, 'hospitality.html'),
+          hospitalityDetail: path.resolve(import.meta.dirname, 'hospitality-detail.html'),
           residential: path.resolve(import.meta.dirname, 'residential.html'),
           showcase: path.resolve(import.meta.dirname, 'showcase.html'),
           privacy: path.resolve(import.meta.dirname, 'privacy.html'),

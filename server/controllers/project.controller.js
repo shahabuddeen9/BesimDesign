@@ -110,7 +110,7 @@ export async function getProjectBySlug(req, res, next) {
   try {
     const { slug } = req.params;
     const project = await db.get(`
-      SELECT id, title, slug, category, description, scope, image_url, gallery, is_featured, created_at
+      SELECT id, title, slug, category, client_name, location, area_sqft, description, scope, image_url, gallery, is_featured, created_at
       FROM projects
       WHERE slug = ?
         AND is_published = 1

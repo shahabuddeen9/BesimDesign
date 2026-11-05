@@ -16,6 +16,10 @@
       "destination": "/api/index"
     },
     {
+      "source": "/hospitality/:slug",
+      "destination": "/hospitality-detail.html"
+    },
+    {
       "source": "/admin",
       "destination": "/admin/dashboard.html"
     },
