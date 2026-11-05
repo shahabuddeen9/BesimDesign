@@ -58,6 +58,11 @@ describe('Hospitality Projects Portfolio & Detail Suite', () => {
     // Verify footer is preserved on other pages (e.g. /hotels)
     const hotelsRes = await request(app).get('/hotels');
     expect(hotelsRes.text).toContain('<footer class="footer">');
+
+    // Verify uploaded restaurant photo is active as hero background in CSS
+    expect(res.text).toContain('hospitality-hero-banner');
+    const cssRes = await request(app).get('/css/style.css');
+    expect(cssRes.text).toContain('/assets/aistudio/image_06ce86d1.png');
   });
 
   it('2. GET /api/projects?category=hospitality returns published hospitality projects', async () => {
