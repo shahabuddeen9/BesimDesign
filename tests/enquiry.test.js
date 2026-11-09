@@ -154,6 +154,58 @@ describe('Public Enquiries API (POST /api/enquiries)', () => {
     expect(res.body.success).toBe(false);
   });
 
+  it('should reject Office / Commercial business sector submissions in Project Feasibility form', async () => {
+    const payloadCommercial = {
+      name: 'Rahul Mehta',
+      phone: '9876543210',
+      email: 'rahul.mehta@example.com',
+      business_type: 'commercial',
+      source: 'contact_form',
+      consent: true,
+    };
+
+    const resCommercial = await request(app)
+      .post('/api/enquiries')
+      .send(payloadCommercial);
+
+    expect(resCommercial.status).toBe(400);
+    expect(resCommercial.body.success).toBe(false);
+    expect(resCommercial.body.errors.some((e) => e.field === 'business_type')).toBe(true);
+    expect(resCommercial.body.errors.find((e) => e.field === 'business_type').message).toContain('Office / Commercial');
+
+    const resOffice = await request(app)
+      .post('/api/enquiries')
+      .send({
+        ...payloadCommercial,
+        business_type: 'commercial_office',
+      });
+
+    expect(resOffice.status).toBe(400);
+    expect(resOffice.body.success).toBe(false);
+    expect(resOffice.body.errors.some((e) => e.field === 'business_type')).toBe(true);
+  });
+
+  it('should successfully submit Project Feasibility enquiry with Principal Name Rahul Mehta', async () => {
+    const payload = {
+      name: 'Rahul Mehta',
+      phone: '9876543210',
+      email: 'rahul.mehta@example.com',
+      business_type: 'central_kitchen',
+      project_location: 'BKC, Mumbai',
+      area_sqft: 8000,
+      source: 'contact_form',
+      consent: true,
+    };
+
+    const res = await request(app)
+      .post('/api/enquiries')
+      .send(payload);
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.id).toBeDefined();
+  });
+
   it('should return WhatsApp redirection details targeting +91 98926 99850', async () => {
     const payload = {
       name: 'Farhan Zaidi',

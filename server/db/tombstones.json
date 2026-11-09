@@ -40,6 +40,7 @@
     "Luxury Cafe & Lounge 1794209570646 (Updated)",
     "Luxury Cafe & Lounge 1794210541719 (Updated)",
     "Luxury Cafe & Lounge 1794212098400 (Updated)",
+    "Luxury Cafe & Lounge 1794222326336 (Updated)",
     "Nikita",
     "Otoki",
     "Parinee Group",
@@ -91,6 +92,7 @@
     "Persistence Client Brand 1794209559044",
     "Persistence Client Brand 1794210529824",
     "Persistence Client Brand 1794212087383",
+    "Persistence Client Brand 1794222319772",
     "Ping's Orient",
     "Ping’s Orient",
     "RSVP",
@@ -132,6 +134,7 @@
     "Test Brand Unique 1794209562953",
     "Test Brand Unique 1794210540123",
     "Test Brand Unique 1794212093928",
+    "Test Brand Unique 1794222323331",
     "The Silver Train",
     "White Oak"
   ],
@@ -313,8 +316,8 @@
       "client_name": "Testimonial Author 1794212087383"
     },
     {
-      "id": 1535,
-      "client_name": "Anil Kapoor"
+      "id": 1537,
+      "client_name": "Testimonial Author 1794222319772"
     }
   ],
   "projects": [
@@ -774,11 +777,6 @@
       "title": null
     },
     {
-      "id": 955,
-      "slug": null,
-      "title": "Project Without Slug 2"
-    },
-    {
       "id": 956,
       "slug": null,
       "title": null
@@ -787,7 +785,47 @@
       "id": 957,
       "slug": null,
       "title": null
+    },
+    {
+      "id": 961,
+      "slug": "test-luxury-bistro-1794222317451",
+      "title": "Aura Modern Bistronomy & Rooftop Lounge (Updated)"
+    },
+    {
+      "id": 962,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 963,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 964,
+      "slug": null,
+      "title": "Project Without Slug 2"
+    },
+    {
+      "id": 967,
+      "slug": "persistence-test-hotel-1794222319771",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 968,
+      "slug": "test-bistro-portfolio-1794222321917",
+      "title": "Velvet Oak Cocktail Bar"
+    },
+    {
+      "id": 969,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 970,
+      "slug": null,
+      "title": null
     }
   ],
-  "updated_at": "2026-11-09T08:15:00.396Z"
+  "updated_at": "2026-11-09T11:05:29.773Z"
 }

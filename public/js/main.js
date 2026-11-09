@@ -643,6 +643,12 @@ function initContactForm() {
       return;
     }
 
+    const allowedFeasibilitySectors = ['central_kitchen', 'hotels', 'hospitality', 'residential'];
+    if (!businessType || !allowedFeasibilitySectors.includes(businessType)) {
+      displayFormError('Please select a valid Project Sector (Central Kitchen, Hotels, Hospitality, or Residential).');
+      return;
+    }
+
     if (!consent) {
       displayFormError('Please tick the consent checkbox to permit our architectural team to contact you.');
       return;

@@ -15,14 +15,13 @@ import logger from '../utils/logger.js';
 import { hashIp, normalizeIndianPhone, stripHtml } from '../utils/sanitize.js';
 
 // Allowed business types for architecture & turnkey projects
+// (Office / Commercial has been removed from Project Feasibility enquiry sectors)
 export const ALLOWED_BUSINESS_TYPES = [
   'central_kitchen',
   'hotels',
   'hotel',
   'hospitality',
   'residential',
-  'commercial',
-  'commercial_office',
   'restaurant',
   'bar',
   'cafe',
@@ -55,6 +54,9 @@ export const enquirySubmissionSchema = z.object({
   business_type: z
     .string()
     .transform((val) => val.toLowerCase().trim().replace(/[\s-]+/g, '_'))
+    .refine((val) => !['commercial', 'commercial_office', 'office'].includes(val), {
+      message: 'Office / Commercial is not an accepted sector for Project Feasibility enquiries.',
+    })
     .refine((val) => ALLOWED_BUSINESS_TYPES.includes(val), {
       message: `Business type must be one of: ${ALLOWED_BUSINESS_TYPES.join(', ')}`,
     }),
