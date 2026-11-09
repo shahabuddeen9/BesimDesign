@@ -45,5 +45,13 @@ if (!parsed.success) {
   process.exit(1);
 }
 
+// Strict production security validations
+if (parsed.data.NODE_ENV === 'production') {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev-besim-design-jwt-secret-key-super-secure-32chars!') {
+    console.error('❌ CRITICAL SECURITY ERROR: Missing or default JWT_SECRET in production. A secure, unique JWT secret is required.');
+    process.exit(1);
+  }
+}
+
 export const env = parsed.data;
 export default env;

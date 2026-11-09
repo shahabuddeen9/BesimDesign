@@ -5,17 +5,21 @@
  */
 
 import { Router } from 'express';
-import { getMe, login, logout } from '../controllers/auth.controller.js';
+import { getMe, login, logout, refreshSession } from '../controllers/auth.controller.js';
 import { authenticateAdmin } from '../middleware/auth.js';
+import { verifyCsrf } from '../middleware/csrf.js';
 import { loginLimiter } from '../middleware/rateLimit.js';
 
 export const authRouter = Router();
 
-// POST /api/auth/login (Limited to 5 attempts per 15 minutes)
+// POST /api/auth/login (Limited to 30 attempts per 15 minutes)
 authRouter.post('/login', loginLimiter, login);
 
-// POST /api/auth/logout
-authRouter.post('/logout', logout);
+// POST /api/auth/refresh (Rotate refresh token and issue fresh access token)
+authRouter.post('/refresh', refreshSession);
+
+// POST /api/auth/logout (Protected against CSRF)
+authRouter.post('/logout', verifyCsrf, logout);
 
 // GET /api/auth/me (Protected, checks current admin session)
 authRouter.get('/me', authenticateAdmin, getMe);

@@ -37,13 +37,15 @@ import {
   updateTestimonial,
 } from '../controllers/testimonial.controller.js';
 import { authenticateAdmin } from '../middleware/auth.js';
-import { uploadImage } from '../middleware/upload.js';
+import { verifyCsrf } from '../middleware/csrf.js';
+import { uploadImage, validateUploadedFiles } from '../middleware/upload.js';
 import AppError from '../utils/AppError.js';
 
 export const adminRouter = Router();
 
-// Protect ALL admin routes with JWT authentication
+// Protect ALL admin routes with JWT authentication & CSRF validation
 adminRouter.use(authenticateAdmin);
+adminRouter.use(verifyCsrf);
 
 // ==========================================
 // 1. CRM ENQUIRIES & LEADS
@@ -88,7 +90,7 @@ import { processUploadedFile } from '../services/storage.js';
 // ==========================================
 // 5. ASSET IMAGE UPLOAD (Single & Multiple: 10MB max, JPG/PNG/WebP)
 // ==========================================
-adminRouter.post('/upload', uploadImage.single('image'), async (req, res, next) => {
+adminRouter.post('/upload', uploadImage.single('image'), validateUploadedFiles, async (req, res, next) => {
   try {
     if (!req.file) {
       throw new AppError('No image file uploaded or file rejected by validator.', 400);
@@ -110,7 +112,7 @@ adminRouter.post('/upload', uploadImage.single('image'), async (req, res, next) 
   }
 });
 
-adminRouter.post('/upload-multiple', uploadImage.array('images', 10), async (req, res, next) => {
+adminRouter.post('/upload-multiple', uploadImage.array('images', 10), validateUploadedFiles, async (req, res, next) => {
   try {
     if (!req.files || req.files.length === 0) {
       throw new AppError('No image files uploaded or files rejected by validator.', 400);

@@ -6,9 +6,9 @@
  * Compatible with both PostgreSQL and SQLite.
  */
 
-import jwt from 'jsonwebtoken';
 import env from '../config/env.js';
 import { db } from '../db/index.js';
+import { isTokenRevoked, verifyAccessToken } from '../services/tokenService.js';
 import AppError from '../utils/AppError.js';
 
 export async function authenticateAdmin(req, res, next) {
@@ -32,7 +32,12 @@ export async function authenticateAdmin(req, res, next) {
   }
 
   try {
-    const decoded = jwt.verify(token, env.JWT_SECRET);
+    const isRevoked = await isTokenRevoked(token);
+    if (isRevoked) {
+      return next(new AppError('Session has been revoked or logged out.', 401));
+    }
+
+    const decoded = verifyAccessToken(token);
     if (!decoded || (!decoded.id && !decoded.email)) {
       return next(new AppError('Invalid authentication token.', 401));
     }

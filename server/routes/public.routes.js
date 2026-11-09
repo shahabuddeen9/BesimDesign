@@ -27,14 +27,14 @@ publicRouter.get('/clients', getPublishedClients);
 // 3. Client Testimonials
 publicRouter.get('/testimonials', getPublishedTestimonials);
 
-import { uploadImage } from '../middleware/upload.js';
+import { uploadImage, validateUploadedFiles } from '../middleware/upload.js';
 import AppError from '../utils/AppError.js';
 
 // 5. Download Company Profile Deck
 publicRouter.get('/download/company-profile', downloadCompanyProfile);
 
 // 6. Upload Project Brief / Drawings (JPG, PNG, WebP, PDF up to 10MB)
-publicRouter.post('/upload', uploadImage.single('file'), (req, res, next) => {
+publicRouter.post('/upload', uploadImage.single('file'), validateUploadedFiles, (req, res, next) => {
   try {
     if (!req.file) {
       throw new AppError('No drawing or document file uploaded.', 400);

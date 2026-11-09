@@ -101,6 +101,8 @@ CREATE TABLE IF NOT EXISTS deleted_testimonials (
   client_name TEXT,
   deleted_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE INDEX IF NOT EXISTS idx_deleted_testimonials_identity
+  ON deleted_testimonials (testimonial_id, client_name);
 
 -- 2.8 DELETED PROJECTS TOMBSTONE TABLE
 CREATE TABLE IF NOT EXISTS deleted_projects (

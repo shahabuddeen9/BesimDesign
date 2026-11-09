@@ -11,6 +11,8 @@ import fs from 'fs';
 import path from 'path';
 import env from '../config/env.js';
 import { db } from '../db/index.js';
+import { validateFileBuffer } from '../middleware/upload.js';
+import AppError from '../utils/AppError.js';
 import logger from '../utils/logger.js';
 
 /**
@@ -83,6 +85,16 @@ export async function processUploadedFile(file) {
     buffer = file.buffer;
   }
 
+  if (buffer && file.mimetype) {
+    const isValid = validateFileBuffer(buffer, file.mimetype);
+    if (!isValid) {
+      if (file.path && fs.existsSync(file.path)) {
+        try { fs.unlinkSync(file.path); } catch (_) {}
+      }
+      throw new AppError('File signature does not match declared MIME type. Upload rejected for security.', 400);
+    }
+  }
+
   // 1. Try Supabase Storage if configured
   if (buffer) {
     const cloudUrl = await uploadToSupabaseStorage(buffer, filename, file.mimetype);
@@ -138,8 +150,85 @@ export async function processUploadedFile(file) {
   };
 }
 
+/**
+ * Safely deletes a physical asset file only if no other project or client references it.
+ * Designed for post-commit cleanup to guarantee that transaction rollbacks never leave broken references.
+ *
+ * @param {string} fileUrlOrName Relative URL (/uploads/xyz.png) or bare filename
+ * @returns {Promise<{ deleted: boolean, reason?: string, filename?: string }>}
+ */
+export async function safeDeleteFileIfUnreferenced(fileUrlOrName) {
+  if (!fileUrlOrName || typeof fileUrlOrName !== 'string') {
+    return { deleted: false, reason: 'invalid_argument' };
+  }
+
+  const trimmed = fileUrlOrName.trim();
+  // Don't attempt to delete external unsplash or cloud images
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    if (!trimmed.includes('/uploads/')) {
+      return { deleted: false, reason: 'external_url' };
+    }
+  }
+
+  const filename = path.basename(trimmed);
+  if (!filename || filename === '.' || filename === '..') {
+    return { deleted: false, reason: 'invalid_filename' };
+  }
+
+  try {
+    // 1. Check if any project still references this file
+    const projCheck = await db.get(
+      'SELECT COUNT(*) as count FROM projects WHERE image_url LIKE ? OR gallery LIKE ?',
+      `%${filename}%`,
+      `%${filename}%`
+    );
+    const projCount = Number(projCheck?.count || projCheck?.['COUNT(*)'] || 0);
+
+    // 2. Check if any client logo references this file
+    const clientCheck = await db.get(
+      'SELECT COUNT(*) as count FROM clients WHERE logo_url LIKE ?',
+      `%${filename}%`
+    );
+    const clientCount = Number(clientCheck?.count || clientCheck?.['COUNT(*)'] || 0);
+
+    if (projCount + clientCount > 0) {
+      logger.info(`Asset ${filename} still referenced by ${projCount + clientCount} record(s). Preserving physical file.`);
+      return { deleted: false, reason: 'referenced', referenceCount: projCount + clientCount };
+    }
+
+    // 3. Unreferenced: Safe physical deletion from disk
+    const diskPaths = [
+      path.resolve(process.cwd(), 'uploads', filename),
+      path.resolve(process.cwd(), 'public/uploads', filename),
+    ];
+
+    let physicallyRemoved = false;
+    for (const p of diskPaths) {
+      if (fs.existsSync(p)) {
+        try {
+          fs.unlinkSync(p);
+          physicallyRemoved = true;
+        } catch (err) {
+          logger.warn(`Could not remove physical file from disk (${p}): ${err.message}`);
+        }
+      }
+    }
+
+    // 4. Remove from database uploaded_assets fallback table if present
+    try {
+      await db.run('DELETE FROM uploaded_assets WHERE filename = ?', filename);
+    } catch (_) {}
+
+    return { deleted: physicallyRemoved, filename };
+  } catch (err) {
+    logger.warn(`Error during safe file cleanup check for ${filename}:`, err);
+    return { deleted: false, reason: 'error', error: err.message };
+  }
+}
+
 export default {
   uploadToSupabaseStorage,
   processUploadedFile,
+  safeDeleteFileIfUnreferenced,
 };
 

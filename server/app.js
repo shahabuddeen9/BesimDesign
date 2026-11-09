@@ -14,6 +14,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import env from './config/env.js';
 import { db, initDb } from './db/index.js';
+import { csrfCookieSetter } from './middleware/csrf.js';
 import errorHandler from './middleware/errorHandler.js';
 import { generalLimiter } from './middleware/rateLimit.js';
 
@@ -27,27 +28,23 @@ const distPath = path.resolve(projectRoot, 'dist');
 
 export const app = express();
 
-// Ensure SQLite database is initialized before any route executes
-app.use(async (req, res, next) => {
-  try {
-    await initDb();
-    next();
-  } catch (err) {
-    next(err);
-  }
-});
-
 // 1. Trust proxy for rate limiting behind reverse proxies (Cloud Run / Nginx / Render)
 app.set('trust proxy', 1);
 
-// 2. Helmet Security Headers (configured to allow AI Studio iframe embedding)
-app.use(
-  helmet({
-    frameguard: false, // Critical: disables X-Frame-Options so preview iframe can load
+// 2. Helmet Security Headers (Adaptive to Production and Development/Preview)
+app.use((req, res, next) => {
+  const host = req.headers.host || '';
+  const isProd = process.env.NODE_ENV === 'production' || env.NODE_ENV === 'production';
+  const isPreviewHost = host.includes('.run.app') || host.includes('localhost') || host.includes('127.0.0.1');
+  const isStrictProduction = isProd && !isPreviewHost;
+
+  return helmet({
+    // Production strictly enforces SAMEORIGIN; preview environments allow iframe rendering
+    frameguard: isStrictProduction ? { action: 'sameorigin' } : false,
     crossOriginEmbedderPolicy: false,
-    crossOriginOpenerPolicy: false, // Critical: prevents blank/white page when loaded in iframe
-    crossOriginResourcePolicy: false, // Critical: prevents blocking assets in cross-origin preview
-    originAgentCluster: false,
+    crossOriginOpenerPolicy: isStrictProduction ? { policy: 'same-origin' } : false,
+    crossOriginResourcePolicy: isStrictProduction ? { policy: 'same-origin' } : false,
+    originAgentCluster: isStrictProduction,
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
@@ -59,11 +56,35 @@ app.use(
         objectSrc: ["'none'"],
         mediaSrc: ["'self'"],
         frameSrc: ["'self'", '*'],
-        frameAncestors: ['*'], // Critical: allows embedding in AI Studio iFrame
+        frameAncestors: isStrictProduction ? ["'self'"] : ['*'],
       },
     },
-  })
-);
+  })(req, res, next);
+});
+
+// 3. Ensure database is initialized before any route executes; fails safely with 503 on database unavailability
+app.use(async (req, res, next) => {
+  try {
+    await initDb();
+    next();
+  } catch (err) {
+    if (req.path.startsWith('/api')) {
+      return res.status(503).json({
+        success: false,
+        status: 'unhealthy',
+        database: 'disconnected',
+        message: 'Database service is temporarily unavailable. Please try again later.',
+        error: (process.env.NODE_ENV === 'production' || env.NODE_ENV === 'production')
+          ? 'Database connection failure'
+          : err.message,
+      });
+    }
+    next(err);
+  }
+});
+
+// Set CSRF token cookie on all requests
+app.use(csrfCookieSetter);
 
 // 3. CORS Configuration (Resilient to AI Studio preview iframes, sandboxed origins, and cross-origin tools)
 app.use((req, res, next) => {
@@ -243,14 +264,27 @@ app.get(['/privacy', '/privacy.html'], (req, res) => {
 app.use('/api', generalLimiter);
 
 // 8. Health Check Endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    env: env.NODE_ENV,
-  });
+app.get('/api/health', async (req, res) => {
+  try {
+    await initDb();
+    res.status(200).json({
+      success: true,
+      status: 'healthy',
+      database: (process.env.DATABASE_URL || env.DATABASE_URL) ? 'postgresql' : 'sqlite',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      env: env.NODE_ENV,
+    });
+  } catch (err) {
+    res.status(503).json({
+      success: false,
+      status: 'unhealthy',
+      error: 'Database connection unavailable',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      env: env.NODE_ENV,
+    });
+  }
 });
 
 import adminRoutes from './routes/admin.routes.js';

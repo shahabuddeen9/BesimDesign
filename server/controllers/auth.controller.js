@@ -6,10 +6,15 @@
  */
 
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import env from '../config/env.js';
 import { db } from '../db/index.js';
+import {
+  revokeToken,
+  rotateRefreshToken,
+  signAccessToken,
+  signRefreshToken,
+} from '../services/tokenService.js';
 import AppError from '../utils/AppError.js';
 import logger from '../utils/logger.js';
 
@@ -19,6 +24,8 @@ export const loginSchema = z.object({
 });
 
 const COOKIE_NAME = 'token';
+const REFRESH_COOKIE_NAME = 'refreshToken';
+const ONE_HOUR_MS = 60 * 60 * 1000;
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
@@ -74,33 +81,7 @@ export async function login(req, res, next) {
       throw new AppError('Invalid credentials.', 401);
     }
 
-    let isMatch = await bcrypt.compare(password, admin.password_hash);
-    if (!isMatch && authorizedEmails.includes(cleanEmail)) {
-      const allowedDefaultPasswords = [
-        env.ADMIN_PASSWORD,
-        'saifi@2025!',
-        'Saifi@2025!',
-        'saifi@2025',
-        'saifi2025',
-        'AdminPass123!',
-        'AdminPass123',
-        'Admin@2025!',
-        'Admin@2025',
-        'Admin123!',
-        'Admin123',
-        'admin123!',
-        'admin123',
-        'besimdesign',
-        'BesimDesign@123',
-      ].filter(Boolean);
-
-      if (allowedDefaultPasswords.includes(password)) {
-        const newHash = await bcrypt.hash(password, 10);
-        await db.run('UPDATE admins SET password_hash = ? WHERE id = ?', newHash, admin.id);
-        isMatch = true;
-      }
-    }
-
+    const isMatch = await bcrypt.compare(password, admin.password_hash);
     if (!isMatch) {
       throw new AppError('Invalid credentials.', 401);
     }
@@ -108,28 +89,36 @@ export async function login(req, res, next) {
     // Update last_login_at
     await db.run("UPDATE admins SET last_login_at = datetime('now') WHERE id = ?", admin.id);
 
-    // Sign JWT
-    const token = jwt.sign(
-      { id: admin.id, email: admin.email },
-      env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    // Sign secure access and refresh tokens
+    const accessToken = signAccessToken({ id: admin.id, email: admin.email }, '1h');
+    const { token: refreshToken } = signRefreshToken({ id: admin.id, email: admin.email });
 
     const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
-    res.cookie(COOKIE_NAME, token, {
+
+    // Access token cookie
+    res.cookie(COOKIE_NAME, accessToken, {
+      httpOnly: true,
+      secure: isHttps,
+      sameSite: isHttps ? 'none' : 'lax',
+      maxAge: ONE_HOUR_MS,
+      path: '/',
+    });
+
+    // Refresh token cookie (restricted to /api/auth path)
+    res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
       httpOnly: true,
       secure: isHttps,
       sameSite: isHttps ? 'none' : 'lax',
       maxAge: SEVEN_DAYS_MS,
-      path: '/',
+      path: '/api/auth',
     });
 
     logger.info(`Administrator logged in: ${admin.email}`);
 
+    // Return response without exposing JWT or passwords in response body
     return res.status(200).json({
       success: true,
       message: 'Login successful.',
-      token,
       admin: {
         id: admin.id,
         email: admin.email,
@@ -142,15 +131,77 @@ export async function login(req, res, next) {
 }
 
 /**
- * Admin Logout: Clears the authentication cookie
+ * Admin Refresh Session: Rotates refresh token and issues fresh access token
+ */
+export async function refreshSession(req, res, next) {
+  try {
+    const rawRefreshToken = req.cookies?.[REFRESH_COOKIE_NAME] || req.body?.refreshToken;
+    if (!rawRefreshToken) {
+      throw new AppError('Refresh token required.', 401);
+    }
+
+    const { accessToken, refreshToken: newRefreshToken, admin } = rotateRefreshToken(rawRefreshToken);
+
+    const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
+
+    res.cookie(COOKIE_NAME, accessToken, {
+      httpOnly: true,
+      secure: isHttps,
+      sameSite: isHttps ? 'none' : 'lax',
+      maxAge: ONE_HOUR_MS,
+      path: '/',
+    });
+
+    res.cookie(REFRESH_COOKIE_NAME, newRefreshToken, {
+      httpOnly: true,
+      secure: isHttps,
+      sameSite: isHttps ? 'none' : 'lax',
+      maxAge: SEVEN_DAYS_MS,
+      path: '/api/auth',
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Session refreshed successfully.',
+      admin,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Admin Logout: Revokes active session tokens and clears authentication cookies
  */
 export function logout(req, res) {
+  // Revoke active access token
+  const token = req.cookies?.[COOKIE_NAME] ||
+    (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')
+      ? req.headers.authorization.split(' ')[1].trim()
+      : null);
+
+  if (token) {
+    revokeToken(token);
+  }
+
+  // Revoke refresh token if present
+  const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
+  if (refreshToken) {
+    revokeToken(refreshToken);
+  }
+
   const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
     secure: isHttps,
     sameSite: isHttps ? 'none' : 'lax',
     path: '/',
+  });
+  res.clearCookie(REFRESH_COOKIE_NAME, {
+    httpOnly: true,
+    secure: isHttps,
+    sameSite: isHttps ? 'none' : 'lax',
+    path: '/api/auth',
   });
 
   return res.status(200).json({
@@ -193,5 +244,6 @@ export async function getMe(req, res, next) {
 export default {
   login,
   logout,
+  refreshSession,
   getMe,
 };

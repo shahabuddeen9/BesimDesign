@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { z } from 'zod';
 import { db, recordDeletedProject, syncTombstones } from '../db/index.js';
+import { safeDeleteFileIfUnreferenced } from '../services/storage.js';
 import AppError from '../utils/AppError.js';
 import { stripHtml } from '../utils/sanitize.js';
 
@@ -327,9 +328,17 @@ export async function deleteProject(req, res, next) {
   try {
     const { id } = req.params;
     const numId = parseInt(id, 10) || 0;
-    const existing = await db.get('SELECT id, slug, title FROM projects WHERE id = ? OR id = ?', id, numId);
+    const existing = await db.get('SELECT id, slug, title, image_url, gallery FROM projects WHERE id = ? OR id = ?', id, numId);
     if (!existing) {
       throw new AppError(`Project #${id} not found`, 404);
+    }
+
+    // Collect candidate photos for post-commit cleanup
+    const candidatePhotos = [];
+    if (existing.image_url) candidatePhotos.push(existing.image_url);
+    const existingGallery = safeJsonParse(existing.gallery);
+    for (const g of existingGallery) {
+      if (g && !candidatePhotos.includes(g)) candidatePhotos.push(g);
     }
 
     // Atomically write tombstone and delete inside a database transaction
@@ -342,6 +351,16 @@ export async function deleteProject(req, res, next) {
     });
 
     db.persist();
+
+    // 3. POST-COMMIT SAFE CLEANUP:
+    // Only executed after successful transaction commit. If transaction rolled back, original files are never lost!
+    for (const photo of candidatePhotos) {
+      try {
+        await safeDeleteFileIfUnreferenced(photo);
+      } catch (cleanupErr) {
+        console.warn(`Post-commit photo cleanup skipped for ${photo}:`, cleanupErr.message);
+      }
+    }
 
     return res.status(200).json({
       success: true,
@@ -457,23 +476,21 @@ export async function deleteProjectPhoto(req, res, next) {
       }
     }
 
-    if (photoUrl.startsWith('/uploads/')) {
-      try {
-        const filePath = path.resolve(__dirname, '../../uploads', path.basename(photoUrl));
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-      } catch (err) {
-        console.warn('Could not remove file from disk:', err?.message);
-      }
-    }
-
+    // 1. Update database FIRST (metadata remains consistent if update fails)
     await db.run(`
       UPDATE projects
       SET gallery = ?, image_url = ?, updated_at = datetime('now')
       WHERE id = ?
     `, JSON.stringify(gallery), imageUrl, project.id);
     db.persist();
+
+    // 2. POST-UPDATE SAFE CLEANUP:
+    // Only after database update succeeds, check if photo is still referenced elsewhere before removing
+    try {
+      await safeDeleteFileIfUnreferenced(photoUrl);
+    } catch (cleanupErr) {
+      console.warn('Post-commit photo cleanup error:', cleanupErr.message);
+    }
 
     const updated = await db.get('SELECT * FROM projects WHERE id = ?', project.id);
     if (updated) {

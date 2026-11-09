@@ -50,6 +50,7 @@ export function errorHandler(err, req, res, next) {
   const responsePayload = {
     success: false,
     message,
+    error: message,
     errors: Array.isArray(errors) && errors.length > 0 ? errors : undefined,
   };
 

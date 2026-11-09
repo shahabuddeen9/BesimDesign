@@ -16,6 +16,7 @@ import { fileURLToPath } from 'url';
 import pg from 'pg';
 import initSqlJs from 'sql.js';
 import env from '../config/env.js';
+import AppError from '../utils/AppError.js';
 import logger from '../utils/logger.js';
 
 const { Pool } = pg;
@@ -23,8 +24,12 @@ const { Pool } = pg;
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(currentDir, '../..');
 
-// State flags
-export const isPostgres = Boolean(env.DATABASE_URL || env.POSTGRES_URL);
+// State flags (dynamically evaluates process.env as well for isolated testing)
+export let isPostgres = Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL || env.DATABASE_URL || env.POSTGRES_URL);
+
+export function getIsPostgres() {
+  return Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL || env.DATABASE_URL || env.POSTGRES_URL);
+}
 
 // Permanent decommissioned brand list per Section 3 requirements
 export const DECOMMISSIONED_CLIENTS = [
@@ -258,12 +263,16 @@ async function initPostgresSchema(pool) {
     logger.info('PostgreSQL schema initialized from fallback definitions.');
   }
 
-  // 0. Ensure deleted_projects partial unique index exists (matches schema.postgres.sql)
+  // 0. Ensure deleted_projects and deleted_testimonials unique identity indexes exist (matches schema.postgres.sql)
   try {
     await pool.query(`
       CREATE UNIQUE INDEX IF NOT EXISTS idx_deleted_projects_slug_unique
         ON deleted_projects (slug)
         WHERE slug IS NOT NULL;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_deleted_testimonials_identity
+        ON deleted_testimonials (COALESCE(testimonial_id, -1), COALESCE(client_name, ''))
+        WHERE testimonial_id IS NOT NULL OR client_name IS NOT NULL;
     `);
   } catch (_) {}
 
@@ -318,18 +327,67 @@ function persistDb() {
 
 /**
  * Initializes database connection (PostgreSQL when configured, otherwise SQLite).
+ * Strictly enforces that production mode NEVER initializes SQLite and fails safely with HTTP 503.
  */
 export async function initDb() {
+  const isProd = Boolean(
+    process.env.NODE_ENV === 'production' || env.NODE_ENV === 'production'
+  );
+  const connStr = process.env.DATABASE_URL || process.env.POSTGRES_URL || env.DATABASE_URL || env.POSTGRES_URL;
+  isPostgres = Boolean(connStr);
+
   if (isPostgres && pgPool) return pgPool;
-  if (!isPostgres && rawDb) return rawDb;
+  if (!isPostgres && !isProd && rawDb) return rawDb;
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
     try {
-      const connStr = env.DATABASE_URL || env.POSTGRES_URL;
+      // 1. PRODUCTION MODE: Strict PostgreSQL exclusivity
+      if (isProd) {
+        if (!connStr) {
+          const err = new AppError(
+            'Production requires a PostgreSQL database connection (DATABASE_URL is missing). SQLite fallback is disabled in production.',
+            503
+          );
+          logger.error('CRITICAL PRODUCTION DATABASE ERROR: DATABASE_URL is missing in production environment.', err);
+          throw err;
+        }
 
+        logger.info('Connecting to production PostgreSQL database...');
+        const isLocal = connStr.includes('localhost') || connStr.includes('127.0.0.1');
+
+        try {
+          pgPool = new Pool({
+            connectionString: connStr,
+            ssl: isLocal ? false : { rejectUnauthorized: false },
+            max: 10,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 10000,
+          });
+
+          pgPool.on('error', (err) => {
+            logger.error('Unexpected idle PostgreSQL client error:', err);
+          });
+
+          const testRes = await pgPool.query('SELECT NOW() as now');
+          logger.info(`✅ PostgreSQL connection established successfully. Server time: ${testRes.rows[0].now}`);
+
+          await initPostgresSchema(pgPool);
+          return pgPool;
+        } catch (connErr) {
+          if (pgPool) {
+            try { await pgPool.end(); } catch (_) {}
+            pgPool = null;
+          }
+          const err = new AppError(`Production PostgreSQL database unavailable: ${connErr.message}`, 503);
+          logger.error('CRITICAL PRODUCTION POSTGRESQL CONNECTION ERROR:', err);
+          throw err;
+        }
+      }
+
+      // 2. NON-PRODUCTION (development / test) with PostgreSQL configured
       if (connStr) {
-        logger.info('Connecting to persistent PostgreSQL database...');
+        logger.info('Connecting to PostgreSQL database in development/test mode...');
         const isLocal = connStr.includes('localhost') || connStr.includes('127.0.0.1');
 
         pgPool = new Pool({
@@ -344,27 +402,14 @@ export async function initDb() {
           logger.error('Unexpected idle PostgreSQL client error:', err);
         });
 
-        // Test connection
         const testRes = await pgPool.query('SELECT NOW() as now');
         logger.info(`✅ PostgreSQL connection established successfully. Server time: ${testRes.rows[0].now}`);
 
-        // Ensure schema and indexes exist
         await initPostgresSchema(pgPool);
-
         return pgPool;
       }
 
-      // Check Vercel / Production constraint warning
-      if (process.env.VERCEL || env.NODE_ENV === 'production') {
-        logger.warn(
-          '⚠️ CRITICAL NOTICE: No persistent PostgreSQL database configured (DATABASE_URL / POSTGRES_URL is empty). ' +
-          'Vercel serverless containers are ephemeral; to ensure additions, changes, and deletions permanently survive ' +
-          'redeployments and multi-region containers, please configure DATABASE_URL in Vercel project environment variables ' +
-          '(e.g. from Supabase or Neon PostgreSQL).'
-        );
-      }
-
-      // Local / Testing WebAssembly SQLite Initialization (sql.js)
+      // 3. Local / Testing WebAssembly SQLite Initialization (sql.js)
       SQL = await initSqlJs({
         locateFile: (file) => {
           const candidates = [
@@ -505,14 +550,23 @@ function normalizePgParam(p) {
  */
 export const db = {
   /**
+   * Initializes or connects to the database.
+   */
+  init: initDb,
+  initialize: initDb,
+
+  /**
    * Prepares a parameterized SQL statement with .all(), .get(), and .run() methods.
    * Works synchronously in SQLite mode (for backwards compatibility) and returns
    * Promise/Thenables in PostgreSQL mode.
    */
   prepare(sql) {
-    if (isPostgres) {
+    const isProd = Boolean(process.env.NODE_ENV === 'production' || env.NODE_ENV === 'production');
+    const isPg = Boolean(pgPool || isPostgres || process.env.DATABASE_URL || env.DATABASE_URL);
+
+    if (isPg || isProd) {
       if (!pgPool) {
-        throw new Error('Database not initialized! Call await initDb() on server start.');
+        throw new AppError('Database connection unavailable! Call await initDb() on server start.', 503);
       }
       const pgSql = transformSqlForPostgres(sql);
 
@@ -546,7 +600,7 @@ export const db = {
 
     // SQLite mode (sql.js)
     if (!rawDb) {
-      throw new Error('Database not initialized! Call await initDb() on server start.');
+      throw new AppError('Database not initialized! Call await initDb() on server start.', 500);
     }
 
     return {
@@ -631,8 +685,12 @@ export const db = {
    * Helper: Execute raw SQL query.
    */
   async query(sql, params = []) {
-    if (isPostgres) {
+    const isProd = Boolean(process.env.NODE_ENV === 'production' || env.NODE_ENV === 'production');
+    const isPg = Boolean(pgPool || isPostgres || process.env.DATABASE_URL || env.DATABASE_URL);
+
+    if (isPg || isProd) {
       if (!pgPool) await initDb();
+      if (!pgPool) throw new AppError('Database connection unavailable', 503);
       const pgSql = transformSqlForPostgres(sql);
       const res = await pgPool.query(pgSql, params.map(normalizePgParam));
       return { rows: res.rows, rowCount: res.rowCount };
@@ -648,7 +706,8 @@ export const db = {
    * while seamlessly supporting async functions and PostgreSQL client isolation.
    */
   transaction(fn) {
-    if (!isPostgres) {
+    const isPg = Boolean(pgPool || isPostgres || process.env.DATABASE_URL || env.DATABASE_URL);
+    if (!isPg) {
       return (...args) => {
         if (!rawDb) initDb();
         if (inTransaction) {
@@ -689,12 +748,22 @@ export const db = {
 
   /**
    * Executes an async callback inside an atomic transaction.
-   * In PostgreSQL mode, all queries execute on the exact same acquired client connection.
-   * If any error is thrown, the transaction is automatically rolled back.
+   * In PostgreSQL mode:
+   * 1. Acquires a dedicated client from pgPool.connect().
+   * 2. Executes BEGIN on that client.
+   * 3. Executes all queries via tx on the EXACT same client.
+   * 4. Commits on success.
+   * 5. Rolls back on error.
+   * 6. Releases client in finally block.
    */
   async withTransaction(fn) {
-    if (isPostgres) {
+    const isProd = Boolean(process.env.NODE_ENV === 'production' || env.NODE_ENV === 'production');
+    const isPg = Boolean(pgPool || isPostgres || process.env.DATABASE_URL || env.DATABASE_URL);
+
+    if (isPg || isProd) {
       if (!pgPool) await initDb();
+      if (!pgPool) throw new AppError('Database connection unavailable for transaction.', 503);
+
       const client = await pgPool.connect();
       try {
         await client.query('BEGIN');
@@ -729,7 +798,27 @@ export const db = {
             const res = await client.query(pgSql, rawParams.map(normalizePgParam));
             return res.rows;
           },
+          prepare: (sql) => {
+            return {
+              all: (...args) => txDb.all(sql, ...args),
+              get: (...args) => txDb.get(sql, ...args),
+              run: (...args) => txDb.run(sql, ...args),
+            };
+          },
+          withTransaction: async (nestedFn) => {
+            const savepoint = `sp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+            await client.query(`SAVEPOINT ${savepoint}`);
+            try {
+              const res = await nestedFn(txDb);
+              await client.query(`RELEASE SAVEPOINT ${savepoint}`);
+              return res;
+            } catch (spErr) {
+              await client.query(`ROLLBACK TO SAVEPOINT ${savepoint}`);
+              throw spErr;
+            }
+          },
         };
+
         const result = await fn(txDb);
         await client.query('COMMIT');
         return result;
@@ -761,6 +850,16 @@ export const db = {
           const rows = db.prepare(sql).all(...params);
           return { rows, rowCount: rows.length };
         },
+        prepare: (sql) => {
+          return {
+            all: (...args) => txDb.all(sql, ...args),
+            get: (...args) => txDb.get(sql, ...args),
+            run: (...args) => txDb.run(sql, ...args),
+          };
+        },
+        withTransaction: async (nestedFn) => {
+          return await nestedFn(txDb);
+        },
       };
       const result = await fn(txDb);
       rawDb.run('COMMIT;');
@@ -778,8 +877,12 @@ export const db = {
    * Executes a raw SQL string (e.g. for migrations or DDL).
    */
   async exec(sql) {
-    if (isPostgres) {
+    const isProd = Boolean(process.env.NODE_ENV === 'production' || env.NODE_ENV === 'production');
+    const isPg = Boolean(pgPool || isPostgres || process.env.DATABASE_URL || env.DATABASE_URL);
+
+    if (isPg || isProd) {
       if (!pgPool) await initDb();
+      if (!pgPool) throw new AppError('Database connection unavailable', 503);
       await pgPool.query(sql);
       return;
     }
@@ -808,7 +911,12 @@ export const db = {
       rawDb.close();
       rawDb = null;
     }
+    initPromise = null;
   },
+
+  recordDeletedClient,
+  recordDeletedTestimonial,
+  recordDeletedProject,
 };
 
 /**
@@ -818,7 +926,9 @@ export const db = {
 export async function recordDeletedClient(name, id = null, tx = null) {
   if (!name) return;
   const trimmed = name.trim();
-  if (isPostgres) {
+  const isPg = Boolean(pgPool || isPostgres || (tx && tx.isPostgres));
+
+  if (isPg) {
     if (tx && tx.client) {
       await tx.client.query(
         'INSERT INTO deleted_clients (client_name, client_id, deleted_at) VALUES ($1, $2, NOW()) ON CONFLICT (client_name) DO UPDATE SET deleted_at = NOW(), client_id = EXCLUDED.client_id',
@@ -831,6 +941,12 @@ export async function recordDeletedClient(name, id = null, tx = null) {
         [trimmed, id]
       );
     }
+  } else if (tx && tx.run) {
+    await tx.run(
+      "INSERT OR REPLACE INTO deleted_clients (client_name, client_id, deleted_at) VALUES (?, ?, datetime('now'))",
+      trimmed,
+      id
+    );
   } else if (rawDb) {
     rawDb.run(
       "INSERT OR REPLACE INTO deleted_clients (client_name, client_id, deleted_at) VALUES (?, ?, datetime('now'))",
@@ -838,63 +954,131 @@ export async function recordDeletedClient(name, id = null, tx = null) {
     );
     if (!inTransaction) persistDb();
   }
-  syncTombstones().catch(() => {});
+
+  if (!tx) {
+    syncTombstones().catch(() => {});
+  }
 }
 
 /**
  * Record a deleted testimonial tombstone in persistent database.
  * Does not swallow errors — fails cleanly to enforce atomic deletion transactions.
+ * Supports both positional parameters (id, clientName, tx) and options object.
+ * Strictly adheres to verified schema: (testimonial_id, client_name, deleted_at).
  */
 export async function recordDeletedTestimonial(id, clientName = null, tx = null) {
-  if (isPostgres) {
-    if (tx && tx.client) {
-      await tx.client.query(
+  let tId = id;
+  let cName = clientName;
+  let transaction = tx;
+
+  if (typeof id === 'object' && id !== null) {
+    const opts = id;
+    tId = opts.testimonial_id ?? opts.id ?? null;
+    cName = opts.client_name ?? opts.author ?? null;
+    transaction = opts.tx ?? clientName;
+  }
+
+  const isPg = Boolean(pgPool || isPostgres || (transaction && transaction.isPostgres));
+
+  if (isPg) {
+    if (transaction && transaction.client) {
+      // Check existing to prevent duplicate identities idempotently
+      const existing = await transaction.client.query(
+        'SELECT id FROM deleted_testimonials WHERE (testimonial_id = $1 AND testimonial_id IS NOT NULL) OR (client_name = $2 AND client_name IS NOT NULL) LIMIT 1',
+        [tId || null, cName ? String(cName).trim() : null]
+      );
+      if (existing.rows && existing.rows.length > 0) {
+        return;
+      }
+      await transaction.client.query(
         'INSERT INTO deleted_testimonials (testimonial_id, client_name, deleted_at) VALUES ($1, $2, NOW()) ON CONFLICT DO NOTHING',
-        [id || null, clientName ? clientName.trim() : null]
+        [tId || null, cName ? String(cName).trim() : null]
       );
     } else {
       if (!pgPool) await initDb();
+      const existing = await pgPool.query(
+        'SELECT id FROM deleted_testimonials WHERE (testimonial_id = $1 AND testimonial_id IS NOT NULL) OR (client_name = $2 AND client_name IS NOT NULL) LIMIT 1',
+        [tId || null, cName ? String(cName).trim() : null]
+      );
+      if (existing.rows && existing.rows.length > 0) {
+        return;
+      }
       await pgPool.query(
         'INSERT INTO deleted_testimonials (testimonial_id, client_name, deleted_at) VALUES ($1, $2, NOW()) ON CONFLICT DO NOTHING',
-        [id || null, clientName ? clientName.trim() : null]
+        [tId || null, cName ? String(cName).trim() : null]
       );
     }
+  } else if (transaction && transaction.run) {
+    await transaction.run(
+      "INSERT OR REPLACE INTO deleted_testimonials (testimonial_id, client_name, deleted_at) VALUES (?, ?, datetime('now'))",
+      tId || null,
+      cName ? String(cName).trim() : null
+    );
   } else if (rawDb) {
     rawDb.run(
       "INSERT OR REPLACE INTO deleted_testimonials (testimonial_id, client_name, deleted_at) VALUES (?, ?, datetime('now'))",
-      [id || null, clientName ? clientName.trim() : null]
+      [tId || null, cName ? String(cName).trim() : null]
     );
     if (!inTransaction) persistDb();
   }
-  syncTombstones().catch(() => {});
+
+  if (!transaction) {
+    syncTombstones().catch(() => {});
+  }
 }
 
 /**
  * Record a deleted project tombstone in persistent database.
  * Does not swallow errors — fails cleanly to enforce atomic deletion transactions.
+ * Strictly adheres to verified schema: (project_id, slug, title, deleted_at).
  */
 export async function recordDeletedProject(id, slug = null, title = null, tx = null) {
-  if (isPostgres) {
-    if (tx && tx.client) {
-      await tx.client.query(
+  let pId = id;
+  let pSlug = slug;
+  let pTitle = title;
+  let transaction = tx;
+
+  if (typeof id === 'object' && id !== null) {
+    const opts = id;
+    pId = opts.project_id ?? opts.id ?? null;
+    pSlug = opts.slug ?? null;
+    pTitle = opts.title ?? null;
+    transaction = opts.tx ?? slug;
+  }
+
+  const isPg = Boolean(pgPool || isPostgres || (transaction && transaction.isPostgres));
+
+  if (isPg) {
+    if (transaction && transaction.client) {
+      await transaction.client.query(
         'INSERT INTO deleted_projects (project_id, slug, title, deleted_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT (slug) WHERE slug IS NOT NULL DO NOTHING',
-        [id || null, slug ? slug.trim() : null, title ? title.trim() : null]
+        [pId || null, pSlug ? String(pSlug).trim() : null, pTitle ? String(pTitle).trim() : null]
       );
     } else {
       if (!pgPool) await initDb();
       await pgPool.query(
         'INSERT INTO deleted_projects (project_id, slug, title, deleted_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT (slug) WHERE slug IS NOT NULL DO NOTHING',
-        [id || null, slug ? slug.trim() : null, title ? title.trim() : null]
+        [pId || null, pSlug ? String(pSlug).trim() : null, pTitle ? String(pTitle).trim() : null]
       );
     }
+  } else if (transaction && transaction.run) {
+    await transaction.run(
+      "INSERT OR REPLACE INTO deleted_projects (project_id, slug, title, deleted_at) VALUES (?, ?, ?, datetime('now'))",
+      pId || null,
+      pSlug ? String(pSlug).trim() : null,
+      pTitle ? String(pTitle).trim() : null
+    );
   } else if (rawDb) {
     rawDb.run(
       "INSERT OR REPLACE INTO deleted_projects (project_id, slug, title, deleted_at) VALUES (?, ?, ?, datetime('now'))",
-      [id || null, slug ? slug.trim() : null, title ? title.trim() : null]
+      [pId || null, pSlug ? String(pSlug).trim() : null, pTitle ? String(pTitle).trim() : null]
     );
     if (!inTransaction) persistDb();
   }
-  syncTombstones().catch(() => {});
+
+  if (!transaction) {
+    syncTombstones().catch(() => {});
+  }
 }
 
 /**
