@@ -39,6 +39,7 @@
     "Luxury Cafe & Lounge 1794209362460 (Updated)",
     "Luxury Cafe & Lounge 1794209570646 (Updated)",
     "Luxury Cafe & Lounge 1794210541719 (Updated)",
+    "Luxury Cafe & Lounge 1794212098400 (Updated)",
     "Nikita",
     "Otoki",
     "Parinee Group",
@@ -89,6 +90,7 @@
     "Persistence Client Brand 1794209352713",
     "Persistence Client Brand 1794209559044",
     "Persistence Client Brand 1794210529824",
+    "Persistence Client Brand 1794212087383",
     "Ping's Orient",
     "Ping’s Orient",
     "RSVP",
@@ -129,6 +131,7 @@
     "Test Brand Unique 1794209360851",
     "Test Brand Unique 1794209562953",
     "Test Brand Unique 1794210540123",
+    "Test Brand Unique 1794212093928",
     "The Silver Train",
     "White Oak"
   ],
@@ -306,7 +309,11 @@
       "client_name": "Testimonial Author 1794210529825"
     },
     {
-      "id": 1532,
+      "id": 1534,
+      "client_name": "Testimonial Author 1794212087383"
+    },
+    {
+      "id": 1535,
       "client_name": "Anil Kapoor"
     }
   ],
@@ -737,11 +744,6 @@
       "title": null
     },
     {
-      "id": 945,
-      "slug": null,
-      "title": "Project Without Slug 2"
-    },
-    {
       "id": 946,
       "slug": null,
       "title": null
@@ -750,7 +752,42 @@
       "id": 947,
       "slug": null,
       "title": null
+    },
+    {
+      "id": 951,
+      "slug": "persistence-test-hotel-1794212087382",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 952,
+      "slug": "test-luxury-bistro-1794212089300",
+      "title": "Aura Modern Bistronomy & Rooftop Lounge (Updated)"
+    },
+    {
+      "id": 953,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 954,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 955,
+      "slug": null,
+      "title": "Project Without Slug 2"
+    },
+    {
+      "id": 956,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 957,
+      "slug": null,
+      "title": null
     }
   ],
-  "updated_at": "2026-11-09T07:49:03.695Z"
+  "updated_at": "2026-11-09T08:15:00.396Z"
 }
