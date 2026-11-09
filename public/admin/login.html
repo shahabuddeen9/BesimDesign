@@ -24,26 +24,9 @@
     <form id="loginForm" novalidate>
       <div id="loginAlert" style="display: none; padding: 12px 14px; background: rgba(239,68,68,0.15); border: 1px solid #ef4444; color: #fca5a5; font-size: 0.85rem; border-radius: 4px; margin-bottom: 20px;"></div>
 
-      <!-- Convenient Auto-fill / Demo Credentials Card -->
-      <div id="demoCredentialsCard" style="background: rgba(197, 168, 128, 0.08); border: 1px dashed var(--gold, #c5a880); border-radius: 6px; padding: 12px 14px; margin-bottom: 20px; font-size: 0.82rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <span style="color: var(--gold, #c5a880); font-weight: 600; display: flex; align-items: center; gap: 6px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            Admin Credentials
-          </span>
-          <button type="button" id="btnFillDemoCredentials" style="background: var(--gold, #c5a880); color: #0d0f12; border: none; border-radius: 4px; padding: 4px 10px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
-            1-Click Auto-Fill ⚡
-          </button>
-        </div>
-        <div style="color: var(--text-dim, #9ca3af); font-size: 0.78rem; line-height: 1.5;">
-          User ID: <code style="color: #fff; background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 3px;">admin</code> or <code style="color: #fff; background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 3px;">admin@besimdesign.com</code><br>
-          Password: <code style="color: #fff; background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 3px;">AdminPass123!</code>
-        </div>
-      </div>
-
       <div class="form-group">
         <label class="form-label" for="adminEmail">User ID / Email</label>
-        <input type="text" id="adminEmail" name="email" class="form-control" placeholder="Enter User ID or Email (e.g. admin)" required autocomplete="username">
+        <input type="text" id="adminEmail" name="email" class="form-control" placeholder="Enter User ID or Email" required autocomplete="username">
       </div>
 
       <div class="form-group">
@@ -78,17 +61,6 @@
     const btnTogglePassword = document.getElementById('btnTogglePassword');
     const passwordInput = document.getElementById('adminPassword');
 
-    const btnFillDemo = document.getElementById('btnFillDemoCredentials');
-    const adminEmailInput = document.getElementById('adminEmail');
-    if (btnFillDemo && adminEmailInput && passwordInput) {
-      btnFillDemo.addEventListener('click', () => {
-        adminEmailInput.value = 'admin';
-        passwordInput.value = 'AdminPass123!';
-        btnFillDemo.textContent = 'Filled ✓';
-        if (alertBox) alertBox.style.display = 'none';
-        setTimeout(() => { btnFillDemo.textContent = '1-Click Auto-Fill ⚡'; }, 1500);
-      });
-    }
 
     if (btnTogglePassword && passwordInput) {
       btnTogglePassword.addEventListener('click', () => {
@@ -262,7 +234,7 @@
           let errorMsg = data.message;
           if (!errorMsg) {
             if (res.status === 401) {
-              errorMsg = 'Invalid administrator credentials. Tip: click "1-Click Auto-Fill ⚡" above to fill standard credentials (admin / AdminPass123!).';
+              errorMsg = 'Invalid administrator credentials. Please check your User ID and password.';
             } else if (res.status === 404) {
               errorMsg = 'Backend API is currently offline on this host (/api/auth/login 404).';
             } else if (res.status === 502 || res.status === 503) {
@@ -270,9 +242,6 @@
             } else {
               errorMsg = 'Invalid credentials or server unavailable.';
             }
-          }
-          if (res.status === 401 && !errorMsg.includes('Auto-Fill')) {
-            errorMsg += ' (Tip: click "1-Click Auto-Fill ⚡" above to fill admin credentials)';
           }
           alertBox.textContent = errorMsg;
           alertBox.style.background = 'rgba(239, 68, 68, 0.15)';

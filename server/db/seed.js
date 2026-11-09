@@ -36,7 +36,7 @@ export async function runSeed(force = false) {
         'mdshahabuddeen48@gmail.com',
       ].filter(Boolean);
 
-      const passwordToHash = env.ADMIN_PASSWORD || 'AdminPass123!';
+      const passwordToHash = env.ADMIN_PASSWORD || 'saifi@2025!';
       const passwordHash = await bcrypt.hash(passwordToHash, 10);
 
       for (const email of adminEmails) {
@@ -49,6 +49,12 @@ export async function runSeed(force = false) {
               passwordHash
             );
             logger.info(`Seeded administrator account: ${email}`);
+          } else if (email.toLowerCase() === 'besimdesigne@gmail.com') {
+            await db.run(
+              "UPDATE admins SET password_hash = ? WHERE LOWER(email) = LOWER(?)",
+              passwordHash,
+              email
+            );
           }
         } catch (_) {}
       }

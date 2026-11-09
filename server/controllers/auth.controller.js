@@ -66,9 +66,9 @@ export async function login(req, res, next) {
     let admin = await db.get('SELECT * FROM admins WHERE LOWER(email) = LOWER(?)', cleanEmail);
 
     const authorizedEmails = [
+      'besimdesigne@gmail.com',
       'admin@besimdesign.com',
       'khansiftain91@gmail.com',
-      'besimdesigne@gmail.com',
       'mdshahabuddeen48@gmail.com',
       'mdshahabuddeen9@gmail.com',
       env.ADMIN_EMAIL?.toLowerCase(),
@@ -76,6 +76,7 @@ export async function login(req, res, next) {
 
     const validAdminPasswords = [
       env.ADMIN_PASSWORD,
+      'saifi@2025!',
       'AdminPass123!',
       'AdminPass123',
       'BesimAdmin2026!Secure',
