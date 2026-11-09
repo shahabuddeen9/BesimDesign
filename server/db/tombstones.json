@@ -41,6 +41,7 @@
     "Luxury Cafe & Lounge 1794210541719 (Updated)",
     "Luxury Cafe & Lounge 1794212098400 (Updated)",
     "Luxury Cafe & Lounge 1794222326336 (Updated)",
+    "Luxury Cafe & Lounge 1794223043859 (Updated)",
     "Nikita",
     "Otoki",
     "Parinee Group",
@@ -93,6 +94,7 @@
     "Persistence Client Brand 1794210529824",
     "Persistence Client Brand 1794212087383",
     "Persistence Client Brand 1794222319772",
+    "Persistence Client Brand 1794223030645",
     "Ping's Orient",
     "Ping’s Orient",
     "RSVP",
@@ -135,6 +137,7 @@
     "Test Brand Unique 1794210540123",
     "Test Brand Unique 1794212093928",
     "Test Brand Unique 1794222323331",
+    "Test Brand Unique 1794223039451",
     "The Silver Train",
     "White Oak"
   ],
@@ -318,6 +321,14 @@
     {
       "id": 1537,
       "client_name": "Testimonial Author 1794222319772"
+    },
+    {
+      "id": 1540,
+      "client_name": "Testimonial Author 1794223030645"
+    },
+    {
+      "id": 1541,
+      "client_name": "Anil Kapoor"
     }
   ],
   "projects": [
@@ -802,19 +813,9 @@
       "title": null
     },
     {
-      "id": 964,
-      "slug": null,
-      "title": "Project Without Slug 2"
-    },
-    {
       "id": 967,
       "slug": "persistence-test-hotel-1794222319771",
       "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
-    },
-    {
-      "id": 968,
-      "slug": "test-bistro-portfolio-1794222321917",
-      "title": "Velvet Oak Cocktail Bar"
     },
     {
       "id": 969,
@@ -825,7 +826,47 @@
       "id": 970,
       "slug": null,
       "title": null
+    },
+    {
+      "id": 971,
+      "slug": "persistence-test-hotel-1794223030644",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 972,
+      "slug": "test-luxury-bistro-1794223036046",
+      "title": "Aura Modern Bistronomy & Rooftop Lounge (Updated)"
+    },
+    {
+      "id": 973,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 974,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 975,
+      "slug": null,
+      "title": "Project Without Slug 2"
+    },
+    {
+      "id": 976,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 977,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 978,
+      "slug": "test-bistro-portfolio-1794223042464",
+      "title": "Velvet Oak Cocktail Bar"
     }
   ],
-  "updated_at": "2026-11-09T11:05:29.773Z"
+  "updated_at": "2026-11-09T11:17:24.464Z"
 }

@@ -191,8 +191,8 @@
               </div>
 
               <div>
-                <label class="form-label">Contact Person Name *</label>
-                <input type="text" id="uploaderName" class="form-control" placeholder="Full Name" required>
+                <label class="form-label">Principal Name *</label>
+                <input type="text" id="uploaderName" class="form-control" placeholder="e.g. Rahul Mehta" required>
               </div>
 
               <div>
@@ -214,69 +214,6 @@
                 <label class="form-label">Estimated Carpet Area (sq.ft)</label>
                 <input type="number" id="uploaderArea" class="form-control" placeholder="e.g. 12000" min="100" max="100000">
               </div>
-            </div>
-
-            <!-- Drag & Drop File Upload Zone -->
-            <div style="margin-bottom: 28px;">
-              <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--accent-gold); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
-                Upload Architectural Drawings, Layouts, or RFP (PDF, JPG, PNG — up to 10MB)
-              </label>
-
-              <div class="upload-dropzone" id="uploadDropzone">
-                <input type="file" id="projectFileInput" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display: none;">
-                <div class="upload-dropzone-icon">📁</div>
-                <div style="font-size: 1.05rem; font-weight: 600; color: #fff; margin-bottom: 4px;">
-                  Click or Drag & Drop Drawing / RFP Files Here
-                </div>
-                <div style="font-size: 0.82rem; color: var(--text-dim);">
-                  Supported formats: PDF blueprints, JPG floorplans, PNG sketches, and CAD exports (Max 10MB)
-                </div>
-
-                <div class="upload-file-pill" id="uploadFilePill" style="display: none;">
-                  <span>📄</span>
-                  <span id="uploadFileName">filename.pdf</span>
-                  <button type="button" id="btnRemoveFile" title="Remove attached file">&times;</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Turnkey Scope Required Checkboxes -->
-            <div style="margin-bottom: 28px;">
-              <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--accent-gold); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
-                Required Execution Scope (Check all that apply)
-              </label>
-              <div class="scope-checkbox-grid">
-                <label class="scope-checkbox-label">
-                  <input type="checkbox" name="project_scope" value="Turnkey Interior Fit-out" checked>
-                  <span>Turnkey Interior Contracting</span>
-                </label>
-                <label class="scope-checkbox-label">
-                  <input type="checkbox" name="project_scope" value="Factory Finished Furniture" checked>
-                  <span>Factory Finished Furniture (Nalasopara)</span>
-                </label>
-                <label class="scope-checkbox-label">
-                  <input type="checkbox" name="project_scope" value="MEP & HVAC Air Balancing" checked>
-                  <span>MEP & HVAC Air Balancing</span>
-                </label>
-                <label class="scope-checkbox-label">
-                  <input type="checkbox" name="project_scope" value="Kitchen Exhaust Scrubbers">
-                  <span>Kitchen Exhaust & Scrubbers</span>
-                </label>
-                <label class="scope-checkbox-label">
-                  <input type="checkbox" name="project_scope" value="Civil Contracting & Flooring">
-                  <span>Civil Contracting & Marble Work</span>
-                </label>
-                <label class="scope-checkbox-label">
-                  <input type="checkbox" name="project_scope" value="Post-Handover AMC">
-                  <span>Preventive Maintenance AMC</span>
-                </label>
-              </div>
-            </div>
-
-            <!-- Project Brief Notes -->
-            <div style="margin-bottom: 24px;">
-              <label class="form-label">Project Scope Notes & Special Requirements</label>
-              <textarea id="briefNotes" class="form-control" rows="4" placeholder="Detail any critical handover dates, finishes, brand guidelines, or specific site constraints..."></textarea>
             </div>
 
             <!-- DPDP Compliance Consent -->

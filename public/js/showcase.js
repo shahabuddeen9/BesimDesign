@@ -55,7 +55,6 @@ const SECTOR_META = {
 const state = {
   activeCategory: 'hotels',
   projects: [],
-  uploadedFile: null,
 };
 
 function escapeHtml(str) {
@@ -276,15 +275,10 @@ function attachCardListeners() {
       const category = btn.dataset.category;
 
       const uploadSec = document.getElementById('uploadSection');
-      const projectNotes = document.getElementById('briefNotes');
       const projectName = document.getElementById('projectTitleInput');
 
       if (projectName && !projectName.value) {
         projectName.value = `Fit-out inspired by ${title}`;
-      }
-
-      if (projectNotes) {
-        projectNotes.value = `We are looking for turnkey architectural fit-out and engineering similar to the "${title}" project. Please review our requirements.`;
       }
 
       // Sync category
@@ -296,7 +290,7 @@ function attachCardListeners() {
         setTimeout(() => { uploadSec.style.outline = 'none'; }, 2000);
       }
 
-      showToast(`Ready to upload your brief inspired by ${title}!`, 'success');
+      showToast(`Ready to submit your brief inspired by ${title}!`, 'success');
     });
   });
 }
@@ -400,14 +394,10 @@ function openProjectModal(project) {
     uploadActionBtn.onclick = () => {
       closeModal();
       const uploadSec = document.getElementById('uploadSection');
-      const projectNotes = document.getElementById('briefNotes');
       const projectName = document.getElementById('projectTitleInput');
 
       if (projectName && !projectName.value) {
         projectName.value = project.title ? `Project similar to ${project.title}` : 'Architectural project brief';
-      }
-      if (projectNotes) {
-        projectNotes.value = `We are interested in turnkey fit-out execution similar to "${safeModalTitle}" (${project.category.toUpperCase()}). Please review our specifications.`;
       }
       setCategory(project.category, false);
 
@@ -427,239 +417,145 @@ function closeModal() {
 }
 
 // =============================================================================
-// File Upload & Project Brief Submission
+// =============================================================================
+// Project Brief Submission Form Handler
 // =============================================================================
 
-function initUploadSystem() {
-  const dropzone = document.getElementById('uploadDropzone');
-  const fileInput = document.getElementById('projectFileInput');
-  const filePill = document.getElementById('uploadFilePill');
-  const fileNameDisplay = document.getElementById('uploadFileName');
-  const removeFileBtn = document.getElementById('btnRemoveFile');
+function initProjectBriefForm() {
   const form = document.getElementById('projectUploadForm');
+  if (!form) return;
 
-  if (!dropzone || !fileInput) return;
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-  // Click to select
-  dropzone.addEventListener('click', (e) => {
-    if (e.target !== removeFileBtn) {
-      fileInput.click();
-    }
-  });
+    const btnSubmit = document.getElementById('btnSubmitUpload');
+    const submitText = document.getElementById('submitUploadText');
+    const submitSpinner = document.getElementById('submitUploadSpinner');
 
-  // Drag and drop events
-  ['dragenter', 'dragover'].forEach((eventName) => {
-    dropzone.addEventListener(eventName, (e) => {
-      e.preventDefault();
-      dropzone.classList.add('dragover');
-    });
-  });
+    // Extract values
+    const name = document.getElementById('uploaderName')?.value.trim();
+    const phone = document.getElementById('uploaderPhone')?.value.trim();
+    const email = document.getElementById('uploaderEmail')?.value.trim();
+    const projectTitle = document.getElementById('projectTitleInput')?.value.trim();
+    const clientFirm = document.getElementById('uploaderFirm')?.value.trim();
+    const location = document.getElementById('uploaderLocation')?.value.trim();
+    const area = parseFloat(document.getElementById('uploaderArea')?.value) || 0;
+    const consent = document.getElementById('uploaderConsent')?.checked;
 
-  ['dragleave', 'drop'].forEach((eventName) => {
-    dropzone.addEventListener(eventName, (e) => {
-      e.preventDefault();
-      dropzone.classList.remove('dragover');
-    });
-  });
+    // Selected sector
+    const sectorRadio = document.querySelector('input[name="upload_sector"]:checked');
+    const sector = sectorRadio ? sectorRadio.value : state.activeCategory;
 
-  dropzone.addEventListener('drop', (e) => {
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFileSelected(e.dataTransfer.files[0]);
-    }
-  });
-
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files && fileInput.files.length > 0) {
-      handleFileSelected(fileInput.files[0]);
-    }
-  });
-
-  function handleFileSelected(file) {
-    const validExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
-    const ext = '.' + file.name.split('.').pop().toLowerCase();
-
-    if (!validExtensions.includes(ext)) {
-      showToast('Please select a JPG, PNG, WebP image or PDF drawing document.', 'error');
+    if (!name || name.length < 2) {
+      showToast('Please enter your full name (minimum 2 characters).', 'error');
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      showToast('File size exceeds the 10MB limit.', 'error');
+    const indianPhoneRegex = /^(?:\+91[\s-]?)?[6-9]\d{9}$/;
+    if (!phone || !indianPhoneRegex.test(phone)) {
+      showToast('Please provide a valid 10-digit Indian mobile number (e.g. 9892699850).', 'error');
       return;
     }
 
-    state.uploadedFile = file;
-    if (fileNameDisplay) fileNameDisplay.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
-    if (filePill) filePill.style.display = 'inline-flex';
-    showToast(`Attached "${file.name}" for upload!`, 'success');
-  }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      showToast('Please enter a valid business email address.', 'error');
+      return;
+    }
 
-  if (removeFileBtn) {
-    removeFileBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      state.uploadedFile = null;
-      fileInput.value = '';
-      if (filePill) filePill.style.display = 'none';
-    });
-  }
+    if (!consent) {
+      showToast('Please consent to receive architectural project correspondence.', 'error');
+      return;
+    }
 
-  // Handle Form Submission
-  if (form) {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    try {
+      if (btnSubmit) btnSubmit.disabled = true;
+      if (submitText) submitText.style.display = 'none';
+      if (submitSpinner) submitSpinner.style.display = 'inline';
 
-      const btnSubmit = document.getElementById('btnSubmitUpload');
-      const submitText = document.getElementById('submitUploadText');
-      const submitSpinner = document.getElementById('submitUploadSpinner');
+      // Construct lead summary message
+      const fullMessage = [
+        projectTitle ? `Project: ${projectTitle}` : '',
+        clientFirm ? `Client/Firm: ${clientFirm}` : '',
+        location ? `Location: ${location}` : '',
+        area ? `Estimated Area: ${area.toLocaleString()} sq.ft` : '',
+      ].filter(Boolean).join('\n');
 
-      // Extract values
-      const name = document.getElementById('uploaderName')?.value.trim();
-      const phone = document.getElementById('uploaderPhone')?.value.trim();
-      const email = document.getElementById('uploaderEmail')?.value.trim();
-      const projectTitle = document.getElementById('projectTitleInput')?.value.trim();
-      const clientFirm = document.getElementById('uploaderFirm')?.value.trim();
-      const location = document.getElementById('uploaderLocation')?.value.trim();
-      const area = parseFloat(document.getElementById('uploaderArea')?.value) || 0;
-      const notes = document.getElementById('briefNotes')?.value.trim();
-      const consent = document.getElementById('uploaderConsent')?.checked;
+      const payload = {
+        name,
+        phone,
+        email,
+        business_type: sector === 'all' ? 'hospitality' : sector,
+        project_location: location,
+        area_sqft: area,
+        message: fullMessage,
+        source: 'contact_form',
+        consent: true,
+        honeypot: '',
+      };
 
-      // Selected sector
-      const sectorRadio = document.querySelector('input[name="upload_sector"]:checked');
-      const sector = sectorRadio ? sectorRadio.value : state.activeCategory;
-
-      // Scopes checked
-      const checkedScopes = [];
-      document.querySelectorAll('input[name="project_scope"]:checked').forEach((cb) => {
-        checkedScopes.push(cb.value);
+      const res = await fetch(`${CONFIG.API_BASE_URL}/api/enquiries`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
       });
 
-      if (!name || !phone || !email) {
-        showToast('Please provide your name, phone number, and email.', 'error');
-        return;
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.message || 'Failed to submit project brief');
       }
 
-      if (!consent) {
-        showToast('Please consent to receive architectural project correspondence.', 'error');
-        return;
+      // WhatsApp integration for +91 98926 99850
+      const waPhone = '919892699850';
+      const formattedId = json.id ? `#MSF-${json.id.toString().padStart(4, '0')}` : '';
+      const waLines = [
+        `*🏛️ BESIM DESIGN - PROJECT BRIEF SUBMISSION* ${formattedId}`,
+        `*Client:* ${name}`,
+        `*Phone:* ${phone}`,
+        `*Email:* ${email}`,
+        projectTitle ? `*Project Title:* ${projectTitle}` : '',
+        clientFirm ? `*Client / Firm:* ${clientFirm}` : '',
+        `*Sector:* ${(sector === 'all' ? 'Hospitality & Turnkey Fit-out' : sector).toUpperCase()}`,
+        location ? `*Location:* ${location}` : '',
+        area ? `*Area:* ${area.toLocaleString()} sq.ft` : '',
+      ].filter(Boolean).join('\n');
+
+      const waUrl = json.whatsapp_url || `https://wa.me/${waPhone}?text=${encodeURIComponent(waLines)}`;
+
+      // Show clean minimal confirmation message
+      const resultContainer = document.getElementById('uploadResultContainer');
+      if (resultContainer) {
+        resultContainer.innerHTML = `
+          <div style="margin-top: 20px; padding: 18px; background: rgba(197, 168, 128, 0.08); border: 1px solid var(--border-gold); border-radius: var(--radius-sm); text-align: center;">
+            <h4 style="font-family: var(--font-serif); color: #fff; margin-bottom: 6px;">Brief Submitted (${formattedId})</h4>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 12px;">Connecting you automatically to WhatsApp (+91 98926 99850)...</p>
+            <a href="${waUrl}" class="btn btn-primary btn-sm">Click here if not redirected automatically →</a>
+          </div>
+        `;
+        resultContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
+
+      showToast(`✓ Brief ${formattedId} submitted!`, 'success');
+
+      form.reset();
+
+      // Re-select current category
+      setCategory(state.activeCategory, false);
 
       try {
-        if (btnSubmit) btnSubmit.disabled = true;
-        if (submitText) submitText.style.display = 'none';
-        if (submitSpinner) submitSpinner.style.display = 'inline';
+        window.open(waUrl, '_blank', 'noopener,noreferrer');
+      } catch (_) {}
 
-        let uploadedFileUrl = '';
-
-        // Upload file first if attached
-        if (state.uploadedFile) {
-          const formData = new FormData();
-          formData.append('file', state.uploadedFile);
-
-          const uploadRes = await fetch(`${CONFIG.API_BASE_URL}/api/upload`, {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (!uploadRes.ok) {
-            const uploadErr = await uploadRes.json();
-            throw new Error(uploadErr.message || 'File upload failed');
-          }
-
-          const uploadData = await uploadRes.json();
-          uploadedFileUrl = uploadData.url;
-        }
-
-        // Construct lead payload
-        const fullMessage = [
-          projectTitle ? `Project: ${projectTitle}` : '',
-          clientFirm ? `Client/Firm: ${clientFirm}` : '',
-          location ? `Location: ${location}` : '',
-          checkedScopes.length > 0 ? `Required Scope: ${checkedScopes.join(', ')}` : '',
-          uploadedFileUrl ? `Attached Drawing/Document: ${CONFIG.API_BASE_URL}${uploadedFileUrl}` : '',
-          notes ? `\nProject Notes:\n${notes}` : '',
-        ].filter(Boolean).join('\n');
-
-        const payload = {
-          name,
-          phone,
-          email,
-          business_type: sector === 'all' ? 'hospitality' : sector,
-          project_location: location,
-          area_sqft: area,
-          message: fullMessage,
-          source: 'contact_form',
-          consent: true,
-          honeypot: '',
-        };
-
-        const res = await fetch(`${CONFIG.API_BASE_URL}/api/enquiries`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
-
-        const json = await res.json();
-        if (!res.ok) {
-          throw new Error(json.message || 'Failed to submit project brief');
-        }
-
-        // WhatsApp integration for +91 98926 99850
-        const waPhone = '919892699850';
-        const formattedId = json.id ? `#MSF-${json.id.toString().padStart(4, '0')}` : '';
-        const waLines = [
-          `*🏛️ BESIM DESIGN - PROJECT BRIEF SUBMISSION* ${formattedId}`,
-          `*Client:* ${name}`,
-          `*Phone:* ${phone}`,
-          `*Email:* ${email}`,
-          projectTitle ? `*Project Title:* ${projectTitle}` : '',
-          clientFirm ? `*Client / Firm:* ${clientFirm}` : '',
-          `*Sector:* ${(sector === 'all' ? 'Hospitality & Turnkey Fit-out' : sector).toUpperCase()}`,
-          location ? `*Location:* ${location}` : '',
-          area ? `*Area:* ${area.toLocaleString()} sq.ft` : '',
-          checkedScopes.length > 0 ? `*Scope Required:* ${checkedScopes.join(', ')}` : '',
-          uploadedFileUrl ? `*Uploaded Document/Drawings:* ${CONFIG.API_BASE_URL}${uploadedFileUrl}` : '',
-          notes ? `\n*Project Brief & Notes:*\n${notes}` : '',
-        ].filter(Boolean).join('\n');
-
-        const waUrl = json.whatsapp_url || `https://wa.me/${waPhone}?text=${encodeURIComponent(waLines)}`;
-
-        // Show clean minimal confirmation message
-        const resultContainer = document.getElementById('uploadResultContainer');
-        if (resultContainer) {
-          resultContainer.innerHTML = `
-            <div style="margin-top: 20px; padding: 18px; background: rgba(197, 168, 128, 0.08); border: 1px solid var(--border-gold); border-radius: var(--radius-sm); text-align: center;">
-              <h4 style="font-family: var(--font-serif); color: #fff; margin-bottom: 6px;">Brief Submitted (${formattedId})</h4>
-              <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 12px;">Connecting you automatically to WhatsApp (+91 98926 99850)...</p>
-              <a href="${waUrl}" class="btn btn-primary btn-sm">Click here if not redirected automatically →</a>
-            </div>
-          `;
-          resultContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-
-        showToast(`✓ Brief ${formattedId} submitted!`, 'success');
-
-        form.reset();
-        state.uploadedFile = null;
-        if (filePill) filePill.style.display = 'none';
-
-        // Re-select current category
-        setCategory(state.activeCategory, false);
-
-        try {
-          window.open(waUrl, '_blank', 'noopener,noreferrer');
-        } catch (_) {}
-
-      } catch (err) {
-        showToast(err.message || 'Failed to submit. Please check your network.', 'error');
-      } finally {
-        if (btnSubmit) btnSubmit.disabled = false;
-        if (submitText) submitText.style.display = 'inline';
-        if (submitSpinner) submitSpinner.style.display = 'none';
-      }
-    });
-  }
+    } catch (err) {
+      showToast(err.message || 'Failed to submit. Please check your network.', 'error');
+    } finally {
+      if (btnSubmit) btnSubmit.disabled = false;
+      if (submitText) submitText.style.display = 'inline';
+      if (submitSpinner) submitSpinner.style.display = 'none';
+    }
+  });
 }
 
 // =============================================================================
@@ -680,7 +576,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 3. Setup sector radio change in upload form
+  // 3. Setup sector radio change in brief form
   document.querySelectorAll('input[name="upload_sector"]').forEach((radio) => {
     radio.addEventListener('change', () => {
       setCategory(radio.value, true);
@@ -706,8 +602,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setCategory(cat, false);
   });
 
-  // 7. Initialize File Upload & Brief Submission
-  initUploadSystem();
+  // 6. Initialize Brief Form Handler
+  initProjectBriefForm();
 
   // 8. Load Projects from API
   loadProjects();
