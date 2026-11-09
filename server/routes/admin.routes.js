@@ -67,6 +67,7 @@ adminRouter.post('/projects/:id/photos', addProjectPhotos);
 adminRouter.delete('/projects/:id/photos', deleteProjectPhoto);
 adminRouter.patch('/projects/:id/photos/cover', setProjectCoverPhoto);
 adminRouter.patch('/projects/:id', updateProject);
+adminRouter.put('/projects/:id', updateProject);
 adminRouter.delete('/projects/:id', deleteProject);
 
 // ==========================================
@@ -75,6 +76,7 @@ adminRouter.delete('/projects/:id', deleteProject);
 adminRouter.get('/clients', getAllClients);
 adminRouter.post('/clients', createClient);
 adminRouter.patch('/clients/:id', updateClient);
+adminRouter.put('/clients/:id', updateClient);
 adminRouter.delete('/clients/:id', deleteClient);
 
 // ==========================================
@@ -83,6 +85,7 @@ adminRouter.delete('/clients/:id', deleteClient);
 adminRouter.get('/testimonials', getAllTestimonials);
 adminRouter.post('/testimonials', createTestimonial);
 adminRouter.patch('/testimonials/:id', updateTestimonial);
+adminRouter.put('/testimonials/:id', updateTestimonial);
 adminRouter.delete('/testimonials/:id', deleteTestimonial);
 
 import { processUploadedFile } from '../services/storage.js';

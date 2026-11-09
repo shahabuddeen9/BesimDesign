@@ -9,15 +9,24 @@ import { initDb } from '../server/db/index.js';
 import { runSeed } from '../server/db/seed.js';
 
 let initialized = false;
+let initPromise = null;
 
 export default async function handler(req, res) {
   if (!initialized) {
-    try {
-      await initDb();
-      initialized = true;
-    } catch (err) {
-      console.error('Failed to initialize database in serverless function:', err);
+    if (!initPromise) {
+      initPromise = (async () => {
+        try {
+          await initDb();
+          await runSeed();
+          initialized = true;
+        } catch (err) {
+          console.error('Failed to initialize database in serverless function:', err);
+        } finally {
+          initPromise = null;
+        }
+      })();
     }
+    await initPromise;
   }
 
   // 1. Recover full path from incoming URL or Vercel forwarding headers

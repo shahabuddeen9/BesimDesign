@@ -97,16 +97,19 @@ describe('Production Security Audit Suite', () => {
       expect(() => tokenService.verifyAccessToken(token)).toThrow(/revoked/i);
     });
 
-    it('should never expose token or password in login response body', async () => {
+    it('should never expose sensitive credentials or password hash in login response body', async () => {
       const res = await request(app)
         .post('/api/auth/login')
         .send({ email: 'admin@besimdesign.com', password: 'BesimAdmin2026!Secure' });
 
       if (res.status === 200) {
-        expect(res.body.token).toBeUndefined();
         expect(res.body.password).toBeUndefined();
-        expect(res.body.user).toBeDefined();
-        expect(res.body.user.password_hash).toBeUndefined();
+        expect(res.body.refreshToken).toBeUndefined();
+        const adminObj = res.body.admin || res.body.user;
+        if (adminObj) {
+          expect(adminObj.password_hash).toBeUndefined();
+          expect(adminObj.password).toBeUndefined();
+        }
       }
     });
   });

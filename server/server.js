@@ -20,11 +20,15 @@ async function startServer() {
     // 2. Ensure seed & admin credentials are in sync
     await runSeed();
 
-    // 4. Start HTTP listener
-    const server = app.listen(env.PORT, '0.0.0.0', () => {
-      logger.info(`🚀 Server running in [${env.NODE_ENV}] mode on port ${env.PORT}`);
-      logger.info(`🌐 Public URL: http://localhost:${env.PORT}`);
-      logger.info(`🛡️ Admin Portal: http://localhost:${env.PORT}/admin/login.html`);
+    // 4. Start HTTP listener (respecting CLI --port flag if provided)
+    const portArgIdx = process.argv.indexOf('--port');
+    const portFromArg = portArgIdx !== -1 && process.argv[portArgIdx + 1] ? parseInt(process.argv[portArgIdx + 1], 10) : null;
+    const listenPort = portFromArg || (process.env.NODE_ENV === 'production' && process.env.PORT ? parseInt(process.env.PORT, 10) : 3000);
+
+    const server = app.listen(listenPort, '0.0.0.0', () => {
+      logger.info(`🚀 Server running in [${env.NODE_ENV}] mode on port ${listenPort}`);
+      logger.info(`🌐 Public URL: http://localhost:${listenPort}`);
+      logger.info(`🛡️ Admin Portal: http://localhost:${listenPort}/admin/login.html`);
     });
 
     // Graceful shutdown handling

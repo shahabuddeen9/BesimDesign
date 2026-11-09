@@ -15,32 +15,43 @@ import env from '../config/env.js';
 import logger from '../utils/logger.js';
 import { db, initDb, DECOMMISSIONED_CLIENTS } from './index.js';
 
+let activeSeedPromise = null;
+
 export async function runSeed(force = false) {
-  await initDb();
-
-  // 1. Ensure Administrator accounts exist without altering existing records
-  const adminEmails = [
-    env.ADMIN_EMAIL,
-    'besimdesigne@gmail.com',
-    'admin@besimdesign.com',
-    'mdshahabuddeen9@gmail.com',
-    'mdshahabuddeen48@gmail.com',
-  ].filter(Boolean);
-
-  const passwordToHash = env.ADMIN_PASSWORD || 'AdminPass123!';
-  const passwordHash = await bcrypt.hash(passwordToHash, 10);
-
-  for (const email of adminEmails) {
-    const existingAdmin = await db.get('SELECT id FROM admins WHERE LOWER(email) = LOWER(?)', email);
-    if (!existingAdmin) {
-      await db.run(
-        "INSERT INTO admins (email, password_hash, created_at) VALUES (?, ?, datetime('now'))",
-        email,
-        passwordHash
-      );
-      logger.info(`Seeded administrator account: ${email}`);
-    }
+  if (activeSeedPromise && !force) {
+    return activeSeedPromise;
   }
+
+  activeSeedPromise = (async () => {
+    try {
+      await initDb();
+
+      // 1. Ensure Administrator accounts exist without altering existing records
+      const adminEmails = [
+        env.ADMIN_EMAIL,
+        'khansiftain91@gmail.com',
+        'besimdesigne@gmail.com',
+        'admin@besimdesign.com',
+        'mdshahabuddeen9@gmail.com',
+        'mdshahabuddeen48@gmail.com',
+      ].filter(Boolean);
+
+      const passwordToHash = env.ADMIN_PASSWORD || 'AdminPass123!';
+      const passwordHash = await bcrypt.hash(passwordToHash, 10);
+
+      for (const email of adminEmails) {
+        try {
+          const existingAdmin = await db.get('SELECT id FROM admins WHERE LOWER(email) = LOWER(?)', email);
+          if (!existingAdmin) {
+            await db.run(
+              "INSERT OR IGNORE INTO admins (email, password_hash, created_at) VALUES (?, ?, datetime('now'))",
+              email,
+              passwordHash
+            );
+            logger.info(`Seeded administrator account: ${email}`);
+          }
+        } catch (_) {}
+      }
 
   // 2. Check if database has already been initialized with initial seed
   const metaCheck = await db.get("SELECT value FROM _system_meta WHERE key = 'initial_seed_completed'");
@@ -364,13 +375,19 @@ export async function runSeed(force = false) {
     }
   }
 
-  // Record that initial seed completed so re-runs never delete or recreate records
-  await db.run(`
-    INSERT OR REPLACE INTO _system_meta (key, value, updated_at)
-    VALUES ('initial_seed_completed', 'true', datetime('now'))
-  `);
+    // Record that initial seed completed so re-runs never delete or recreate records
+    await db.run(`
+      INSERT OR REPLACE INTO _system_meta (key, value, updated_at)
+      VALUES ('initial_seed_completed', 'true', datetime('now'))
+    `);
 
-  logger.info('Database initial setup completed and permanently marked initial_seed_completed.');
+    logger.info('Database initial setup completed and permanently marked initial_seed_completed.');
+  } finally {
+    activeSeedPromise = null;
+  }
+})();
+
+  return activeSeedPromise;
 }
 
 export default runSeed;

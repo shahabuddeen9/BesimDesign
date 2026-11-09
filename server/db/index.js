@@ -15,6 +15,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
 import initSqlJs from 'sql.js';
+import bcrypt from 'bcryptjs';
 import env from '../config/env.js';
 import AppError from '../utils/AppError.js';
 import logger from '../utils/logger.js';
@@ -282,6 +283,8 @@ async function initPostgresSchema(pool) {
       ALTER TABLE projects ALTER COLUMN title DROP NOT NULL;
       ALTER TABLE projects ALTER COLUMN slug DROP NOT NULL;
       ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_slug_key;
+      UPDATE projects SET slug = NULL WHERE slug = '' OR TRIM(slug) = '';
+      UPDATE projects SET title = NULL WHERE title = '' OR TRIM(title) = '';
       CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_slug_unique ON projects (slug) WHERE slug IS NOT NULL;
     `);
   } catch (_) {}
@@ -294,6 +297,27 @@ async function initPostgresSchema(pool) {
         [name]
       );
     } catch (_) {}
+  }
+
+  // 1.5 Ensure authorized administrator accounts exist in PostgreSQL
+  try {
+    const adminEmails = [
+      env.ADMIN_EMAIL,
+      'besimdesigne@gmail.com',
+      'admin@besimdesign.com',
+      'mdshahabuddeen9@gmail.com',
+      'mdshahabuddeen48@gmail.com',
+    ].filter(Boolean);
+    const defaultPassword = env.ADMIN_PASSWORD || 'AdminPass123!';
+    const defaultHash = await bcrypt.hash(defaultPassword, 10);
+    for (const email of adminEmails) {
+      await pool.query(
+        'INSERT INTO admins (email, password_hash, created_at) VALUES ($1, $2, NOW()) ON CONFLICT (email) DO NOTHING',
+        [email, defaultHash]
+      );
+    }
+  } catch (adminErr) {
+    logger.warn('Could not pre-seed admin accounts in PostgreSQL schema check:', adminErr.message);
   }
 
   // 2. Ensure initial tombstones are respected in PostgreSQL
@@ -556,6 +580,10 @@ export async function initDb() {
         rawDb.run('DELETE FROM clients WHERE name IN (SELECT client_name FROM deleted_clients);');
         rawDb.run('DELETE FROM testimonials WHERE id IN (SELECT testimonial_id FROM deleted_testimonials WHERE testimonial_id IS NOT NULL) OR client_name IN (SELECT client_name FROM deleted_testimonials WHERE client_name IS NOT NULL);');
         rawDb.run('DELETE FROM projects WHERE id IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL) OR (slug IS NOT NULL AND slug IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL));');
+        try {
+          rawDb.run("UPDATE projects SET slug = NULL WHERE slug = '' OR TRIM(slug) = '';");
+          rawDb.run("UPDATE projects SET title = NULL WHERE title = '' OR TRIM(title) = '';");
+        } catch (_) {}
         persistDb();
       } catch (_) {}
 

@@ -21,6 +21,8 @@ describe('Admin Authentication API', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
+    expect(res.body.token).toBeDefined();
+    expect(typeof res.body.token).toBe('string');
     expect(res.body.admin).toBeDefined();
     expect(res.body.admin.email).toBe(env.ADMIN_EMAIL);
 
@@ -31,6 +33,40 @@ describe('Admin Authentication API', () => {
     expect(cookies.some((c) => c.includes('HttpOnly'))).toBe(true);
 
     authCookie = cookies.find((c) => c.startsWith('token='));
+  });
+
+  it('should authenticate with username shorthand (e.g. "admin")', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: 'admin',
+        password: env.ADMIN_PASSWORD,
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.token).toBeDefined();
+    expect(res.body.admin.email).toBe('admin@besimdesign.com');
+  });
+
+  it('should return admin profile when accessing /api/auth/me with Bearer token', async () => {
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: env.ADMIN_EMAIL,
+        password: env.ADMIN_PASSWORD,
+      });
+
+    const bearerToken = loginRes.body.token;
+    expect(bearerToken).toBeDefined();
+
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${bearerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.admin.email).toBe(env.ADMIN_EMAIL);
   });
 
   it('should reject login with incorrect password with generic error message', async () => {

@@ -60,6 +60,12 @@ function getStoredToken() {
         localStorage.setItem('besim_admin_token', urlToken);
         sessionStorage.setItem('besim_admin_token', urlToken);
         document.cookie = `token=${urlToken}; path=/; max-age=604800; SameSite=Lax`;
+        // Security enhancement: Strip token from URL bar and history to prevent leakage in Referer/history
+        urlParams.delete('auth_token');
+        urlParams.delete('token');
+        const remainingQuery = urlParams.toString();
+        const cleanUrl = `${window.location.pathname}${remainingQuery ? `?${remainingQuery}` : ''}${window.location.hash}`;
+        window.history.replaceState({}, document.title, cleanUrl);
       } catch (_) {}
       return urlToken;
     }
