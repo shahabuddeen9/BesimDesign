@@ -782,11 +782,12 @@ function updateProjectImagePreview(url) {
 
 function getProjectPublicUrl(category, slug) {
   const cat = (category || '').toLowerCase();
-  if (cat === 'hotels') return `/hotels.html#${slug || ''}`;
+  const hash = slug ? `#${slug}` : '';
+  if (cat === 'hotels') return `/hotels.html${hash}`;
   if (cat === 'hospitality') return slug ? `/hospitality/${encodeURIComponent(slug)}` : '/hospitality.html';
-  if (cat === 'residential') return `/residential.html#${slug || ''}`;
-  if (cat === 'central_kitchen' || cat === 'central-kitchen') return `/central-kitchen.html#${slug || ''}`;
-  return `/showcase.html#${slug || ''}`;
+  if (cat === 'residential') return `/residential.html${hash}`;
+  if (cat === 'central_kitchen' || cat === 'central-kitchen') return `/central-kitchen.html${hash}`;
+  return `/showcase.html${hash}`;
 }
 
 function renderAdminProjectsTable(projects) {
@@ -811,21 +812,23 @@ function renderAdminProjectsTable(projects) {
     const publicUrl = getProjectPublicUrl(p.category, p.slug);
     const galleryCount = Array.isArray(p.gallery) ? p.gallery.length : 0;
     const totalPhotos = (p.image_url ? 1 : 0) + galleryCount;
+    const displayTitle = p.title || 'Untitled Project';
+    const displaySlug = p.slug || '—';
     return `
     <tr id="proj-row-${p.id}" style="transition: all 0.25s ease;">
       <td style="width: 80px;">
         <div style="position: relative; cursor: pointer; display: inline-block;" title="Click to view and delete project photos" onclick="openProjectPhotosModal('${escapeHtml(p.id)}')">
-          <img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.title)}" style="width: 68px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid var(--admin-border);" onerror="this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80'">
+          <img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(displayTitle)}" style="width: 68px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid var(--admin-border);" onerror="this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80'">
           <span style="position: absolute; bottom: 2px; right: 2px; background: rgba(0,0,0,0.85); color: var(--gold); font-size: 0.65rem; font-weight: 700; padding: 1px 4px; border-radius: 3px; border: 1px solid rgba(197, 168, 128, 0.4);">📸 ${totalPhotos}</span>
         </div>
       </td>
       <td>
         <div style="display: flex; align-items: center; gap: 8px;">
-          <strong style="color: #fff; font-size: 0.95rem;">${escapeHtml(p.title)}</strong>
+          <strong style="color: #fff; font-size: 0.95rem;">${escapeHtml(displayTitle)}</strong>
           <a href="${publicUrl}" target="_blank" title="View live on website" style="color: var(--gold); font-size: 0.78rem; text-decoration: none; opacity: 0.85;">↗ View</a>
         </div>
         ${p.client_name ? `<div style="font-size: 0.78rem; color: var(--gold); margin-top: 2px;">Client: ${escapeHtml(p.client_name)}</div>` : ''}
-        <div style="font-size: 0.74rem; color: var(--text-dim); margin-top: 2px;">slug: <code>${escapeHtml(p.slug)}</code> • ${escapeHtml(p.location || 'Mumbai')}</div>
+        <div style="font-size: 0.74rem; color: var(--text-dim); margin-top: 2px;">slug: <code>${escapeHtml(displaySlug)}</code> • ${escapeHtml(p.location || 'Mumbai')}</div>
       </td>
       <td>
         <span style="display: inline-block; padding: 3px 8px; border-radius: 4px; background: rgba(197, 168, 128, 0.12); color: var(--gold); text-transform: uppercase; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; border: 1px solid rgba(197, 168, 128, 0.25);">
@@ -900,13 +903,13 @@ function editProject(id) {
   const p = state.projects.find((item) => item.id.toString() === id.toString());
   if (!p) return;
 
-  document.getElementById('modalProjectTitle').textContent = `Edit Architecture Project: ${p.title}`;
+  document.getElementById('modalProjectTitle').textContent = `Edit Architecture Project: ${p.title || `Project #${p.id}`}`;
   document.getElementById('editProjectId').value = p.id;
-  document.getElementById('projTitle').value = p.title;
+  document.getElementById('projTitle').value = p.title || '';
   
   const slugInput = document.getElementById('projSlug');
   if (slugInput) {
-    slugInput.value = p.slug;
+    slugInput.value = p.slug || '';
     slugInput.dataset.manual = 'true';
   }
 
@@ -1122,8 +1125,9 @@ function updatePhotoModalProjectSelect() {
     const g = Array.isArray(proj.gallery) ? proj.gallery : [];
     const total = (proj.image_url ? 1 : 0) + g.filter((u) => u && u !== proj.image_url).length;
     const isSelected = proj.id.toString() === currentId;
+    const displayTitle = proj.title || `Project #${proj.id}`;
     return `<option value="${escapeHtml(proj.id)}" ${isSelected ? 'selected' : ''}>
-      ${escapeHtml(proj.title)} — [${total} Photo${total === 1 ? '' : 's'}]
+      ${escapeHtml(displayTitle)} — [${total} Photo${total === 1 ? '' : 's'}]
     </option>`;
   }).join('');
 
@@ -1141,7 +1145,7 @@ function updatePhotoModalProjectSelect() {
 function updatePhotoModalHeaders(p) {
   if (!p) return;
   const titleEl = document.getElementById('photoModalProjectTitle');
-  if (titleEl) titleEl.textContent = `Photos for: ${p.title}`;
+  if (titleEl) titleEl.textContent = `Photos for: ${p.title || `Project #${p.id}`}`;
 
   const catEl = document.getElementById('photoModalProjectCat');
   if (catEl) catEl.textContent = (p.category || 'PROJECT').toUpperCase().replace('_', ' ');
@@ -1848,29 +1852,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Auto-generate clean URL slug from Project Title
-  const projTitleInput = document.getElementById('projTitle');
+  // Clean and format URL slug when provided by user
   const projSlugInput = document.getElementById('projSlug');
-  if (projTitleInput && projSlugInput) {
-    projTitleInput.addEventListener('input', () => {
-      const editId = document.getElementById('editProjectId')?.value;
-      if (!editId) {
-        projSlugInput.value = projTitleInput.value
+  if (projSlugInput) {
+    projSlugInput.addEventListener('blur', () => {
+      if (projSlugInput.value.trim()) {
+        projSlugInput.value = projSlugInput.value
           .toLowerCase()
           .trim()
           .replace(/[^\w\s-]/g, '')
           .replace(/[\s_-]+/g, '-')
           .replace(/^-+|-+$/g, '');
       }
-    });
-
-    projSlugInput.addEventListener('blur', () => {
-      projSlugInput.value = projSlugInput.value
-        .toLowerCase()
-        .trim()
-        .replace(/[^\w\s-]/g, '')
-        .replace(/[\s_-]+/g, '-')
-        .replace(/^-+|-+$/g, '');
     });
   }
 
@@ -2245,11 +2238,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     formProject.addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('editProjectId').value;
-      const title = document.getElementById('projTitle').value.trim();
-      let slug = document.getElementById('projSlug').value.trim().toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-');
-      if (!slug && title) {
-        slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      const rawTitle = document.getElementById('projTitle').value.trim();
+      const title = rawTitle || null;
+
+      const rawSlug = document.getElementById('projSlug').value.trim();
+      let slug = null;
+      if (rawSlug) {
+        slug = rawSlug
+          .toLowerCase()
+          .replace(/[^\w\s-]/g, '')
+          .replace(/[\s_-]+/g, '-')
+          .replace(/^-+|-+$/g, '') || null;
       }
+
       const category = document.getElementById('projCategory').value;
       const client_name = document.getElementById('projClientName')?.value.trim() || '';
       const location = document.getElementById('projLocation')?.value.trim() || '';
@@ -2262,8 +2263,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       const is_featured = document.getElementById('projFeatured').value === '1' ? 1 : 0;
       const is_published = document.getElementById('projPublished').value === '0' ? 0 : 1;
 
-      if (!title || !description) {
-        showAdminToast('Please provide a project title and narrative description.', 'error');
+      if (!description) {
+        showAdminToast('Please provide an architectural narrative description.', 'error');
+        return;
+      }
+      if (!category) {
+        showAdminToast('Please select a project category.', 'error');
+        return;
+      }
+      if (!image_url) {
+        showAdminToast('Please upload or select at least one cover photo.', 'error');
         return;
       }
 

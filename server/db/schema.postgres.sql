@@ -94,8 +94,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_deleted_testimonials_identity
 -- 5. PROJECTS TABLE
 CREATE TABLE IF NOT EXISTS projects (
   id SERIAL PRIMARY KEY,
-  title VARCHAR(255) NOT NULL,
-  slug VARCHAR(255) UNIQUE NOT NULL,
+  title VARCHAR(255) DEFAULT NULL,
+  slug VARCHAR(255) DEFAULT NULL,
   category VARCHAR(100) NOT NULL,
   client_name VARCHAR(255) DEFAULT '',
   location VARCHAR(255) DEFAULT '',
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS projects (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_projects_slug ON projects(slug);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_slug_unique ON projects(slug) WHERE slug IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_projects_category ON projects(category);
 CREATE INDEX IF NOT EXISTS idx_projects_published ON projects(is_published, sort_order);
 

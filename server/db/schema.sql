@@ -32,8 +32,8 @@ CREATE INDEX IF NOT EXISTS idx_enquiries_created_at ON enquiries(created_at);
 -- 2. PROJECTS TABLE
 CREATE TABLE IF NOT EXISTS projects (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  title TEXT NOT NULL,
-  slug TEXT UNIQUE NOT NULL,
+  title TEXT DEFAULT '',
+  slug TEXT DEFAULT NULL,
   category TEXT NOT NULL,
   client_name TEXT DEFAULT '',
   location TEXT DEFAULT '',
@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS projects (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_projects_slug ON projects(slug);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_slug_unique ON projects(slug) WHERE slug IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_projects_category ON projects(category);
 CREATE INDEX IF NOT EXISTS idx_projects_published ON projects(is_published, sort_order);
 

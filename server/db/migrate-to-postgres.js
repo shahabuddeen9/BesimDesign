@@ -248,11 +248,11 @@ async function runMigration() {
         await client.query(
           `INSERT INTO projects (id, title, slug, category, client_name, location, area_sqft, description, scope, image_url, gallery, is_featured, sort_order, is_published, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, COALESCE($15::timestamptz, NOW()), COALESCE($16::timestamptz, NOW()))
-           ON CONFLICT (slug) DO NOTHING`,
+           ON CONFLICT (id) DO NOTHING`,
           [
             r.id,
-            r.title,
-            r.slug,
+            r.title || null,
+            r.slug || null,
             r.category,
             r.client_name || '',
             r.location || '',

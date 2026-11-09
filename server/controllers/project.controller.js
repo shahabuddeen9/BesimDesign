@@ -29,11 +29,11 @@ function safeJsonParse(val, fallback = []) {
 
 // Project Zod Schema
 export const projectSchema = z.object({
-  title: z.string().min(2, 'Title must be at least 2 characters').max(150),
-  slug: z.string().min(1).max(150).regex(/^[a-z0-9-]+$/, 'Slug must only contain lowercase letters, numbers, and hyphens').optional(),
-  category: z.string().min(2).max(50).default('commercial'),
-  client_name: z.string().max(100).default(''),
-  location: z.string().max(100).default(''),
+  title: z.string().max(150).optional().nullable(),
+  slug: z.string().max(150).regex(/^[a-z0-9-]+$/, 'Slug must only contain lowercase letters, numbers, and hyphens').optional().nullable(),
+  category: z.string().min(2, 'Category must be selected').max(50).default('commercial'),
+  client_name: z.string().max(100).optional().nullable().default(''),
+  location: z.string().max(100).optional().nullable().default(''),
   area_sqft: z.coerce.number().default(0),
   description: z.string().min(2, 'Description must be at least 2 characters'),
   scope: z.union([z.array(z.string()), z.string()]).default([]),
@@ -63,7 +63,7 @@ export async function getPublishedProjects(req, res, next) {
       FROM projects
       WHERE is_published = 1
         AND id NOT IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
-        AND slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL)
+        AND (slug IS NULL OR slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL))
     `;
     const params = [];
 
@@ -144,7 +144,7 @@ export async function getAllProjects(req, res, next) {
     const rawProjects = await db.all(`
       SELECT * FROM projects
       WHERE id NOT IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
-        AND slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL)
+        AND (slug IS NULL OR slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL))
       ORDER BY sort_order ASC, created_at DESC
     `);
     const projects = (rawProjects || []).map((p) => ({
@@ -169,24 +169,47 @@ export async function getAllProjects(req, res, next) {
 export async function createProject(req, res, next) {
   try {
     const rawBody = { ...req.body };
-    if (!rawBody.slug && rawBody.title) {
-      rawBody.slug = rawBody.title
+
+    // Normalize empty title to null
+    if (typeof rawBody.title === 'string') {
+      const trimmedTitle = rawBody.title.trim();
+      rawBody.title = trimmedTitle || null;
+    } else if (!rawBody.title) {
+      rawBody.title = null;
+    }
+
+    // Normalize empty slug to null (Do NOT auto-generate a slug from title or empty input)
+    if (typeof rawBody.slug === 'string') {
+      const trimmedSlug = rawBody.slug
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '') || `proj-${Date.now()}`;
+        .replace(/[^a-z0-9-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      rawBody.slug = trimmedSlug || null;
+    } else if (!rawBody.slug) {
+      rawBody.slug = null;
     }
 
     const validated = projectSchema.parse(rawBody);
 
-    let finalSlug = (validated.slug || validated.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')).replace(/^-+|-+$/g, '') || `proj-${Date.now()}`;
-    let counter = 1;
-    const baseSlug = finalSlug;
-    while (await db.get('SELECT id FROM projects WHERE slug = ?', finalSlug)) {
-      finalSlug = `${baseSlug}-${counter++}`;
+    let finalTitle = validated.title ? stripHtml(String(validated.title).trim()) || null : null;
+    let finalSlug = validated.slug ? String(validated.slug).trim().toLowerCase() || null : null;
+
+    if (finalSlug) {
+      let counter = 1;
+      const baseSlug = finalSlug;
+      while (await db.get('SELECT id FROM projects WHERE slug = ?', finalSlug)) {
+        finalSlug = `${baseSlug}-${counter++}`;
+      }
     }
 
     try {
-      await db.run('DELETE FROM deleted_projects WHERE slug = ? OR title = ?', finalSlug, stripHtml(validated.title));
+      if (finalSlug && finalTitle) {
+        await db.run('DELETE FROM deleted_projects WHERE slug = ? OR title = ?', finalSlug, finalTitle);
+      } else if (finalSlug) {
+        await db.run('DELETE FROM deleted_projects WHERE slug = ?', finalSlug);
+      } else if (finalTitle) {
+        await db.run('DELETE FROM deleted_projects WHERE title = ?', finalTitle);
+      }
       await syncTombstones();
     } catch (_) {}
 
@@ -204,11 +227,11 @@ export async function createProject(req, res, next) {
         datetime('now'), datetime('now')
       )
     `,
-      stripHtml(validated.title),
-      finalSlug.toLowerCase(),
+      finalTitle,
+      finalSlug,
       validated.category,
-      stripHtml(validated.client_name || ''),
-      stripHtml(validated.location || ''),
+      validated.client_name ? stripHtml(validated.client_name) : '',
+      validated.location ? stripHtml(validated.location) : '',
       validated.area_sqft || 0,
       validated.description,
       scopeJson,
@@ -222,6 +245,12 @@ export async function createProject(req, res, next) {
     db.persist();
 
     const newId = result.lastInsertRowid || result.row?.id;
+    if (newId) {
+      try {
+        await db.run('DELETE FROM deleted_projects WHERE project_id = ?', newId);
+        await syncTombstones();
+      } catch (_) {}
+    }
     const saved = await db.get('SELECT * FROM projects WHERE id = ?', newId);
     if (saved) {
       saved.scope = safeJsonParse(saved.scope);
@@ -231,7 +260,7 @@ export async function createProject(req, res, next) {
     return res.status(201).json({
       success: true,
       message: 'Project created successfully',
-      data: saved || { id: newId, ...validated, slug: finalSlug },
+      data: saved || { id: newId, ...validated, title: finalTitle, slug: finalSlug },
     });
   } catch (error) {
     next(error);
@@ -251,8 +280,24 @@ export async function updateProject(req, res, next) {
     }
 
     const b = req.body || {};
-    const title = b.title !== undefined ? stripHtml(String(b.title).trim()) : existing.title;
-    const slug = b.slug !== undefined ? String(b.slug).trim().toLowerCase() : existing.slug;
+    let title = existing.title;
+    if (b.title !== undefined) {
+      if (b.title === null || String(b.title).trim() === '') {
+        title = null;
+      } else {
+        title = stripHtml(String(b.title).trim());
+      }
+    }
+
+    let slug = existing.slug;
+    if (b.slug !== undefined) {
+      if (b.slug === null || String(b.slug).trim() === '') {
+        slug = null;
+      } else {
+        slug = String(b.slug).trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') || null;
+      }
+    }
+
     const category = b.category !== undefined ? String(b.category).trim() : existing.category;
     const client_name = b.client_name !== undefined ? stripHtml(String(b.client_name).trim()) : (existing.client_name || '');
     const location = b.location !== undefined ? stripHtml(String(b.location).trim()) : (existing.location || '');

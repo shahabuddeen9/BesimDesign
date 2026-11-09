@@ -196,8 +196,8 @@ async function initPostgresSchema(pool) {
       );
       CREATE TABLE IF NOT EXISTS projects (
         id SERIAL PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
-        slug VARCHAR(255) UNIQUE NOT NULL,
+        title VARCHAR(255) DEFAULT NULL,
+        slug VARCHAR(255) DEFAULT NULL,
         category VARCHAR(100) NOT NULL,
         client_name VARCHAR(255) DEFAULT '',
         location VARCHAR(255) DEFAULT '',
@@ -212,7 +212,7 @@ async function initPostgresSchema(pool) {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
-      CREATE INDEX IF NOT EXISTS idx_projects_slug ON projects(slug);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_slug_unique ON projects(slug) WHERE slug IS NOT NULL;
       CREATE INDEX IF NOT EXISTS idx_projects_category ON projects(category);
       CREATE INDEX IF NOT EXISTS idx_projects_published ON projects(is_published, sort_order);
       CREATE TABLE IF NOT EXISTS deleted_projects (
@@ -276,6 +276,16 @@ async function initPostgresSchema(pool) {
     `);
   } catch (_) {}
 
+  // 0.1 Ensure projects table title and slug are optional and nullable in PostgreSQL
+  try {
+    await pool.query(`
+      ALTER TABLE projects ALTER COLUMN title DROP NOT NULL;
+      ALTER TABLE projects ALTER COLUMN slug DROP NOT NULL;
+      ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_slug_key;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_slug_unique ON projects (slug) WHERE slug IS NOT NULL;
+    `);
+  } catch (_) {}
+
   // 1. Ensure decommissioned clients have permanent tombstones in PostgreSQL
   for (const name of DECOMMISSIONED_CLIENTS) {
     try {
@@ -292,7 +302,7 @@ async function initPostgresSchema(pool) {
     DELETE FROM testimonials WHERE id IN (SELECT testimonial_id FROM deleted_testimonials WHERE testimonial_id IS NOT NULL)
       OR client_name IN (SELECT client_name FROM deleted_testimonials WHERE client_name IS NOT NULL);
     DELETE FROM projects WHERE id IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
-      OR slug IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL);
+      OR (slug IS NOT NULL AND slug IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL));
   `);
 
   // 3. Synchronize PostgreSQL SERIAL sequences with current MAX(id)
@@ -499,9 +509,53 @@ export async function initDb() {
           rawDb.run("INSERT OR IGNORE INTO deleted_clients (client_name, deleted_at) VALUES (?, datetime('now'))", [name]);
         }
 
+        // Ensure projects table in SQLite allows NULL title and NULL slug
+        try {
+          const tableInfo = rawDb.exec('PRAGMA table_info(projects);');
+          if (tableInfo && tableInfo[0] && tableInfo[0].values) {
+            const cols = tableInfo[0].values;
+            const titleCol = cols.find((c) => c[1] === 'title');
+            const slugCol = cols.find((c) => c[1] === 'slug');
+            if ((titleCol && titleCol[3] === 1) || (slugCol && slugCol[3] === 1)) {
+              logger.info('Migrating SQLite projects table to allow optional title and slug...');
+              rawDb.run(`
+                CREATE TABLE IF NOT EXISTS projects_v2 (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  title TEXT DEFAULT '',
+                  slug TEXT DEFAULT NULL,
+                  category TEXT NOT NULL,
+                  client_name TEXT DEFAULT '',
+                  location TEXT DEFAULT '',
+                  area_sqft INTEGER DEFAULT 0,
+                  description TEXT NOT NULL,
+                  scope TEXT NOT NULL DEFAULT '[]',
+                  image_url TEXT NOT NULL,
+                  gallery TEXT NOT NULL DEFAULT '[]',
+                  is_featured INTEGER NOT NULL DEFAULT 0,
+                  sort_order INTEGER NOT NULL DEFAULT 0,
+                  is_published INTEGER NOT NULL DEFAULT 1,
+                  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+                INSERT INTO projects_v2 (id, title, slug, category, client_name, location, area_sqft, description, scope, image_url, gallery, is_featured, sort_order, is_published, created_at, updated_at)
+                  SELECT id, title, slug, category, client_name, location, area_sqft, description, scope, image_url, gallery, is_featured, sort_order, is_published, created_at, updated_at FROM projects;
+                DROP TABLE projects;
+                ALTER TABLE projects_v2 RENAME TO projects;
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_slug_unique ON projects (slug) WHERE slug IS NOT NULL;
+                CREATE INDEX IF NOT EXISTS idx_projects_category ON projects(category);
+                CREATE INDEX IF NOT EXISTS idx_projects_published ON projects(is_published, sort_order);
+              `);
+              persistDb();
+              logger.info('SQLite projects table migration completed successfully.');
+            }
+          }
+        } catch (migErr) {
+          logger.warn('SQLite projects migration check skipped or completed:', migErr?.message);
+        }
+
         rawDb.run('DELETE FROM clients WHERE name IN (SELECT client_name FROM deleted_clients);');
         rawDb.run('DELETE FROM testimonials WHERE id IN (SELECT testimonial_id FROM deleted_testimonials WHERE testimonial_id IS NOT NULL) OR client_name IN (SELECT client_name FROM deleted_testimonials WHERE client_name IS NOT NULL);');
-        rawDb.run('DELETE FROM projects WHERE id IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL) OR slug IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL);');
+        rawDb.run('DELETE FROM projects WHERE id IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL) OR (slug IS NOT NULL AND slug IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL));');
         persistDb();
       } catch (_) {}
 

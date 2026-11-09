@@ -116,8 +116,11 @@ function renderLongScrollProjects(projectsList) {
         }
       }
 
-      let displayHeading = p.title;
-      if (p.location && !p.title.toLowerCase().includes(p.location.toLowerCase().split(',')[0])) {
+      const safeTitle = p.title || 'Luxury Residential Project';
+      const safeSlug = p.slug || ('proj-' + p.id);
+
+      let displayHeading = safeTitle;
+      if (p.location && p.title && !p.title.toLowerCase().includes(p.location.toLowerCase().split(',')[0])) {
         const city = p.location.split(',')[0].trim();
         displayHeading = `${p.title} – ${city}`;
       }
@@ -148,13 +151,13 @@ function renderLongScrollProjects(projectsList) {
       const galleryItemsHtml = allPhotos
         .map(
           (imgUrl, imgIdx) => `
-          <div class="gallery-item" data-project="${p.slug}" data-index="${imgIdx}">
+          <div class="gallery-item" data-project="${safeSlug}" data-index="${imgIdx}">
             <img
               src="${escapeHtml(imgUrl)}"
-              alt="${escapeHtml(p.title)} – Photograph ${imgIdx + 1}"
+              alt="${escapeHtml(safeTitle)} – Photograph ${imgIdx + 1}"
               class="gallery-img"
               loading="lazy"
-              onclick="openPortfolioLightbox('${p.slug}', ${imgIdx})"
+              onclick="openPortfolioLightbox('${safeSlug}', ${imgIdx})"
             >
             <span style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.72); color: #fff; font-size: 0.72rem; padding: 2px 6px; border-radius: 3px; pointer-events: none;">
               ${imgIdx + 1}/${allPhotos.length}
@@ -169,16 +172,16 @@ function renderLongScrollProjects(projectsList) {
           (_, dIdx) => `
           <button
             class="gallery-dot ${dIdx === 0 ? 'active' : ''}"
-            id="dot-${p.slug}-${dIdx}"
+            id="dot-${safeSlug}-${dIdx}"
             aria-label="Go to photo ${dIdx + 1}"
-            onclick="scrollProjectGalleryToIndex('${p.slug}', ${dIdx})"
+            onclick="scrollProjectGalleryToIndex('${safeSlug}', ${dIdx})"
           ></button>
         `
         )
         .join('');
 
       return `
-        <article class="hospitality-project-block" id="${p.slug}" data-slug="${p.slug}">
+        <article class="hospitality-project-block" id="${safeSlug}" data-slug="${safeSlug}">
           <!-- Top Section: 3-Column Layout -->
           <div class="hospitality-detail-grid">
             
@@ -226,10 +229,10 @@ function renderLongScrollProjects(projectsList) {
 
             <!-- RIGHT COLUMN: Main Featured Cover Photograph -->
             <div class="col-cover">
-              <div class="cover-img-wrapper" onclick="openPortfolioLightbox('${p.slug}', 0)">
+              <div class="cover-img-wrapper" onclick="openPortfolioLightbox('${safeSlug}', 0)">
                 <img
                   src="${escapeHtml(p.image_url)}"
-                  alt="${escapeHtml(p.title)} – Featured Cover Photograph"
+                  alt="${escapeHtml(safeTitle)} – Featured Cover Photograph"
                   class="project-featured-cover"
                   loading="${pIdx === 0 ? 'eager' : 'lazy'}"
                 >
@@ -250,22 +253,22 @@ function renderLongScrollProjects(projectsList) {
               </span>
             </div>
 
-            <div class="gallery-carousel-wrapper" data-slug="${p.slug}">
-              <button class="gallery-nav-btn gallery-nav-prev" onclick="scrollProjectGallery('${p.slug}', -1)" aria-label="Previous photograph">
+            <div class="gallery-carousel-wrapper" data-slug="${safeSlug}">
+              <button class="gallery-nav-btn gallery-nav-prev" onclick="scrollProjectGallery('${safeSlug}', -1)" aria-label="Previous photograph">
                 ‹
               </button>
 
-              <div class="gallery-track" id="gallery-track-${p.slug}">
+              <div class="gallery-track" id="gallery-track-${safeSlug}">
                 ${galleryItemsHtml}
               </div>
 
-              <button class="gallery-nav-btn gallery-nav-next" onclick="scrollProjectGallery('${p.slug}', 1)" aria-label="Next photograph">
+              <button class="gallery-nav-btn gallery-nav-next" onclick="scrollProjectGallery('${safeSlug}', 1)" aria-label="Next photograph">
                 ›
               </button>
             </div>
 
             <!-- Carousel Indicators -->
-            <div class="gallery-dots" id="gallery-dots-${p.slug}">
+            <div class="gallery-dots" id="gallery-dots-${safeSlug}">
               ${dotsHtml}
             </div>
           </div>
@@ -273,12 +276,12 @@ function renderLongScrollProjects(projectsList) {
           <!-- Bottom Action Bar for Project -->
           <div style="display: flex; justify-content: flex-end; align-items: center; padding: 12px 0; margin-top: 8px;">
             <a
-              href="https://wa.me/919892699850?text=Hello%20Besim%20Design%2C%20I%20am%20interested%20in%20a%20luxury%20residential%20fit-out%20inspired%20by%20${encodeURIComponent(p.title)}."
+              href="https://wa.me/919892699850?text=Hello%20Besim%20Design%2C%20I%20am%20interested%20in%20a%20luxury%20residential%20fit-out%20inspired%20by%20${encodeURIComponent(safeTitle)}."
               target="_blank"
               rel="noopener noreferrer"
               style="font-size: 0.84rem; color: #16a34a; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
             >
-              Discuss ${escapeHtml(p.title)} on WhatsApp 💬
+              Discuss ${escapeHtml(safeTitle)} on WhatsApp 💬
             </a>
           </div>
         </article>
@@ -291,7 +294,8 @@ function renderLongScrollProjects(projectsList) {
 
 function attachPortfolioListeners() {
   state.projects.forEach((p) => {
-    const track = document.getElementById(`gallery-track-${p.slug}`);
+    const slugKey = p.slug || ('proj-' + p.id);
+    const track = document.getElementById(`gallery-track-${slugKey}`);
     if (!track) return;
 
     track.addEventListener(
@@ -301,7 +305,7 @@ function attachPortfolioListeners() {
           ? track.firstElementChild.getBoundingClientRect().width + 16
           : 280;
         const activeIdx = Math.round(track.scrollLeft / itemWidth);
-        const dots = document.querySelectorAll(`#gallery-dots-${p.slug} .gallery-dot`);
+        const dots = document.querySelectorAll(`#gallery-dots-${slugKey} .gallery-dot`);
         dots.forEach((dot, idx) => {
           if (idx === Math.min(activeIdx, dots.length - 1)) {
             dot.classList.add('active');
@@ -342,7 +346,7 @@ window.scrollProjectGalleryToIndex = function (slug, index) {
 // =============================================================================
 
 window.openPortfolioLightbox = function (slug, index) {
-  const project = state.projects.find((p) => p.slug === slug);
+  const project = state.projects.find((p) => p.slug === slug || ('proj-' + p.id) === slug || String(p.id) === String(slug));
   if (!project) return;
 
   const allPhotos = [];
@@ -374,11 +378,12 @@ window.openPortfolioLightbox = function (slug, index) {
 
   if (!modal || !img) return;
 
+  const safeTitle = project.title || 'Luxury Residential Project';
   img.src = allPhotos[state.activeLightboxIndex];
-  img.alt = `${project.title} – Photo ${state.activeLightboxIndex + 1}`;
+  img.alt = `${safeTitle} – Photo ${state.activeLightboxIndex + 1}`;
 
   if (counter) {
-    counter.textContent = `Photo ${state.activeLightboxIndex + 1} of ${allPhotos.length} — ${project.title}`;
+    counter.textContent = `Photo ${state.activeLightboxIndex + 1} of ${allPhotos.length} — ${safeTitle}`;
   }
 
   modal.classList.add('active');
@@ -395,7 +400,7 @@ window.closePortfolioLightbox = function () {
 
 window.portfolioLightboxPrev = function () {
   if (!state.activeLightboxSlug) return;
-  const project = state.projects.find((p) => p.slug === state.activeLightboxSlug);
+  const project = state.projects.find((p) => p.slug === state.activeLightboxSlug || ('proj-' + p.id) === state.activeLightboxSlug || String(p.id) === String(state.activeLightboxSlug));
   if (!project) return;
 
   const allPhotos = [];
@@ -411,7 +416,7 @@ window.portfolioLightboxPrev = function () {
 
 window.portfolioLightboxNext = function () {
   if (!state.activeLightboxSlug) return;
-  const project = state.projects.find((p) => p.slug === state.activeLightboxSlug);
+  const project = state.projects.find((p) => p.slug === state.activeLightboxSlug || ('proj-' + p.id) === state.activeLightboxSlug || String(p.id) === String(state.activeLightboxSlug));
   if (!project) return;
 
   const allPhotos = [];

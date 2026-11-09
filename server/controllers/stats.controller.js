@@ -76,7 +76,7 @@ export async function getStats(req, res, next) {
     const totalProjectsRow = await db.get(`
       SELECT COUNT(*) as count FROM projects
       WHERE id NOT IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
-        AND slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL)
+        AND (slug IS NULL OR slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL))
     `);
     const totalClientsRow = await db.get(`
       SELECT COUNT(*) as count FROM clients

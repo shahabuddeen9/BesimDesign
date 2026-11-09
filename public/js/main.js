@@ -270,12 +270,14 @@ function renderProjects(projectsList) {
       }
     }
     const formattedCat = p.category ? escapeHtml(p.category.replace('_', ' ').toUpperCase()) : 'ARCHITECTURE';
-    const escapedTitle = escapeHtml(p.title);
+    const safeTitle = p.title || 'Architectural Landmark';
+    const safeSlug = p.slug || ('proj-' + p.id);
+    const escapedTitle = escapeHtml(safeTitle);
     const escapedDesc = escapeHtml(p.description);
     const escapedClient = escapeHtml(p.client_name || '');
     const escapedLocation = escapeHtml(p.location || '');
     const escapedImg = escapeHtml(p.image_url);
-    const escapedSlug = escapeHtml(p.slug);
+    const escapedSlug = escapeHtml(p.slug || '');
 
     return `
       <div class="project-card" data-category="${escapeHtml(p.category)}">
@@ -294,7 +296,7 @@ function renderProjects(projectsList) {
             ${scopes.slice(0, 4).map((s) => `<span class="project-scope-item">${escapeHtml(s)}</span>`).join('')}
           </div>
           <div class="project-card-footer">
-            <button class="btn-link view-project-btn" data-slug="${escapedSlug}">
+            <button class="btn-link view-project-btn" data-slug="${escapedSlug}" data-id="${p.id}">
               View Project Blueprint →
             </button>
           </div>
@@ -419,7 +421,8 @@ function attachProjectModalTriggers() {
   buttons.forEach((btn) => {
     btn.addEventListener('click', async () => {
       const slug = btn.dataset.slug;
-      await openProjectModal(slug);
+      const id = btn.dataset.id;
+      await openProjectModal(slug, id);
     });
   });
 }
@@ -432,15 +435,15 @@ function closeProjectModal() {
   }
 }
 
-async function openProjectModal(slug) {
+async function openProjectModal(slug, id) {
   const modal = document.getElementById('projectModal');
   const modalBody = document.getElementById('modalBody');
   if (!modal || !modalBody) return;
 
-  // Find project in state or fetch by slug
-  let project = state.projects.find((p) => p.slug === slug);
+  // Find project in state or fetch by slug or id
+  let project = state.projects.find((p) => (slug && p.slug === slug) || (id && String(p.id) === String(id)));
 
-  if (!project) {
+  if (!project && slug) {
     try {
       const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects/${slug}`);
       if (res.ok) {
@@ -461,6 +464,7 @@ async function openProjectModal(slug) {
     return;
   }
 
+  const safeModalTitle = project.title || 'Architectural Landmark';
   const scopes = Array.isArray(project.scope) ? project.scope : [];
   let rawGallery = [];
   if (Array.isArray(project.gallery)) {
@@ -478,11 +482,11 @@ async function openProjectModal(slug) {
   modalBody.innerHTML = `
     <div style="margin-bottom: 20px;">
       <span class="section-badge" style="margin-bottom: 8px;">${escapeHtml(project.category.toUpperCase())}</span>
-      <h2 style="font-size: 1.8rem; margin-top: 8px; font-family: var(--font-serif);">${escapeHtml(project.title)}</h2>
+      <h2 style="font-size: 1.8rem; margin-top: 8px; font-family: var(--font-serif);">${escapeHtml(safeModalTitle)}</h2>
     </div>
 
     <div style="border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 24px; position: relative; background: #000;">
-      <img id="mainModalHeroImg" src="${escapeHtml(project.image_url)}" alt="${escapeHtml(project.title)}" style="width: 100%; height: 340px; object-fit: cover; transition: opacity 0.25s ease;" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80'">
+      <img id="mainModalHeroImg" src="${escapeHtml(project.image_url)}" alt="${escapeHtml(safeModalTitle)}" style="width: 100%; height: 340px; object-fit: cover; transition: opacity 0.25s ease;" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80'">
     </div>
 
     <p style="color: var(--text-muted); line-height: 1.7; margin-bottom: 24px; font-size: 1rem;">

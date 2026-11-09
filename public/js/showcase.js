@@ -219,13 +219,15 @@ function renderProjects(projectsList) {
       try { scopes = JSON.parse(p.scope); } catch (_) { scopes = p.scope.split(',').map(s => s.trim()); }
     }
 
+    const safeTitle = p.title || 'Architectural Landmark';
+    const safeSlug = p.slug || ('proj-' + p.id);
     const scopeBadges = scopes.slice(0, 3).map(s => `<span class="project-scope-item">${escapeHtml(s)}</span>`).join('');
     const catLabel = (SECTOR_META[p.category]?.name || p.category).toUpperCase();
 
     return `
       <div class="project-card" data-category="${escapeHtml(p.category)}">
         <div class="project-img-wrap">
-          <img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.title)}" loading="lazy">
+          <img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(safeTitle)}" loading="lazy">
           <span class="project-cat-badge">${catLabel}</span>
         </div>
         <div class="project-body">
@@ -234,17 +236,17 @@ function renderProjects(projectsList) {
               ${escapeHtml(p.client_name || 'Bespoke Architectural Landmark')}
             </span>
           </div>
-          <h3 class="project-title">${escapeHtml(p.title)}</h3>
+          <h3 class="project-title">${escapeHtml(safeTitle)}</h3>
           ${p.location ? `<div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px;">📍 ${escapeHtml(p.location)}</div>` : ''}
           <p class="project-desc">${escapeHtml(p.description)}</p>
           <div class="project-scope-list">
             ${scopeBadges}
           </div>
           <div class="project-card-footer">
-            <button class="btn-link view-blueprint-btn" data-slug="${escapeHtml(p.slug)}">
+            <button class="btn-link view-blueprint-btn" data-slug="${escapeHtml(p.slug || '')}" data-id="${p.id}">
               View Blueprint & Gallery →
             </button>
-            <button class="btn btn-gold btn-xs upload-similar-btn" data-slug="${escapeHtml(p.slug)}" data-title="${escapeHtml(p.title)}" data-category="${escapeHtml(p.category)}" title="Upload brief for a project like this">
+            <button class="btn btn-gold btn-xs upload-similar-btn" data-slug="${escapeHtml(p.slug || '')}" data-id="${p.id}" data-title="${escapeHtml(safeTitle)}" data-category="${escapeHtml(p.category)}" title="Upload brief for a project like this">
               Upload Similar Brief ↗
             </button>
           </div>
@@ -261,7 +263,8 @@ function attachCardListeners() {
   document.querySelectorAll('.view-blueprint-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const slug = btn.dataset.slug;
-      const project = state.projects.find((p) => p.slug === slug);
+      const id = btn.dataset.id;
+      const project = state.projects.find((p) => (slug && p.slug === slug) || String(p.id) === String(id));
       if (project) openProjectModal(project);
     });
   });
@@ -307,6 +310,8 @@ function openProjectModal(project) {
   const modalBody = document.getElementById('modalBody');
   if (!modal || !modalBody) return;
 
+  const safeModalTitle = project.title || 'Architectural Landmark';
+
   let rawGallery = [];
   if (Array.isArray(project.gallery)) {
     rawGallery = project.gallery;
@@ -330,7 +335,7 @@ function openProjectModal(project) {
   const galleryImagesHtml = allPhotos.map((img, idx) => `
     <div style="border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border-subtle); height: 180px; position: relative; background: #000;">
       <a href="${escapeHtml(img)}" target="_blank" rel="noopener noreferrer" title="Click to view high-resolution photo ${idx + 1}" style="display: block; width: 100%; height: 100%;">
-        <img src="${escapeHtml(img)}" alt="${escapeHtml(project.title)} - Gallery ${idx + 1}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;">
+        <img src="${escapeHtml(img)}" alt="${escapeHtml(safeModalTitle)} - Gallery ${idx + 1}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;">
       </a>
       <span style="position: absolute; bottom: 6px; right: 6px; background: rgba(0,0,0,0.75); color: var(--accent-gold); font-size: 0.7rem; font-weight: 600; padding: 2px 6px; border-radius: 3px; border: 1px solid rgba(197, 168, 128, 0.3);">
         Photo ${idx + 1} of ${allPhotos.length}
@@ -349,7 +354,7 @@ function openProjectModal(project) {
     <div style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 20px; margin-bottom: 24px;">
       <div class="section-badge" style="margin-bottom: 10px;">${escapeHtml(project.category.toUpperCase())} BLUEPRINT</div>
       <h2 style="font-family: var(--font-serif); font-size: 1.8rem; color: #fff; margin-bottom: 8px;">
-        ${escapeHtml(project.title)}
+        ${escapeHtml(safeModalTitle)}
       </h2>
       <div style="display: flex; gap: 20px; flex-wrap: wrap; color: var(--text-dim); font-size: 0.85rem;">
         ${project.client_name ? `<span>🏛️ Client: <strong>${escapeHtml(project.client_name)}</strong></span>` : ''}
@@ -399,10 +404,10 @@ function openProjectModal(project) {
       const projectName = document.getElementById('projectTitleInput');
 
       if (projectName && !projectName.value) {
-        projectName.value = `Project similar to ${project.title}`;
+        projectName.value = project.title ? `Project similar to ${project.title}` : 'Architectural project brief';
       }
       if (projectNotes) {
-        projectNotes.value = `We are interested in turnkey fit-out execution similar to "${project.title}" (${project.category.toUpperCase()}). Please review our specifications.`;
+        projectNotes.value = `We are interested in turnkey fit-out execution similar to "${safeModalTitle}" (${project.category.toUpperCase()}). Please review our specifications.`;
       }
       setCategory(project.category, false);
 

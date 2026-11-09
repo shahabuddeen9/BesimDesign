@@ -226,4 +226,128 @@ describe('Projects Lifecycle & Public Filtering', () => {
     expect(adminList.status).toBe(200);
     expect(adminList.body.data.some((p) => p.slug === uniqueSlug)).toBe(false);
   });
+
+  it('should allow admin to create a project with empty/null title and empty/null slug', async () => {
+    const payload = {
+      title: '',
+      slug: '',
+      category: 'hotels',
+      description: 'A boutique luxury hotel property with turnkey architectural execution.',
+      scope: ['Lobby Millwork', 'Executive Suites'],
+      image_url: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80',
+      is_published: 1,
+    };
+
+    const res = await request(app)
+      .post('/api/admin/projects')
+      .set('Cookie', [authCookie])
+      .send(payload);
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toBeDefined();
+    expect(res.body.data.title).toBeNull();
+    expect(res.body.data.slug).toBeNull();
+    expect(res.body.data.id).toBeDefined();
+
+    const emptySlugProjectId1 = res.body.data.id;
+
+    // Verify it appears in published projects
+    const pubRes = await request(app).get('/api/projects');
+    expect(pubRes.status).toBe(200);
+    const found1 = pubRes.body.data.find((p) => p.id === emptySlugProjectId1);
+    expect(found1).toBeDefined();
+    expect(found1.title).toBeNull();
+    expect(found1.slug).toBeNull();
+
+    // Clean up
+    await request(app)
+      .delete(`/api/admin/projects/${emptySlugProjectId1}`)
+      .set('Cookie', [authCookie]);
+  });
+
+  it('should allow multiple projects with empty/null slug simultaneously without constraint violation', async () => {
+    const p1 = {
+      title: 'Project Without Slug 1',
+      slug: null,
+      category: 'hospitality',
+      description: 'Exclusive lounge fit-out without slug.',
+      image_url: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80',
+      is_published: 1,
+    };
+
+    const p2 = {
+      title: 'Project Without Slug 2',
+      slug: '',
+      category: 'residential',
+      description: 'Sea-facing penthouse without slug.',
+      image_url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
+      is_published: 1,
+    };
+
+    const res1 = await request(app)
+      .post('/api/admin/projects')
+      .set('Cookie', [authCookie])
+      .send(p1);
+    expect(res1.status).toBe(201);
+    expect(res1.body.data.slug).toBeNull();
+
+    const res2 = await request(app)
+      .post('/api/admin/projects')
+      .set('Cookie', [authCookie])
+      .send(p2);
+    expect(res2.status).toBe(201);
+    expect(res2.body.data.slug).toBeNull();
+
+    // Both projects must coexist in database
+    const pubRes = await request(app).get('/api/projects');
+    expect(pubRes.status).toBe(200);
+    expect(pubRes.body.data.some((p) => p.id === res1.body.data.id)).toBe(true);
+    expect(pubRes.body.data.some((p) => p.id === res2.body.data.id)).toBe(true);
+
+    // Update project 1 to clear its title
+    const updateRes = await request(app)
+      .patch(`/api/admin/projects/${res1.body.data.id}`)
+      .set('Cookie', [authCookie])
+      .send({ title: '', slug: '' });
+    expect(updateRes.status).toBe(200);
+    expect(updateRes.body.data.title).toBeNull();
+    expect(updateRes.body.data.slug).toBeNull();
+
+    // Clean up
+    await request(app).delete(`/api/admin/projects/${res1.body.data.id}`).set('Cookie', [authCookie]);
+    await request(app).delete(`/api/admin/projects/${res2.body.data.id}`).set('Cookie', [authCookie]);
+  });
+
+  it('should reject creation only when actual required fields (description, category) are missing', async () => {
+    // Missing description
+    const resNoDesc = await request(app)
+      .post('/api/admin/projects')
+      .set('Cookie', [authCookie])
+      .send({
+        title: '',
+        slug: '',
+        category: 'hotels',
+        description: '',
+        image_url: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80',
+      });
+    expect(resNoDesc.status).toBe(400);
+    expect(resNoDesc.body.message).not.toContain('Please provide a project title and narrative description');
+    const descError = resNoDesc.body.errors?.find((e) => e.field === 'description');
+    expect(descError).toBeDefined();
+
+    // Missing category
+    const resNoCat = await request(app)
+      .post('/api/admin/projects')
+      .set('Cookie', [authCookie])
+      .send({
+        category: '',
+        description: 'Valid description here',
+        image_url: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80',
+      });
+    expect(resNoCat.status).toBe(400);
+    expect(resNoCat.body.message).not.toContain('Please provide a project title and narrative description');
+    const catError = resNoCat.body.errors?.find((e) => e.field === 'category');
+    expect(catError).toBeDefined();
+  });
 });
