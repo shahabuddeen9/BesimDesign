@@ -21,12 +21,13 @@ describe('Admin Authentication API', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.token).toBeDefined();
-    expect(typeof res.body.token).toBe('string');
+    // Release Gate Security: Tokens must NOT be exposed in JSON response bodies
+    expect(res.body.token).toBeUndefined();
+    expect(res.body.refreshToken).toBeUndefined();
     expect(res.body.admin).toBeDefined();
     expect(res.body.admin.email).toBe(env.ADMIN_EMAIL);
 
-    // Verify Set-Cookie header contains token
+    // Verify Set-Cookie header contains token and is HttpOnly
     const cookies = res.headers['set-cookie'];
     expect(cookies).toBeDefined();
     expect(cookies.some((c) => c.includes('token='))).toBe(true);
@@ -45,7 +46,7 @@ describe('Admin Authentication API', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.token).toBeDefined();
+    expect(res.body.token).toBeUndefined();
     expect(res.body.admin.email).toBe('admin@besimdesign.com');
   });
 
@@ -57,7 +58,8 @@ describe('Admin Authentication API', () => {
         password: env.ADMIN_PASSWORD,
       });
 
-    const bearerToken = loginRes.body.token;
+    const cookies = loginRes.headers['set-cookie'];
+    const bearerToken = cookies.find((c) => c.startsWith('token=')).split(';')[0].split('=')[1];
     expect(bearerToken).toBeDefined();
 
     const res = await request(app)

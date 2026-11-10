@@ -30,15 +30,17 @@ function getSlugFromUrl() {
   const path = window.location.pathname.replace(/\/+$/, '');
   const segments = path.split('/').filter(Boolean);
 
-  // e.g. /hospitality/the-nutcracker-jio-mall-bkc -> "the-nutcracker-jio-mall-bkc"
-  if (segments.length >= 2 && segments[0] === 'hospitality') {
-    return decodeURIComponent(segments[1]);
+  // e.g. /hospitality/the-nutcracker-jio-mall-bkc, /hotels/grand-pavilion-luxury-hotel, etc.
+  const validCategories = ['hospitality', 'hotels', 'residential', 'central-kitchen'];
+  if (segments.length >= 2 && validCategories.includes(segments[0].toLowerCase())) {
+    const rawSlug = segments[1].replace(/\.html$/, '');
+    return decodeURIComponent(rawSlug);
   }
 
   // Fallback query param: ?slug=...
   const params = new URLSearchParams(window.location.search);
   if (params.get('slug')) {
-    return params.get('slug');
+    return params.get('slug').replace(/\.html$/, '');
   }
 
   // Fallback to default hospitality project if on detail template directly
@@ -78,35 +80,70 @@ async function loadProjectDetail() {
     if (errorEl) errorEl.style.display = 'none';
     if (contentEl) contentEl.style.display = 'block';
   } catch (err) {
-    console.warn('Error loading hospitality project:', err);
+    console.warn('Error loading project details:', err);
     if (loadingEl) loadingEl.style.display = 'none';
     if (errorEl) {
       errorEl.style.display = 'block';
       const msg = document.getElementById('projectErrorMessage');
-      if (msg) msg.textContent = `The hospitality project "${slug}" could not be found or has been moved.`;
+      if (msg) msg.textContent = `The requested project "${slug}" could not be found or has been moved.`;
     }
   }
 }
 
 function renderProject(p) {
+  const categoryConfig = {
+    'hospitality': { name: 'Hospitality & Dining', url: '/hospitality', kicker: 'HOSPITALITY PROJECT' },
+    'hotels': { name: 'Hotels & Resorts', url: '/hotels', kicker: 'HOTEL & RESORT ARCHITECTURE' },
+    'residential': { name: 'Residential Architecture', url: '/residential', kicker: 'RESIDENTIAL ARCHITECTURE' },
+    'central_kitchen': { name: 'Central Kitchens & Hubs', url: '/central-kitchen', kicker: 'COMMISSARY & CENTRAL KITCHEN' },
+    'central-kitchen': { name: 'Central Kitchens & Hubs', url: '/central-kitchen', kicker: 'COMMISSARY & CENTRAL KITCHEN' },
+    'restaurant': { name: 'Hospitality & Dining', url: '/hospitality', kicker: 'HOSPITALITY PROJECT' },
+    'commercial': { name: 'Commercial Architecture', url: '/hospitality', kicker: 'COMMERCIAL ARCHITECTURE' },
+  };
+
+  const path = window.location.pathname.replace(/\/+$/, '');
+  const segments = path.split('/').filter(Boolean);
+  const pathCat = segments.length >= 2 ? segments[0].toLowerCase() : null;
+  const rawCat = (p.category || '').toLowerCase();
+  const matchedKey = (pathCat && categoryConfig[pathCat]) ? pathCat : (categoryConfig[rawCat] ? rawCat : 'hospitality');
+  const catInfo = categoryConfig[matchedKey] || categoryConfig['hospitality'];
+  const catSlugPrefix = matchedKey === 'central_kitchen' ? 'central-kitchen' : matchedKey;
+
   // 1. Update Document Title & SEO Metadata
-  const cleanTitle = p.title || 'Hospitality Project';
-  document.title = `${cleanTitle} | Hospitality Architectural Portfolio | Besim Design`;
+  const cleanTitle = p.title || 'Architectural Project';
+  document.title = `${cleanTitle} | ${catInfo.name} | Besim Design`;
 
   const metaDesc = document.querySelector('meta[name="description"]');
   if (metaDesc) {
     metaDesc.setAttribute(
       'content',
-      p.description ? p.description.slice(0, 155) : `Explore ${cleanTitle} turnkey hospitality fit-out by Besim Design Mumbai.`
+      p.description ? p.description.slice(0, 155) : `Explore ${cleanTitle} turnkey ${catInfo.name.toLowerCase()} fit-out by Besim Design Mumbai.`
     );
   }
 
   const canonical = document.querySelector('link[rel="canonical"]');
   if (canonical) {
-    canonical.setAttribute('href', `https://www.besimdesign.com/hospitality/${p.slug}`);
+    canonical.setAttribute('href', `https://www.besimdesign.com/${catSlugPrefix}/${p.slug}`);
   }
 
-  // 2. Breadcrumb
+  // 2. Breadcrumb & Kicker
+  const breadcrumbCatEl = document.getElementById('projectBreadcrumbCategory');
+  if (breadcrumbCatEl) {
+    breadcrumbCatEl.textContent = catInfo.name;
+    breadcrumbCatEl.setAttribute('href', catInfo.url);
+  }
+
+  const kickerEl = document.getElementById('projectKicker');
+  if (kickerEl) {
+    kickerEl.textContent = catInfo.kicker;
+  }
+
+  const backLinkEl = document.getElementById('projectBackLink');
+  if (backLinkEl) {
+    backLinkEl.textContent = `← Back to ${catInfo.name} Portfolio`;
+    backLinkEl.setAttribute('href', catInfo.url);
+  }
+
   const breadcrumbEl = document.getElementById('projectBreadcrumbTitle');
   if (breadcrumbEl) breadcrumbEl.textContent = cleanTitle;
 

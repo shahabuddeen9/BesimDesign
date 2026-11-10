@@ -173,7 +173,7 @@ async function checkSession() {
   sessionCheckInProgress = true;
 
   const token = getStoredToken();
-  const hasCookie = document.cookie && document.cookie.includes('token=');
+  const hasCookie = document.cookie && (document.cookie.includes('token=') || document.cookie.includes('besim_session='));
 
   if (!token && !hasCookie) {
     sessionCheckInProgress = false;

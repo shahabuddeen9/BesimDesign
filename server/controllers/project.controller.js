@@ -104,23 +104,67 @@ export async function getPublishedProjects(req, res, next) {
   }
 }
 
+// Slug aliases for clean backward-compatible URL resolving
+const SLUG_ALIASES = {
+  'the-nutcracker': 'the-nutcracker-jio-mall-bkc',
+  'the-nutcracker-cafe': 'the-nutcracker-jio-mall-bkc',
+  'foo': 'foo-asian-tapas-bkc',
+  'foo-asian-tapas': 'foo-asian-tapas-bkc',
+  'royal-china': 'royal-china-bandra',
+  'grand-pavilion': 'grand-pavilion-luxury-hotel',
+  'solstice-bay': 'solstice-bay-boutique-hotel',
+  'sky-villa': 'sky-villa-parinee-bkc',
+  'sea-facing-penthouse': 'sea-facing-penthouse-worli',
+  'cloud-culinary': 'cloud-culinary-central-kitchen',
+  'artisan-confectionery': 'artisan-confectionery-central-kitchen',
+};
+
 /**
  * Public: Get single published project by slug
  */
 export async function getProjectBySlug(req, res, next) {
   try {
-    const { slug } = req.params;
-    const project = await db.get(`
+    const rawSlug = req.params.slug;
+    const cleanSlug = String(rawSlug || '').toLowerCase().trim().replace(/\.html$/, '');
+
+    // 1. Exact match
+    let project = await db.get(`
       SELECT id, title, slug, category, client_name, location, area_sqft, description, scope, image_url, gallery, is_featured, created_at
       FROM projects
-      WHERE slug = ?
+      WHERE LOWER(slug) = ?
         AND is_published = 1
         AND id NOT IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
         AND slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL)
-    `, slug);
+    `, cleanSlug);
+
+    // 2. Alias match
+    if (!project && SLUG_ALIASES[cleanSlug]) {
+      const aliasTarget = SLUG_ALIASES[cleanSlug];
+      project = await db.get(`
+        SELECT id, title, slug, category, client_name, location, area_sqft, description, scope, image_url, gallery, is_featured, created_at
+        FROM projects
+        WHERE LOWER(slug) = ?
+          AND is_published = 1
+          AND id NOT IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
+          AND slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL)
+      `, aliasTarget);
+    }
+
+    // 3. Fallback prefix match (e.g. "sky-villa" -> "sky-villa-parinee-bkc")
+    if (!project && cleanSlug.length >= 3) {
+      project = await db.get(`
+        SELECT id, title, slug, category, client_name, location, area_sqft, description, scope, image_url, gallery, is_featured, created_at
+        FROM projects
+        WHERE LOWER(slug) LIKE ?
+          AND is_published = 1
+          AND id NOT IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
+          AND slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL)
+        LIMIT 1
+      `, `${cleanSlug}%`);
+    }
 
     if (!project) {
-      throw new AppError(`Project with slug "${slug}" not found`, 404);
+      throw new AppError(`Project with slug "${cleanSlug}" not found`, 404);
     }
 
     project.scope = safeJsonParse(project.scope);

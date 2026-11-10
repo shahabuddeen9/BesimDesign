@@ -115,7 +115,55 @@ app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
 
-// 6. Admin Portal Entry Routes (Must precede static middleware)
+// 6. Canonical Host & URL Normalization (Phase 2 SEO & Routing)
+app.use((req, res, next) => {
+  const host = (req.headers.host || '').toLowerCase();
+
+  // Canonical Domain: Redirect apex besimdesign.com to preferred https://www.besimdesign.com
+  if (host === 'besimdesign.com') {
+    return res.redirect(301, `https://www.besimdesign.com${req.originalUrl}`);
+  }
+
+  // Bypass API, static uploads, and asset paths from URL reshaping
+  if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/assets')) {
+    return next();
+  }
+
+  let cleanPath = req.path;
+  let needsRedirect = false;
+
+  // Trailing slash 301 redirect (ensures single canonical URL without trailing slash, except root '/' and /admin/)
+  if (cleanPath.length > 1 && cleanPath.endsWith('/') && !cleanPath.startsWith('/admin')) {
+    cleanPath = cleanPath.replace(/\/+$/, '');
+    needsRedirect = true;
+  }
+
+  // Lowercase 301 redirect if uppercase characters exist in public path (e.g. /Hotels -> /hotels)
+  if (/[A-Z]/.test(cleanPath) && !cleanPath.startsWith('/admin')) {
+    cleanPath = cleanPath.toLowerCase();
+    needsRedirect = true;
+  }
+
+  if (needsRedirect) {
+    const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+    return res.redirect(301, cleanPath + query);
+  }
+
+  next();
+});
+
+// 7. Legacy .html 301 Permanent Redirects (Preserve SEO equity and prevent duplicate indexing)
+app.get('/index.html', (req, res) => res.redirect(301, '/'));
+app.get('/about.html', (req, res) => res.redirect(301, '/about'));
+app.get('/central-kitchen.html', (req, res) => res.redirect(301, '/central-kitchen'));
+app.get('/hotels.html', (req, res) => res.redirect(301, '/hotels'));
+app.get('/hospitality.html', (req, res) => res.redirect(301, '/hospitality'));
+app.get('/residential.html', (req, res) => res.redirect(301, '/residential'));
+app.get('/showcase.html', (req, res) => res.redirect(301, '/showcase'));
+app.get('/privacy.html', (req, res) => res.redirect(301, '/privacy'));
+app.get(['/contact', '/contact.html'], (req, res) => res.redirect(301, '/#contact'));
+
+// 8. Admin Portal Entry Routes (Must precede static middleware)
 app.get(['/admin', '/admin/', '/admin/index.html'], (req, res) => {
   const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
   return res.redirect(302, `/admin/dashboard.html${query}`);
@@ -141,7 +189,7 @@ app.get('/admin/projects', (req, res) => {
   return res.redirect(302, `/admin/dashboard.html${query}${sep}tab=projects`);
 });
 
-// 7. Static Asset Hosting
+// 9. Static Asset Hosting
 try {
   if (!fs.existsSync(uploadsPath)) fs.mkdirSync(uploadsPath, { recursive: true });
 } catch (_) {}
@@ -199,7 +247,7 @@ app.use(express.static(publicPath, {
 }));
 
 // Clean routes for dedicated showcase experiences
-app.get(['/about', '/about.html'], (req, res) => {
+app.get('/about', (req, res) => {
   const distFile = path.resolve(distPath, 'about.html');
   const pubFile = path.resolve(publicPath, 'about.html');
   const rootFile = path.resolve(projectRoot, 'about.html');
@@ -207,30 +255,63 @@ app.get(['/about', '/about.html'], (req, res) => {
   res.sendFile(target);
 });
 
-app.get(['/central-kitchen', '/central-kitchen.html'], (req, res) => {
+app.get('/central-kitchen', (req, res) => {
   const distFile = path.resolve(distPath, 'central-kitchen.html');
   const pubFile = path.resolve(publicPath, 'central-kitchen.html');
   const target = fs.existsSync(distFile) ? distFile : pubFile;
   res.sendFile(target);
 });
 
-app.get(['/hotels', '/hotels.html'], (req, res) => {
+app.get('/hotels', (req, res) => {
   const distFile = path.resolve(distPath, 'hotels.html');
   const pubFile = path.resolve(publicPath, 'hotels.html');
   const target = fs.existsSync(distFile) ? distFile : pubFile;
   res.sendFile(target);
 });
 
-app.get(['/hospitality', '/hospitality.html'], (req, res) => {
+app.get('/hospitality', (req, res) => {
   const distFile = path.resolve(distPath, 'hospitality.html');
   const pubFile = path.resolve(publicPath, 'hospitality.html');
   const target = fs.existsSync(distFile) ? distFile : pubFile;
   res.sendFile(target);
 });
 
-app.get('/hospitality/:slug', (req, res, next) => {
+const SLUG_ALIASES = {
+  'the-nutcracker': 'the-nutcracker-jio-mall-bkc',
+  'the-nutcracker-cafe': 'the-nutcracker-jio-mall-bkc',
+  'foo': 'foo-asian-tapas-bkc',
+  'foo-asian-tapas': 'foo-asian-tapas-bkc',
+  'royal-china': 'royal-china-bandra',
+  'grand-pavilion': 'grand-pavilion-luxury-hotel',
+  'solstice-bay': 'solstice-bay-boutique-hotel',
+  'sky-villa': 'sky-villa-parinee-bkc',
+  'sea-facing-penthouse': 'sea-facing-penthouse-worli',
+  'cloud-culinary': 'cloud-culinary-central-kitchen',
+  'artisan-confectionery': 'artisan-confectionery-central-kitchen',
+};
+
+// Multi-category project detail route supporting /hospitality/:slug, /hotels/:slug, /residential/:slug, /central-kitchen/:slug
+app.get(['/hospitality/:slug', '/hotels/:slug', '/residential/:slug', '/central-kitchen/:slug'], (req, res, next) => {
   const { slug } = req.params;
-  if (slug && slug.includes('.')) return next();
+  if (!slug) return next();
+
+  const category = req.path.split('/')[1];
+  const cleanSlug = slug.toLowerCase().replace(/\.html$/, '');
+
+  // 1. If slug is an alias, 301 redirect to canonical destination URL
+  if (SLUG_ALIASES[cleanSlug]) {
+    const canonicalSlug = SLUG_ALIASES[cleanSlug];
+    return res.redirect(301, `/${category}/${canonicalSlug}`);
+  }
+
+  // 2. If request ends with .html, 301 redirect to clean URL
+  if (slug.endsWith('.html')) {
+    return res.redirect(301, `/${category}/${cleanSlug}`);
+  }
+
+  // If slug has an extension other than .html, let static handler / next middleware handle it
+  if (slug.includes('.')) return next();
+
   const distFile = path.resolve(distPath, 'hospitality-detail.html');
   const pubFile = path.resolve(publicPath, 'hospitality-detail.html');
   const rootFile = path.resolve(projectRoot, 'hospitality-detail.html');
@@ -238,21 +319,21 @@ app.get('/hospitality/:slug', (req, res, next) => {
   res.sendFile(target);
 });
 
-app.get(['/residential', '/residential.html'], (req, res) => {
+app.get('/residential', (req, res) => {
   const distFile = path.resolve(distPath, 'residential.html');
   const pubFile = path.resolve(publicPath, 'residential.html');
   const target = fs.existsSync(distFile) ? distFile : pubFile;
   res.sendFile(target);
 });
 
-app.get(['/showcase', '/showcase.html'], (req, res) => {
+app.get('/showcase', (req, res) => {
   const distFile = path.resolve(distPath, 'showcase.html');
   const pubFile = path.resolve(publicPath, 'showcase.html');
   const target = fs.existsSync(distFile) ? distFile : pubFile;
   res.sendFile(target);
 });
 
-app.get(['/privacy', '/privacy.html'], (req, res) => {
+app.get('/privacy', (req, res) => {
   const distFile = path.resolve(distPath, 'privacy.html');
   const pubFile = path.resolve(publicPath, 'privacy.html');
   const rootFile = path.resolve(projectRoot, 'privacy.html');

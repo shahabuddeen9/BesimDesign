@@ -31,7 +31,7 @@
             return null;
           }
         })();
-        const hasCookie = document.cookie && document.cookie.includes('token=');
+        const hasCookie = document.cookie && (document.cookie.includes('token=') || document.cookie.includes('besim_session='));
         
         // If absolutely no credentials, redirect to login with search params preserved
         if (!storedToken && !hasCookie && !urlToken) {

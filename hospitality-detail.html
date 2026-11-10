@@ -64,9 +64,9 @@
   <!-- Clean Breadcrumb Navigation -->
   <nav class="hospitality-detail-breadcrumb" aria-label="Breadcrumb">
     <div class="container" style="display: flex; align-items: center; flex-wrap: wrap;">
-      <a href="/index.html">Home</a>
+      <a href="/">Home</a>
       <span class="sep">/</span>
-      <a href="/hospitality.html">Hospitality & Dining</a>
+      <a href="/hospitality" id="projectBreadcrumbCategory">Hospitality & Dining</a>
       <span class="sep">/</span>
       <span id="projectBreadcrumbTitle" style="color: #111827; font-weight: 600;">Loading Project...</span>
     </div>
@@ -89,7 +89,7 @@
         <p id="projectErrorMessage" style="color: #6b7280; margin-bottom: 24px; line-height: 1.6;">
           The requested hospitality project could not be found or has been moved.
         </p>
-        <a href="/hospitality.html" class="btn btn-primary btn-sm" style="display: inline-flex;">
+        <a href="/hospitality" class="btn btn-primary btn-sm" style="display: inline-flex;">
           ← Back to Hospitality Projects Portfolio
         </a>
       </div>
@@ -104,7 +104,7 @@
             
             <!-- LEFT COLUMN: Project Identity -->
             <div class="col-identity">
-              <span class="hospitality-kicker">HOSPITALITY PROJECT</span>
+              <span class="hospitality-kicker" id="projectKicker">HOSPITALITY PROJECT</span>
               <h1 class="hospitality-main-title" id="projectTitle">Project Name</h1>
               <div class="hospitality-green-line"></div>
               <p class="hospitality-narrative" id="projectNarrative"></p>
@@ -112,7 +112,7 @@
               <div id="projectScopeTags" style="margin-bottom: 24px;"></div>
 
               <div>
-                <a href="/hospitality.html" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #16a34a; text-decoration: none; font-weight: 600; transition: color 0.2s;">
+                <a id="projectBackLink" href="/hospitality" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #16a34a; text-decoration: none; font-weight: 600; transition: color 0.2s;">
                   ← Back to Hospitality Projects Portfolio
                 </a>
               </div>

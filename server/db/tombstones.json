@@ -42,6 +42,10 @@
     "Luxury Cafe & Lounge 1794212098400 (Updated)",
     "Luxury Cafe & Lounge 1794222326336 (Updated)",
     "Luxury Cafe & Lounge 1794223043859 (Updated)",
+    "Luxury Cafe & Lounge 1794320532645 (Updated)",
+    "Luxury Cafe & Lounge 1794320610179 (Updated)",
+    "Luxury Cafe & Lounge 1794322145513 (Updated)",
+    "Luxury Cafe & Lounge 1794322205955 (Updated)",
     "Nikita",
     "Otoki",
     "Parinee Group",
@@ -95,6 +99,10 @@
     "Persistence Client Brand 1794212087383",
     "Persistence Client Brand 1794222319772",
     "Persistence Client Brand 1794223030645",
+    "Persistence Client Brand 1794320518765",
+    "Persistence Client Brand 1794320598344",
+    "Persistence Client Brand 1794322133083",
+    "Persistence Client Brand 1794322193086",
     "Ping's Orient",
     "Ping’s Orient",
     "RSVP",
@@ -138,6 +146,10 @@
     "Test Brand Unique 1794212093928",
     "Test Brand Unique 1794222323331",
     "Test Brand Unique 1794223039451",
+    "Test Brand Unique 1794320526754",
+    "Test Brand Unique 1794320607079",
+    "Test Brand Unique 1794322141346",
+    "Test Brand Unique 1794322201439",
     "The Silver Train",
     "White Oak"
   ],
@@ -327,7 +339,23 @@
       "client_name": "Testimonial Author 1794223030645"
     },
     {
-      "id": 1541,
+      "id": 1543,
+      "client_name": "Testimonial Author 1794320518766"
+    },
+    {
+      "id": 1546,
+      "client_name": "Testimonial Author 1794320598345"
+    },
+    {
+      "id": 1549,
+      "client_name": "Testimonial Author 1794322133083"
+    },
+    {
+      "id": 1552,
+      "client_name": "Testimonial Author 1794322193086"
+    },
+    {
+      "id": 1553,
       "client_name": "Anil Kapoor"
     }
   ],
@@ -848,11 +876,6 @@
       "title": null
     },
     {
-      "id": 975,
-      "slug": null,
-      "title": "Project Without Slug 2"
-    },
-    {
       "id": 976,
       "slug": null,
       "title": null
@@ -863,10 +886,130 @@
       "title": null
     },
     {
-      "id": 978,
-      "slug": "test-bistro-portfolio-1794223042464",
-      "title": "Velvet Oak Cocktail Bar"
+      "id": 981,
+      "slug": "persistence-test-hotel-1794320518763",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 982,
+      "slug": "test-luxury-bistro-1794320520758",
+      "title": "Aura Modern Bistronomy & Rooftop Lounge (Updated)"
+    },
+    {
+      "id": 983,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 984,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 986,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 987,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 991,
+      "slug": "persistence-test-hotel-1794320598342",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 992,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 993,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 994,
+      "slug": "test-luxury-bistro-1794320602120",
+      "title": "Aura Modern Bistronomy & Rooftop Lounge (Updated)"
+    },
+    {
+      "id": 995,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 996,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1001,
+      "slug": "persistence-test-hotel-1794322133081",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 1002,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1003,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1004,
+      "slug": "test-luxury-bistro-1794322136763",
+      "title": "Aura Modern Bistronomy & Rooftop Lounge (Updated)"
+    },
+    {
+      "id": 1005,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1006,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1011,
+      "slug": "persistence-test-hotel-1794322193084",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 1012,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1013,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1014,
+      "slug": "test-luxury-bistro-1794322199890",
+      "title": "Aura Modern Bistronomy & Rooftop Lounge (Updated)"
+    },
+    {
+      "id": 1015,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1016,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1017,
+      "slug": null,
+      "title": "Project Without Slug 2"
     }
   ],
-  "updated_at": "2026-11-09T11:17:24.464Z"
+  "updated_at": "2026-11-10T14:50:08.194Z"
 }

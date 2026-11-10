@@ -19,17 +19,18 @@ describe('Master Prompt Comprehensive Verification', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.token).toBeDefined();
-    expect(typeof res.body.token).toBe('string');
+    expect(res.body.token).toBeUndefined();
+    expect(res.body.refreshToken).toBeUndefined();
     expect(res.body.admin).toBeDefined();
     expect(res.body.admin.email).toBe(env.ADMIN_EMAIL);
 
     const cookies = res.headers['set-cookie'];
     expect(cookies).toBeDefined();
     expect(cookies.some((c) => c.includes('token='))).toBe(true);
+    expect(cookies.some((c) => c.includes('HttpOnly'))).toBe(true);
 
     authCookie = cookies.find((c) => c.startsWith('token='));
-    bearerToken = res.body.token;
+    bearerToken = authCookie.split(';')[0].split('=')[1];
   });
 
   it('1b. should support User ID shorthand (e.g. "admin")', async () => {
@@ -42,7 +43,7 @@ describe('Master Prompt Comprehensive Verification', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.token).toBeDefined();
+    expect(res.body.token).toBeUndefined();
     expect(res.body.admin.email).toBe('admin@besimdesign.com');
   });
 

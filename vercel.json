@@ -20,6 +20,22 @@
       "destination": "/hospitality-detail.html"
     },
     {
+      "source": "/hotels/:slug",
+      "destination": "/hospitality-detail.html"
+    },
+    {
+      "source": "/residential/:slug",
+      "destination": "/hospitality-detail.html"
+    },
+    {
+      "source": "/central-kitchen/:slug",
+      "destination": "/hospitality-detail.html"
+    },
+    {
+      "source": "/contact",
+      "destination": "/index.html#contact"
+    },
+    {
       "source": "/admin",
       "destination": "/admin/dashboard.html"
     },

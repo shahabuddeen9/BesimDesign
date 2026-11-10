@@ -25,7 +25,7 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional().default(''),
   JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters long').default('dev-besim-design-jwt-secret-key-super-secure-32chars!'),
   ADMIN_EMAIL: z.string().email().default('besimdesigne@gmail.com'),
-  ADMIN_PASSWORD: z.string().min(8, 'ADMIN_PASSWORD must be at least 8 characters').default('saifi@2025!'),
+  ADMIN_PASSWORD: z.string().min(8, 'ADMIN_PASSWORD must be at least 8 characters').default('DevAdminPass2026!'),
   SMTP_HOST: z.string().default('smtp.gmail.com'),
   SMTP_PORT: z.coerce.number().default(587),
   SMTP_USER: z.string().default(''),

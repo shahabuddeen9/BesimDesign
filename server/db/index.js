@@ -308,11 +308,11 @@ async function initPostgresSchema(pool) {
       'mdshahabuddeen9@gmail.com',
       'mdshahabuddeen48@gmail.com',
     ].filter(Boolean);
-    const defaultPassword = env.ADMIN_PASSWORD || 'saifi@2025!';
+    const defaultPassword = env.ADMIN_PASSWORD || 'DevAdminPass2026!';
     const defaultHash = await bcrypt.hash(defaultPassword, 10);
     for (const email of adminEmails) {
       await pool.query(
-        'INSERT INTO admins (email, password_hash, created_at) VALUES ($1, $2, NOW()) ON CONFLICT (email) DO UPDATE SET password_hash = $2',
+        'INSERT INTO admins (email, password_hash, created_at) VALUES ($1, $2, NOW()) ON CONFLICT (email) DO NOTHING',
         [email, defaultHash]
       );
     }
