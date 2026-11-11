@@ -1,6 +1,6 @@
 {
   "name": "Besim Design",
-  "description": "Commercial, hospitality, and industrial architecture & interior design firm with automated enquiry management and admin portal.",
+  "description": "Besim Design delivers architectural design, interior execution and turnkey solutions for hospitality, luxury residential and central kitchen projects.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
