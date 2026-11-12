@@ -136,9 +136,9 @@ describe('Technical SEO project rendering and sitemap', () => {
       expect(response.text).toContain('property="og:title"');
       expect(response.text).toContain('property="og:description"');
       expect(response.text).toContain('property="og:url" content="' + canonical + '"');
-      expect(response.text).toContain('id="projectTitle"');
-      expect(response.text).toContain('id="projectNarrative"');
-      expect(response.text).toContain(project.title);
+      expect(response.text).toContain('id="projectTitle">' + project.title);
+      expect(response.text).toContain('id="projectNarrative">Unique description for ' + project.title);
+      expect(response.text).toContain('property="og:title" content="' + project.title + ' |');
       expect(response.text).toContain('id="projectContentState" style="display:block;"');
       expect(response.text).toContain('application/ld+json');
     }
@@ -155,6 +155,27 @@ describe('Technical SEO project rendering and sitemap', () => {
     for (const url of cases) {
       const response = await request(app).get(url);
       expect(response.status).toBe(404);
+    }
+  });
+
+  it('redirects an existing project from the wrong category and .html variant to its canonical URL', async () => {
+    const wrongCategory = await request(app).get('/hospitality/grand-pavilion-luxury-hotel');
+    expect(wrongCategory.status).toBe(301);
+    expect(wrongCategory.headers.location).toBe('/hotels/grand-pavilion-luxury-hotel');
+
+    const htmlVariant = await request(app).get('/hospitality/foo-asian-tapas-bkc.html');
+    expect(htmlVariant.status).toBe(301);
+    expect(htmlVariant.headers.location).toBe('/hospitality/foo-asian-tapas-bkc');
+  });
+
+  it('returns HTTP 500 when a project record cannot be read from the database', async () => {
+    const spy = vi.spyOn(db, 'get').mockRejectedValueOnce(new Error('simulated project database failure'));
+    try {
+      const response = await request(app).get('/hospitality/foo-asian-tapas-bkc');
+      expect(response.status).toBe(500);
+      expect(response.headers['content-type']).toContain('application/json');
+    } finally {
+      spy.mockRestore();
     }
   });
 
