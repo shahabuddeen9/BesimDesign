@@ -70,7 +70,12 @@
   ],
   "functions": {
     "api/*.js": {
-      "includeFiles": "node_modules/sql.js/dist/sql-wasm.wasm,server/db/**"
+      "includeFiles": [
+        "node_modules/sql.js/dist/sql-wasm.wasm",
+        "server/db/**",
+        "public/hospitality-detail.html",
+        "public/404.html"
+      ]
     }
   }
 }
