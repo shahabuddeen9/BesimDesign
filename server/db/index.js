@@ -26,10 +26,12 @@ const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(currentDir, '../..');
 
 // State flags (dynamically evaluates process.env as well for isolated testing)
-export let isPostgres = Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL || env.DATABASE_URL || env.POSTGRES_URL);
+const isTestEnvironment = () => process.env.NODE_ENV === 'test' || env.NODE_ENV === 'test';
+
+export let isPostgres = !isTestEnvironment() && Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL || env.DATABASE_URL || env.POSTGRES_URL);
 
 export function getIsPostgres() {
-  return Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL || env.DATABASE_URL || env.POSTGRES_URL);
+  return !isTestEnvironment() && Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL || env.DATABASE_URL || env.POSTGRES_URL);
 }
 
 // Permanent decommissioned brand list per Section 3 requirements
@@ -343,7 +345,7 @@ async function initPostgresSchema(pool) {
  * (Only active in SQLite fallback mode)
  */
 function persistDb() {
-  if (isPostgres || !rawDb || inTransaction) return;
+  if (isTestEnvironment() || isPostgres || !rawDb || inTransaction) return;
   try {
     const data = rawDb.export();
     const buffer = Buffer.from(data);
@@ -367,7 +369,8 @@ export async function initDb() {
   const isProd = Boolean(
     process.env.NODE_ENV === 'production' || env.NODE_ENV === 'production'
   );
-  const connStr = process.env.DATABASE_URL || process.env.POSTGRES_URL || env.DATABASE_URL || env.POSTGRES_URL;
+  const isTest = isTestEnvironment();
+  const connStr = isTest ? '' : (process.env.DATABASE_URL || process.env.POSTGRES_URL || env.DATABASE_URL || env.POSTGRES_URL);
   isPostgres = Boolean(connStr);
 
   if (isPostgres && pgPool) return pgPool;
@@ -406,7 +409,7 @@ export async function initDb() {
           const testRes = await pgPool.query('SELECT NOW() as now');
           logger.info(`✅ PostgreSQL connection established successfully. Server time: ${testRes.rows[0].now}`);
 
-          await initPostgresSchema(pgPool);
+          // Production request startup is read-only. Apply reviewed schema migrations separately.
           return pgPool;
         } catch (connErr) {
           if (pgPool) {
@@ -462,7 +465,7 @@ export async function initDb() {
       });
 
       // On serverless environments (e.g. Vercel), copy packaged DB to writable path if needed
-      if (!fs.existsSync(env.DB_PATH)) {
+      if (!isTest && !fs.existsSync(env.DB_PATH)) {
         const packagedDb = path.resolve(currentDir, 'fusion.db');
         const projectDb = path.resolve(process.cwd(), 'server/db/fusion.db');
         const sourceDb = fs.existsSync(packagedDb) ? packagedDb : (fs.existsSync(projectDb) ? projectDb : null);
@@ -475,7 +478,7 @@ export async function initDb() {
         }
       }
 
-      if (fs.existsSync(env.DB_PATH)) {
+      if (!isTest && fs.existsSync(env.DB_PATH)) {
         const fileBuffer = fs.readFileSync(env.DB_PATH);
         rawDb = new SQL.Database(fileBuffer);
         logger.info(`Loaded existing SQLite database from ${env.DB_PATH}`);
