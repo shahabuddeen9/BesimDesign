@@ -8,7 +8,6 @@ import { createServer as createViteServer } from 'vite';
 import app from './server/app.js';
 import env from './server/config/env.js';
 import { db, initDb } from './server/db/index.js';
-import { runSeed } from './server/db/seed.js';
 import logger from './server/utils/logger.js';
 
 async function bootstrap() {
@@ -16,9 +15,9 @@ async function bootstrap() {
     // 1. Initialize Database & Migrations safely
     try {
       await initDb();
-      // 2. Ensure seed & admin credentials are in sync
-      await runSeed();
-      logger.info('Database initialized and seed verified.');
+      // Production startup initializes the existing database connection only.
+      // Seed data is never applied automatically during server startup.
+      logger.info('Database connection initialized.');
     } catch (dbErr) {
       logger.warn('Database startup warning (will retry on incoming request):', dbErr instanceof Error ? dbErr.message : String(dbErr));
     }
