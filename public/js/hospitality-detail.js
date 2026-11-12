@@ -59,6 +59,16 @@ async function loadProjectDetail() {
     return;
   }
 
+  // If page was server-rendered, hydrate immediately from __INITIAL_PROJECT__
+  if (window.__INITIAL_PROJECT__ && (window.__INITIAL_PROJECT__.slug === slug || !slug)) {
+    state.project = window.__INITIAL_PROJECT__;
+    renderProject(state.project);
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (errorEl) errorEl.style.display = 'none';
+    if (contentEl) contentEl.style.display = 'block';
+    return;
+  }
+
   try {
     const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects/${encodeURIComponent(slug)}?_t=${Date.now()}`, {
       cache: 'no-store',

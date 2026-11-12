@@ -224,7 +224,9 @@ describe('URL Optimization, Routing & SEO Audit Suite', () => {
       const res = await request(app).get('/robots.txt');
       expect(res.status).toBe(200);
       expect(res.text).toContain('Disallow: /admin/');
-      expect(res.text).toContain('Disallow: /api/');
+      expect(res.text).toContain('Disallow: /api/admin/');
+      expect(res.text).toContain('Disallow: /api/auth/');
+      expect(res.text).toContain('Allow: /api/projects');
       expect(res.text).toContain('Sitemap: https://www.besimdesign.com/sitemap.xml');
     });
 

@@ -1,6 +1,13 @@
 User-agent: *
 Disallow: /admin/
-Disallow: /api/
+Disallow: /api/admin/
+Disallow: /api/auth/
+Disallow: /api/enquiries
+Disallow: /api/upload
+Allow: /api/projects
+Allow: /api/clients
+Allow: /api/testimonials
+Allow: /api/sitemap.xml
 Allow: /
 
 Sitemap: https://www.besimdesign.com/sitemap.xml

@@ -38,17 +38,27 @@ export default async function handler(req, res) {
 
   let resolvedPath = '';
 
+  const isDirectWebRoute = (p) => {
+    return p.startsWith('/hospitality') ||
+           p.startsWith('/hotels') ||
+           p.startsWith('/residential') ||
+           p.startsWith('/central-kitchen') ||
+           p.startsWith('/uploads') ||
+           p.startsWith('/admin') ||
+           p === '/sitemap.xml';
+  };
+
   // 2. Resolve true concrete request path (avoiding any Vercel internal wildcard template strings)
-  if (typeof rawOriginal === 'string' && (rawOriginal.startsWith('/api') || rawOriginal.startsWith('/uploads'))) {
+  if (typeof rawOriginal === 'string' && rawOriginal.startsWith('/')) {
     resolvedPath = rawOriginal.split('?')[0];
-  } else if (pathname.startsWith('/api/') || pathname.startsWith('/uploads/')) {
+  } else if (isDirectWebRoute(pathname) || pathname.startsWith('/api/')) {
     resolvedPath = pathname;
   } else if (req.query && (req.query.slug || req.query.match || req.query.path)) {
     const rawParts = req.query.slug || req.query.match || req.query.path;
     const parts = Array.isArray(rawParts) ? rawParts : [rawParts];
     const isUpload = pathname.includes('uploads') || (rawOriginal && rawOriginal.includes('uploads'));
     resolvedPath = isUpload ? `/uploads/${parts.join('/')}` : `/api/${parts.join('/')}`;
-  } else if (pathname.startsWith('/auth/') || pathname.startsWith('/admin/')) {
+  } else if (pathname.startsWith('/auth/')) {
     resolvedPath = `/api${pathname}`;
   } else {
     resolvedPath = pathname;
@@ -59,8 +69,8 @@ export default async function handler(req, res) {
     resolvedPath = `/${resolvedPath}`;
   }
 
-  // Ensure /api prefix exists if not an upload or admin html page
-  if (!resolvedPath.startsWith('/api') && !resolvedPath.startsWith('/uploads') && !resolvedPath.startsWith('/admin')) {
+  // Ensure /api prefix exists if not a direct web route, upload, or sitemap
+  if (!resolvedPath.startsWith('/api') && !isDirectWebRoute(resolvedPath)) {
     resolvedPath = `/api${resolvedPath.startsWith('/') ? '' : '/'}${resolvedPath}`;
   }
 

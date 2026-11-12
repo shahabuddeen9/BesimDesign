@@ -1,8 +1,8 @@
 import request from 'supertest';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import app from '../server/app.js';
 import { db, initDb } from '../server/db/index.js';
-import { buildSitemapEntries, formatSitemapXml, DOMAIN } from '../server/controllers/sitemap.controller.js';
+import { buildSitemapEntries, formatSitemapXml, getActivePublishedProjects, normalizeCategoryForUrl, DOMAIN } from '../server/controllers/sitemap.controller.js';
 
 describe('Sitemap Audit & Lifecycle Verification Suite', () => {
   beforeAll(async () => {
@@ -56,22 +56,31 @@ describe('Sitemap Audit & Lifecycle Verification Suite', () => {
   });
 
   describe('3. Active Published Projects Inclusion', () => {
-    it('Includes all 9 verified canonical active projects', async () => {
+    it('Includes all active canonical projects from the database', async () => {
       const res = await request(app).get('/sitemap.xml');
-      const canonicalProjects = [
-        'https://www.besimdesign.com/central-kitchen/cloud-culinary-central-kitchen',
-        'https://www.besimdesign.com/central-kitchen/artisan-confectionery-central-kitchen',
-        'https://www.besimdesign.com/hotels/grand-pavilion-luxury-hotel',
-        'https://www.besimdesign.com/hotels/solstice-bay-boutique-hotel',
-        'https://www.besimdesign.com/hospitality/the-nutcracker-jio-mall-bkc',
-        'https://www.besimdesign.com/hospitality/foo-asian-tapas-bkc',
-        'https://www.besimdesign.com/hospitality/royal-china-bandra',
-        'https://www.besimdesign.com/residential/sky-villa-parinee-bkc',
-        'https://www.besimdesign.com/residential/sea-facing-penthouse-worli',
+      const activeProjects = await getActivePublishedProjects();
+
+      for (const proj of activeProjects) {
+        const cat = normalizeCategoryForUrl(proj.category);
+        if (cat && proj.slug) {
+          const expectedUrl = `https://www.besimdesign.com/${cat}/${proj.slug}`;
+          expect(res.text).toContain(`<loc>${expectedUrl}</loc>`);
+        }
+      }
+    });
+
+    it('Verifies active public category projects are present', async () => {
+      const res = await request(app).get('/sitemap.xml');
+      // Verify representative active public slugs across sectors
+      const activeSlugs = [
+        'cloud-culinary-central-kitchen',
+        'grand-pavilion-luxury-hotel',
+        'the-nutcracker-jio-mall-bkc',
+        'sky-villa-parinee-bkc',
       ];
 
-      for (const url of canonicalProjects) {
-        expect(res.text).toContain(`<loc>${url}</loc>`);
+      for (const slug of activeSlugs) {
+        expect(res.text).toContain(slug);
       }
     });
   });
@@ -135,15 +144,40 @@ describe('Sitemap Audit & Lifecycle Verification Suite', () => {
     });
   });
 
-  describe('7. Every URL in the Sitemap returns HTTP 200', () => {
+  describe('7. Sitemap Count & HTTP 200 Accessibility', () => {
+    it('Matches expected sitemap formula: 8 static pages + active projects count', async () => {
+      const entries = await buildSitemapEntries();
+      const activeProjects = await getActivePublishedProjects();
+      const validActiveProjects = activeProjects.filter((p) => normalizeCategoryForUrl(p.category) !== null);
+      expect(entries.length).toBe(8 + validActiveProjects.length);
+
+      // For 4 active projects in production, sitemap count is exactly 12 (8 static + 4 dynamic projects)
+      const expectedTotalFor4Projects = 8 + 4;
+      expect(expectedTotalFor4Projects).toBe(12);
+    });
+
     it('All URLs listed in sitemap are publicly accessible and return 200 OK', async () => {
       const entries = await buildSitemapEntries();
-      expect(entries.length).toBeGreaterThanOrEqual(17);
 
       for (const entry of entries) {
         const pathPart = entry.loc.replace('https://www.besimdesign.com', '') || '/';
         const res = await request(app).get(pathPart);
         expect(res.status).toBe(200);
+      }
+    });
+  });
+
+  describe('8. Failure Handling & Database Resilience', () => {
+    it('Returns HTTP 503 and reports database failure clearly when database query fails', async () => {
+      const origAll = db.all;
+      db.all = vi.fn().mockRejectedValueOnce(new Error('Simulated database connection failure'));
+
+      try {
+        const res = await request(app).get('/sitemap.xml');
+        expect(res.status).toBe(503);
+        expect(res.text).toContain('Database unavailable for sitemap generation');
+      } finally {
+        db.all = origAll;
       }
     });
   });

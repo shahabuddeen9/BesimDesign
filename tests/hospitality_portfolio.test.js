@@ -132,13 +132,36 @@ describe('Hospitality Projects Portfolio & Detail Suite', () => {
     expect(res.body.success).toBe(false);
   });
 
-  it('5. GET /hospitality/:slug serves the individual project detail HTML page (200 OK)', async () => {
+  it('5. GET /hospitality/:slug serves server-rendered project SEO (title, meta description, canonical, OG, H1) with 200 OK', async () => {
     const res = await request(app).get('/hospitality/the-nutcracker-jio-mall-bkc');
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toContain('text/html');
-    expect(res.text).toContain('hospitality-detail-page');
-    expect(res.text).toContain('HOSPITALITY PROJECT');
-    expect(res.text).toContain('PROJECT INFORMATION');
+
+    // 1. Initial Document Title & Meta Description in initial HTML
+    expect(res.text).toContain('<title>The Nutcracker Café &amp; Restaurant | Hospitality &amp; Dining | Besim Design</title>');
+    expect(res.text).toContain('name="description" content="Complete turnkey execution from bare shell to restaurant handover');
+
+    // 2. Initial Canonical URL & Open Graph metadata
+    expect(res.text).toContain('<link rel="canonical" href="https://www.besimdesign.com/hospitality/the-nutcracker-jio-mall-bkc"');
+    expect(res.text).toContain('property="og:title" content="The Nutcracker Café &amp; Restaurant | Hospitality &amp; Dining | Besim Design"');
+    expect(res.text).toContain('property="og:url" content="https://www.besimdesign.com/hospitality/the-nutcracker-jio-mall-bkc"');
+    expect(res.text).toContain('name="twitter:card" content="summary_large_image"');
+
+    // 3. Schema.org JSON-LD Structured Data
+    expect(res.text).toContain('"@type": "Article"');
+    expect(res.text).toContain('"headline": "The Nutcracker Café & Restaurant"');
+
+    // 4. Initial Server-Rendered H1 Heading & Visible Content State
+    expect(res.text).toContain('<h1 class="hospitality-main-title" id="projectTitle">The Nutcracker Café &amp; Restaurant – Jio World Drive</h1>');
+    expect(res.text).toContain('id="projectLoadingState" style="display: none;');
+    expect(res.text).toContain('id="projectContentState" style="display: block;"');
+  });
+
+  it('5b. GET /hospitality/:slug returns HTTP 404 for unknown, deleted, or invalid slugs', async () => {
+    const res = await request(app).get('/hospitality/non-existent-project-slug');
+    expect(res.status).toBe(404);
+    expect(res.headers['content-type']).toContain('text/html');
+    expect(res.text).toContain('404');
   });
 
   it('6. Admin adds a hospitality project -> automatically available on public listing and detail page', async () => {

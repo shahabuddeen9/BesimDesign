@@ -81,23 +81,18 @@ function formatDate(dateVal) {
  * Supports both PostgreSQL and SQLite via the unified db adapter.
  */
 export async function getActivePublishedProjects() {
-  try {
-    const sql = `
-      SELECT id, title, slug, category, updated_at, created_at, is_published
-      FROM projects
-      WHERE is_published = 1
-        AND slug IS NOT NULL
-        AND slug != ''
-        AND id NOT IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
-        AND slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL)
-      ORDER BY sort_order ASC, created_at DESC
-    `;
-    const rows = await db.all(sql);
-    return rows || [];
-  } catch (err) {
-    logger.warn('Failed to query projects for sitemap generation:', err.message);
-    return [];
-  }
+  const sql = `
+    SELECT id, title, slug, category, updated_at, created_at, is_published
+    FROM projects
+    WHERE is_published = 1
+      AND slug IS NOT NULL
+      AND slug != ''
+      AND id NOT IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
+      AND slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL)
+    ORDER BY sort_order ASC, created_at DESC
+  `;
+  const rows = await db.all(sql);
+  return rows || [];
 }
 
 /**
@@ -194,14 +189,11 @@ export async function getSitemapXml(req, res, next) {
     res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600');
     return res.status(200).send(xml);
   } catch (error) {
-    logger.error('Error generating sitemap XML:', error);
-    // Resilient fallback to static file if error occurs
-    const staticFile = path.resolve(publicPath, 'sitemap.xml');
-    if (fs.existsSync(staticFile)) {
-      res.setHeader('Content-Type', 'application/xml; charset=utf-8');
-      return res.status(200).sendFile(staticFile);
-    }
-    next(error);
+    logger.error('Error generating sitemap XML due to database failure:', error);
+    res.status(503);
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    const safeMsg = String(error?.message || 'Database connection failure').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<error><status>503</status><message>Database unavailable for sitemap generation: ${safeMsg}</message></error>`);
   }
 }
 

@@ -21,19 +21,19 @@
     },
     {
       "source": "/hospitality/:slug",
-      "destination": "/hospitality-detail.html"
+      "destination": "/api/index"
     },
     {
       "source": "/hotels/:slug",
-      "destination": "/hospitality-detail.html"
+      "destination": "/api/index"
     },
     {
       "source": "/residential/:slug",
-      "destination": "/hospitality-detail.html"
+      "destination": "/api/index"
     },
     {
       "source": "/central-kitchen/:slug",
-      "destination": "/hospitality-detail.html"
+      "destination": "/api/index"
     },
     {
       "source": "/contact",

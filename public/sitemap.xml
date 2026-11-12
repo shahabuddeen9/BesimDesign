@@ -49,8 +49,14 @@
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://www.besimdesign.com/central-kitchen/the-foo-central-kitchen</loc>
-    <lastmod>2026-11-09</lastmod>
+    <loc>https://www.besimdesign.com/central-kitchen/cloud-culinary-central-kitchen</loc>
+    <lastmod>2026-10-23</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.besimdesign.com/central-kitchen/artisan-confectionery-central-kitchen</loc>
+    <lastmod>2026-10-23</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -61,8 +67,32 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://www.besimdesign.com/hotels/solstice-bay-boutique-hotel</loc>
+    <lastmod>2026-10-23</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.besimdesign.com/hospitality/the-nutcracker-jio-mall-bkc</loc>
+    <lastmod>2026-10-23</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://www.besimdesign.com/hospitality/foo-asian-tapas-bkc</loc>
-    <lastmod>2026-11-02</lastmod>
+    <lastmod>2026-10-23</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.besimdesign.com/hospitality/royal-china-bandra</loc>
+    <lastmod>2026-10-23</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.besimdesign.com/residential/sky-villa-parinee-bkc</loc>
+    <lastmod>2026-10-23</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
