@@ -1,0 +1,38 @@
+name: SEO feature branch quality checks
+
+on:
+  push:
+    branches:
+      - fix/seo-project-ssr-indexing
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: TypeScript, production build and tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: TypeScript checks
+        run: npm run lint
+
+      - name: Production build
+        run: npm run build
+
+      - name: Automated tests
+        run: npm test
