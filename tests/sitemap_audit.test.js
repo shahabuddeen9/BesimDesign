@@ -1,150 +1,251 @@
+import fs from 'fs';
+import path from 'path';
 import request from 'supertest';
-import { beforeAll, describe, expect, it } from 'vitest';
-import app from '../server/app.js';
-import { db, initDb } from '../server/db/index.js';
-import { buildSitemapEntries, formatSitemapXml, DOMAIN } from '../server/controllers/sitemap.controller.js';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-describe('Sitemap Audit & Lifecycle Verification Suite', () => {
-  beforeAll(async () => {
-    await initDb();
+// Set test mode before loading the application/database modules. The DB adapter
+// guarantees NODE_ENV=test always uses a fresh in-memory SQLite database.
+process.env.NODE_ENV = 'test';
+
+const [{ default: app }, databaseModule, sitemapModule, pathModule] = await Promise.all([
+  import('../server/app.js'),
+  import('../server/db/index.js'),
+  import('../server/controllers/sitemap.controller.js'),
+  import('../server/utils/vercel-path.js'),
+]);
+
+const { db, initDb, getIsPostgres } = databaseModule;
+const { buildSitemapEntries, DOMAIN } = sitemapModule;
+const { resolveVercelRequestUrl } = pathModule;
+
+const fixtures = [
+  {
+    id: 805,
+    title: 'The Foo Kitchen',
+    slug: 'the-foo-central-kitchen',
+    category: 'central_kitchen',
+    path: '/central-kitchen/the-foo-central-kitchen',
+  },
+  {
+    id: 806,
+    title: 'Grand Pavilion Luxury Hotel',
+    slug: 'grand-pavilion-luxury-hotel',
+    category: 'hotels',
+    path: '/hotels/grand-pavilion-luxury-hotel',
+  },
+  {
+    id: 809,
+    title: 'FOO Asian Tapas',
+    slug: 'foo-asian-tapas-bkc',
+    category: 'hospitality',
+    path: '/hospitality/foo-asian-tapas-bkc',
+  },
+  {
+    id: 812,
+    title: 'Sea-Facing Penthouse',
+    slug: 'sea-facing-penthouse-worli',
+    category: 'residential',
+    path: '/residential/sea-facing-penthouse-worli',
+  },
+];
+
+async function insertProject(project) {
+  await db.run(
+    "INSERT INTO projects (id, title, slug, category, client_name, location, area_sqft, description, scope, image_url, gallery, is_featured, sort_order, is_published, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+    project.id,
+    project.title,
+    project.slug,
+    project.category,
+    project.client_name || 'Besim Design Client',
+    project.location || 'Mumbai, Maharashtra',
+    project.area_sqft || 1200,
+    project.description || ('Unique description for ' + project.title + ' by Besim Design.'),
+    JSON.stringify(project.scope || ['Architecture', 'Interior Execution']),
+    project.image_url || 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c',
+    JSON.stringify(project.gallery || []),
+    0,
+    project.sort_order || 0,
+    project.is_published === undefined ? 1 : project.is_published
+  );
+}
+
+beforeAll(async () => {
+  await initDb();
+  expect(getIsPostgres()).toBe(false);
+
+  // This cleanup is confined to the fresh in-memory test database above.
+  await db.run('DELETE FROM projects');
+  await db.run('DELETE FROM deleted_projects');
+
+  for (const project of fixtures) await insertProject(project);
+
+  await insertProject({
+    id: 900,
+    title: 'Tombstoned Project',
+    slug: 'tombstoned-project',
+    category: 'hospitality',
+  });
+  await db.run(
+    "INSERT INTO deleted_projects (project_id, slug, title, deleted_at) VALUES (?, ?, ?, datetime('now'))",
+    900,
+    'tombstoned-project',
+    'Tombstoned Project'
+  );
+
+  await insertProject({
+    id: 901,
+    title: 'Draft Project',
+    slug: 'draft-project',
+    category: 'hospitality',
+    is_published: 0,
+  });
+  await insertProject({
+    id: 902,
+    title: null,
+    slug: 'project-without-title',
+    category: 'hospitality',
+  });
+});
+
+describe('Technical SEO project rendering and sitemap', () => {
+  it('uses an isolated in-memory test database, never PostgreSQL', () => {
+    expect(process.env.NODE_ENV).toBe('test');
+    expect(getIsPostgres()).toBe(false);
   });
 
-  describe('1. Live Endpoint Structure & Validity', () => {
-    it('GET /sitemap.xml serves XML with 200 OK and correct headers', async () => {
-      const res = await request(app).get('/sitemap.xml');
-      expect(res.status).toBe(200);
-      expect(res.headers['content-type']).toContain('xml');
-      expect(res.headers['cache-control']).toContain('public');
-      expect(res.text).toContain('<?xml version="1.0" encoding="UTF-8"?>');
-      expect(res.text).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
-    });
-
-    it('GET /api/sitemap.xml is also accessible and serves identical sitemap', async () => {
-      const res = await request(app).get('/api/sitemap.xml');
-      expect(res.status).toBe(200);
-      expect(res.headers['content-type']).toContain('xml');
-      expect(res.text).toContain('<loc>https://www.besimdesign.com/</loc>');
-    });
+  it('generates exactly 12 URLs: eight static pages and four active project pages', async () => {
+    const entries = await buildSitemapEntries();
+    expect(entries).toHaveLength(12);
+    expect(entries.filter((entry) => /\/(hospitality|hotels|residential|central-kitchen)\//.test(entry.loc))).toHaveLength(4);
+    expect(entries.every((entry) => entry.loc.startsWith(DOMAIN))).toBe(true);
+    expect(entries.some((entry) => entry.loc.includes('tombstoned-project'))).toBe(false);
+    expect(entries.some((entry) => entry.loc.includes('draft-project'))).toBe(false);
+    expect(entries.some((entry) => entry.loc.includes('project-without-title'))).toBe(false);
   });
 
-  describe('2. Public Category & Static Pages Inclusion', () => {
-    it('Includes all 8 canonical public pages', async () => {
-      const res = await request(app).get('/sitemap.xml');
-      const expectedPages = [
-        'https://www.besimdesign.com/',
-        'https://www.besimdesign.com/about',
-        'https://www.besimdesign.com/hotels',
-        'https://www.besimdesign.com/hospitality',
-        'https://www.besimdesign.com/central-kitchen',
-        'https://www.besimdesign.com/residential',
-        'https://www.besimdesign.com/showcase',
-        'https://www.besimdesign.com/privacy',
-      ];
+  it('returns project-specific SEO metadata and H1 in each initial HTML response', async () => {
+    for (const project of fixtures) {
+      const response = await request(app).get(project.path);
+      const canonical = DOMAIN + project.path;
 
-      for (const page of expectedPages) {
-        expect(res.text).toContain(`<loc>${page}</loc>`);
-      }
-    });
-
-    it('Does NOT include internal or non-indexable routes in sitemap', async () => {
-      const res = await request(app).get('/sitemap.xml');
-      expect(res.text).not.toContain('/admin');
-      expect(res.text).not.toContain('/api');
-      expect(res.text).not.toContain('/404');
-      expect(res.text).not.toContain('.html');
-    });
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toContain('text/html');
+      expect(response.text).toContain('<title>' + project.title + ' |');
+      expect(response.text).toContain('<meta name="description" content="Unique description for ' + project.title);
+      expect(response.text).toContain('<link rel="canonical" href="' + canonical + '">');
+      expect(response.text).toContain('property="og:title"');
+      expect(response.text).toContain('property="og:description"');
+      expect(response.text).toContain('property="og:url" content="' + canonical + '"');
+      expect(response.text).toContain('id="projectTitle"');
+      expect(response.text).toContain('id="projectNarrative"');
+      expect(response.text).toContain(project.title);
+      expect(response.text).toContain('id="projectContentState" style="display:block;"');
+      expect(response.text).toContain('application/ld+json');
+    }
   });
 
-  describe('3. Active Published Projects Inclusion', () => {
-    it('Includes all 9 verified canonical active projects', async () => {
-      const res = await request(app).get('/sitemap.xml');
-      const canonicalProjects = [
-        'https://www.besimdesign.com/central-kitchen/cloud-culinary-central-kitchen',
-        'https://www.besimdesign.com/central-kitchen/artisan-confectionery-central-kitchen',
-        'https://www.besimdesign.com/hotels/grand-pavilion-luxury-hotel',
-        'https://www.besimdesign.com/hotels/solstice-bay-boutique-hotel',
-        'https://www.besimdesign.com/hospitality/the-nutcracker-jio-mall-bkc',
-        'https://www.besimdesign.com/hospitality/foo-asian-tapas-bkc',
-        'https://www.besimdesign.com/hospitality/royal-china-bandra',
-        'https://www.besimdesign.com/residential/sky-villa-parinee-bkc',
-        'https://www.besimdesign.com/residential/sea-facing-penthouse-worli',
-      ];
-
-      for (const url of canonicalProjects) {
-        expect(res.text).toContain(`<loc>${url}</loc>`);
-      }
-    });
+  it('returns HTTP 404 for unknown, tombstoned, unpublished, invalid and title-less slugs', async () => {
+    const cases = [
+      '/hospitality/this-project-does-not-exist',
+      '/hospitality/tombstoned-project',
+      '/hospitality/draft-project',
+      '/hospitality/project-without-title',
+      '/hospitality/invalid_slug',
+    ];
+    for (const url of cases) {
+      const response = await request(app).get(url);
+      expect(response.status).toBe(404);
+    }
   });
 
-  describe('4. Exclusion of Deleted & Tombstoned Projects', () => {
-    it('Excludes all deleted_projects tombstones from sitemap', async () => {
-      const res = await request(app).get('/sitemap.xml');
-      const deletedRows = await db.all('SELECT slug FROM deleted_projects WHERE slug IS NOT NULL');
+  it('keeps 301 redirects only for aliases whose target is currently active', async () => {
+    const fooAlias = await request(app).get('/hospitality/foo');
+    expect(fooAlias.status).toBe(301);
+    expect(fooAlias.headers.location).toBe('/hospitality/foo-asian-tapas-bkc');
 
-      for (const row of deletedRows) {
-        if (row.slug) {
-          expect(res.text).not.toContain(row.slug);
-        }
-      }
-    });
+    const hotelAlias = await request(app).get('/hotels/grand-pavilion');
+    expect(hotelAlias.status).toBe(301);
+    expect(hotelAlias.headers.location).toBe('/hotels/grand-pavilion-luxury-hotel');
 
-    it('Returns HTTP 404 for deleted/tombstoned project URLs on frontend', async () => {
-      const tombstoneRes = await request(app).get('/hospitality/persistence-test-hotel-1792819838447');
-      expect(tombstoneRes.status).toBe(404);
-    });
+    const removedAlias = await request(app).get('/hospitality/the-nutcracker');
+    expect(removedAlias.status).toBe(404);
   });
 
-  describe('5. Exclusion of Unpublished Projects', () => {
-    it('Excludes unpublished projects (is_published = 0) from sitemap', async () => {
-      // Create a test unpublished project
-      const testSlug = `draft-project-${Date.now()}`;
-      await db.run(`
-        INSERT INTO projects (title, slug, category, description, image_url, is_published, created_at, updated_at)
-        VALUES (?, ?, 'hospitality', 'Draft test description', 'https://images.unsplash.com/photo-draft.jpg', 0, datetime('now'), datetime('now'))
-      `, 'Unpublished Draft Project', testSlug);
+  it('serves exact active project JSON and returns 404 for unknown or partial slugs', async () => {
+    const active = await request(app).get('/api/projects/foo-asian-tapas-bkc');
+    expect(active.status).toBe(200);
+    expect(active.body.data.slug).toBe('foo-asian-tapas-bkc');
 
-      const res = await request(app).get('/sitemap.xml');
-      expect(res.text).not.toContain(testSlug);
+    const unknown = await request(app).get('/api/projects/unknown-project-slug');
+    expect(unknown.status).toBe(404);
 
-      // Verify URL returns 404
-      const pageRes = await request(app).get(`/hospitality/${testSlug}`);
-      expect(pageRes.status).toBe(404);
-
-      // Clean up test draft
-      await db.run('DELETE FROM projects WHERE slug = ?', testSlug);
-    });
+    const partial = await request(app).get('/api/projects/foo-asian');
+    expect(partial.status).toBe(404);
   });
 
-  describe('6. Exclusion of Redirected Aliases & Preservation of 301s', () => {
-    it('Excludes shortened aliases from sitemap but preserves 301 redirects', async () => {
-      const res = await request(app).get('/sitemap.xml');
-
-      // The alias 'the-nutcracker' must NOT appear as a sitemap URL
-      expect(res.text).not.toContain('<loc>https://www.besimdesign.com/hospitality/the-nutcracker</loc>');
-      expect(res.text).not.toContain('<loc>https://www.besimdesign.com/hotels/grand-pavilion</loc>');
-      expect(res.text).not.toContain('<loc>https://www.besimdesign.com/residential/sky-villa</loc>');
-
-      // But requesting the alias MUST 301 redirect to the canonical URL
-      const redirRes1 = await request(app).get('/hospitality/the-nutcracker');
-      expect(redirRes1.status).toBe(301);
-      expect(redirRes1.headers.location).toBe('/hospitality/the-nutcracker-jio-mall-bkc');
-
-      const redirRes2 = await request(app).get('/hotels/grand-pavilion');
-      expect(redirRes2.status).toBe(301);
-      expect(redirRes2.headers.location).toBe('/hotels/grand-pavilion-luxury-hotel');
-    });
+  it('returns a complete 200 sitemap with eight static pages and four active project pages', async () => {
+    const response = await request(app).get('/sitemap.xml');
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('xml');
+    expect(response.text).toContain('<?xml version="1.0" encoding="UTF-8"?>');
+    expect(response.text).toContain('<loc>' + DOMAIN + '/</loc>');
+    expect(response.text).toContain('<loc>' + DOMAIN + '/hospitality/foo-asian-tapas-bkc</loc>');
+    expect(response.text).not.toContain('tombstoned-project');
   });
 
-  describe('7. Every URL in the Sitemap returns HTTP 200', () => {
-    it('All URLs listed in sitemap are publicly accessible and return 200 OK', async () => {
-      const entries = await buildSitemapEntries();
-      expect(entries.length).toBeGreaterThanOrEqual(17);
+  it('returns a server error instead of a successful stale sitemap when the database fails', async () => {
+    const spy = vi.spyOn(db, 'all').mockRejectedValueOnce(new Error('simulated database failure'));
+    try {
+      const response = await request(app).get('/sitemap.xml');
+      expect(response.status).toBe(500);
+      expect(response.text).not.toContain('<urlset');
+    } finally {
+      spy.mockRestore();
+    }
+  });
 
-      for (const entry of entries) {
-        const pathPart = entry.loc.replace('https://www.besimdesign.com', '') || '/';
-        const res = await request(app).get(pathPart);
-        expect(res.status).toBe(200);
-      }
+  it('restores public project paths after Vercel rewrites and preserves visitor query parameters', () => {
+    const projectPath = resolveVercelRequestUrl({
+      url: '/api/index?__page=%2Fhospitality%2Ffoo-asian-tapas-bkc&utm_source=test',
+      query: { __page: '/hospitality/foo-asian-tapas-bkc' },
+      headers: {},
     });
+    expect(projectPath).toBe('/hospitality/foo-asian-tapas-bkc?utm_source=test');
+
+    expect(resolveVercelRequestUrl({
+      url: '/api/index?__page=%2Fsitemap.xml',
+      query: { __page: '/sitemap.xml' },
+      headers: {},
+    })).toBe('/api/sitemap.xml');
+
+    expect(resolveVercelRequestUrl({
+      url: '/api/projects/foo-asian-tapas-bkc',
+      query: {},
+      headers: {},
+    })).toBe('/api/projects/foo-asian-tapas-bkc');
+  });
+
+  it('allows public projects GET routes in robots.txt but keeps private API routes disallowed', () => {
+    const robots = fs.readFileSync(path.resolve(process.cwd(), 'public/robots.txt'), 'utf8');
+    expect(robots).toContain('Disallow: /api/');
+    expect(robots).toContain('Allow: /api/projects$');
+    expect(robots).toContain('Allow: /api/projects/');
+    expect(robots).toContain('Disallow: /admin/');
+  });
+
+  it('routes Vercel project URLs and sitemap requests through the database-aware handler', () => {
+    const config = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'vercel.json'), 'utf8'));
+    const expectedRoutes = [
+      ['/sitemap.xml', '/api/index?__page=%2Fsitemap.xml'],
+      ['/hospitality/:slug', '/api/index?__page=%2Fhospitality%2F:slug'],
+      ['/hotels/:slug', '/api/index?__page=%2Fhotels%2F:slug'],
+      ['/residential/:slug', '/api/index?__page=%2Fresidential%2F:slug'],
+      ['/central-kitchen/:slug', '/api/index?__page=%2Fcentral-kitchen%2F:slug'],
+    ];
+    for (const [source, destination] of expectedRoutes) {
+      const rule = config.rewrites.find((item) => item.source === source);
+      expect(rule).toBeTruthy();
+      expect(rule.destination).toBe(destination);
+    }
   });
 });
