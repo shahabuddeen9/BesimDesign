@@ -9,7 +9,7 @@
     },
     {
       "source": "/sitemap.xml",
-      "destination": "/api/index"
+      "destination": "/api/index?__page=%2Fsitemap.xml"
     },
     {
       "source": "/api/:match*",
@@ -21,19 +21,19 @@
     },
     {
       "source": "/hospitality/:slug",
-      "destination": "/api/index?__page=/hospitality/:slug"
+      "destination": "/api/index?__page=%2Fhospitality%2F:slug"
     },
     {
       "source": "/hotels/:slug",
-      "destination": "/api/index?__page=/hotels/:slug"
+      "destination": "/api/index?__page=%2Fhotels%2F:slug"
     },
     {
       "source": "/residential/:slug",
-      "destination": "/api/index?__page=/residential/:slug"
+      "destination": "/api/index?__page=%2Fresidential%2F:slug"
     },
     {
       "source": "/central-kitchen/:slug",
-      "destination": "/api/index?__page=/central-kitchen/:slug"
+      "destination": "/api/index?__page=%2Fcentral-kitchen%2F:slug"
     },
     {
       "source": "/contact",
