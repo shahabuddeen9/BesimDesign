@@ -5,17 +5,8 @@
  * with valid canonical category routes, excluding deleted, unpublished, or aliased items.
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { db } from '../db/index.js';
 import logger from '../utils/logger.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const projectRoot = path.resolve(__dirname, '../..');
-const publicPath = path.resolve(projectRoot, 'public');
-const distPath = path.resolve(projectRoot, 'dist');
 
 export const DOMAIN = 'https://www.besimdesign.com';
 
@@ -81,23 +72,25 @@ function formatDate(dateVal) {
  * Supports both PostgreSQL and SQLite via the unified db adapter.
  */
 export async function getActivePublishedProjects() {
-  try {
-    const sql = `
-      SELECT id, title, slug, category, updated_at, created_at, is_published
-      FROM projects
-      WHERE is_published = 1
-        AND slug IS NOT NULL
-        AND slug != ''
-        AND id NOT IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
-        AND slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL)
-      ORDER BY sort_order ASC, created_at DESC
-    `;
-    const rows = await db.all(sql);
-    return rows || [];
-  } catch (err) {
-    logger.warn('Failed to query projects for sitemap generation:', err.message);
-    return [];
-  }
+  const sql = `
+    SELECT id, title, slug, category, updated_at, created_at, is_published
+    FROM projects
+    WHERE is_published = 1
+      AND title IS NOT NULL
+      AND TRIM(title) <> ''
+      AND slug IS NOT NULL
+      AND TRIM(slug) <> ''
+      AND NOT EXISTS (
+        SELECT 1
+        FROM deleted_projects dp
+        WHERE dp.project_id = projects.id
+           OR (dp.slug IS NOT NULL AND LOWER(TRIM(dp.slug)) = LOWER(TRIM(projects.slug)))
+      )
+    ORDER BY sort_order ASC, created_at DESC
+  `;
+  // Let database failures propagate so the route returns an error, not a partial sitemap.
+  const rows = await db.all(sql);
+  return rows || [];
 }
 
 /**
@@ -181,26 +174,11 @@ export async function getSitemapXml(req, res, next) {
     const entries = await buildSitemapEntries();
     const xml = formatSitemapXml(entries);
 
-    // Sync disk sitemap asynchronously to keep static backups pristine
-    try {
-      const publicSitemap = path.resolve(publicPath, 'sitemap.xml');
-      fs.writeFileSync(publicSitemap, xml, 'utf-8');
-      if (fs.existsSync(distPath)) {
-        fs.writeFileSync(path.resolve(distPath, 'sitemap.xml'), xml, 'utf-8');
-      }
-    } catch (_) {}
-
     res.setHeader('Content-Type', 'application/xml; charset=utf-8');
     res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600');
     return res.status(200).send(xml);
   } catch (error) {
     logger.error('Error generating sitemap XML:', error);
-    // Resilient fallback to static file if error occurs
-    const staticFile = path.resolve(publicPath, 'sitemap.xml');
-    if (fs.existsSync(staticFile)) {
-      res.setHeader('Content-Type', 'application/xml; charset=utf-8');
-      return res.status(200).sendFile(staticFile);
-    }
     next(error);
   }
 }
