@@ -85,7 +85,11 @@ function setElementDisplay(html, id, display) {
     if (!styleMatch) {
       return openingTag.replace(/>$/, ' style="display:' + display + ';">');
     }
-    const currentStyle = styleMatch[1].replace(/(^|;)\s*display\s*:[^;]*/i, '$1').trim();
+    const currentStyle = styleMatch[1]
+      .split(';')
+      .filter((rule) => rule.trim() && !/^\s*display\s*:/i.test(rule))
+      .join('; ')
+      .trim();
     const nextStyle = (currentStyle ? currentStyle.replace(/;?$/, '; ') : '') + 'display:' + display + ';';
     return openingTag.replace(styleMatch[0], 'style="' + escapeHtml(nextStyle) + '"');
   });
