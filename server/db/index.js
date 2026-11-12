@@ -442,7 +442,8 @@ export async function initDb() {
         const testRes = await pgPool.query('SELECT NOW() as now');
         logger.info(`✅ PostgreSQL connection established successfully. Server time: ${testRes.rows[0].now}`);
 
-        await initPostgresSchema(pgPool);
+        // Do not run DDL, seed data or tombstone cleanup during application startup.
+        // Schema changes must be applied separately through a reviewed migration.
         return pgPool;
       }
 
