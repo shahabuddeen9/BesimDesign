@@ -142,17 +142,17 @@ const SLUG_ALIASES = {
 export async function getProjectBySlug(req, res, next) {
   try {
     const rawSlug = req.params.slug;
-    const cleanSlug = String(rawSlug || '').toLowerCase().trim().replace(/\\.html$/, '');
+    const cleanSlug = String(rawSlug || '').toLowerCase().trim().replace(/\.html$/, '');
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(cleanSlug)) {
       throw new AppError('Project not found', 404);
     }
 
     const selectActiveProject = async (slug) => db.get(
-      'SELECT id, title, slug, category, client_name, location, area_sqft, description, scope, image_url, gallery, is_featured, created_at ' +
-      'FROM projects WHERE LOWER(TRIM(slug)) = ? AND is_published = 1 ' +
-      'AND title IS NOT NULL AND TRIM(title) <> '' '' +
-      'AND NOT EXISTS (SELECT 1 FROM deleted_projects dp WHERE dp.project_id = projects.id ' +
-      'OR (dp.slug IS NOT NULL AND LOWER(TRIM(dp.slug)) = LOWER(TRIM(projects.slug)))) LIMIT 1',
+      "SELECT id, title, slug, category, client_name, location, area_sqft, description, scope, image_url, gallery, is_featured, created_at " +
+      "FROM projects WHERE LOWER(TRIM(slug)) = ? AND is_published = 1 " +
+      "AND title IS NOT NULL AND TRIM(title) <> '' " +
+      "AND NOT EXISTS (SELECT 1 FROM deleted_projects dp WHERE dp.project_id = projects.id " +
+      "OR (dp.slug IS NOT NULL AND LOWER(TRIM(dp.slug)) = LOWER(TRIM(projects.slug)))) LIMIT 1",
       slug
     );
 
