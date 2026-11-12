@@ -143,45 +143,37 @@ export async function getProjectBySlug(req, res, next) {
   try {
     const rawSlug = req.params.slug;
     const cleanSlug = String(rawSlug || '').toLowerCase().trim().replace(/\.html$/, '');
-
-    // 1. Exact match
-    let project = await db.get(`
-      SELECT id, title, slug, category, client_name, location, area_sqft, description, scope, image_url, gallery, is_featured, created_at
-      FROM projects
-      WHERE LOWER(slug) = ?
-        AND is_published = 1
-        AND id NOT IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
-        AND slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL)
-    `, cleanSlug);
-
-    // 2. Alias match
-    if (!project && SLUG_ALIASES[cleanSlug]) {
-      const aliasTarget = SLUG_ALIASES[cleanSlug];
-      project = await db.get(`
-        SELECT id, title, slug, category, client_name, location, area_sqft, description, scope, image_url, gallery, is_featured, created_at
-        FROM projects
-        WHERE LOWER(slug) = ?
-          AND is_published = 1
-          AND id NOT IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
-          AND slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL)
-      `, aliasTarget);
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(cleanSlug)) {
+      throw new AppError('Project not found', 404);
     }
 
-    // 3. Fallback prefix match (e.g. "sky-villa" -> "sky-villa-parinee-bkc")
-    if (!project && cleanSlug.length >= 3) {
-      project = await db.get(`
+    const selectActiveProject = async (slug) => db.get(
+      \`
         SELECT id, title, slug, category, client_name, location, area_sqft, description, scope, image_url, gallery, is_featured, created_at
         FROM projects
-        WHERE LOWER(slug) LIKE ?
+        WHERE LOWER(TRIM(slug)) = ?
           AND is_published = 1
-          AND id NOT IN (SELECT project_id FROM deleted_projects WHERE project_id IS NOT NULL)
-          AND slug NOT IN (SELECT slug FROM deleted_projects WHERE slug IS NOT NULL)
+          AND title IS NOT NULL
+          AND TRIM(title) <> ''
+          AND NOT EXISTS (
+            SELECT 1
+            FROM deleted_projects dp
+            WHERE dp.project_id = projects.id
+               OR (dp.slug IS NOT NULL AND LOWER(TRIM(dp.slug)) = LOWER(TRIM(projects.slug)))
+          )
         LIMIT 1
-      `, `${cleanSlug}%`);
+      \`,
+      slug
+    );
+
+    let project = await selectActiveProject(cleanSlug);
+    if (!project && SLUG_ALIASES[cleanSlug]) {
+      project = await selectActiveProject(SLUG_ALIASES[cleanSlug]);
     }
 
+    // Prefix matching is intentionally removed: unknown slugs must never resolve to another project.
     if (!project) {
-      throw new AppError(`Project with slug "${cleanSlug}" not found`, 404);
+      throw new AppError('Project with slug "' + cleanSlug + '" not found', 404);
     }
 
     project.scope = safeJsonParse(project.scope);
