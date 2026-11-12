@@ -1,6 +1,8 @@
 User-agent: *
 Disallow: /admin/
 Disallow: /api/
+Allow: /api/projects$
+Allow: /api/projects/
 Allow: /
 
 Sitemap: https://www.besimdesign.com/sitemap.xml
