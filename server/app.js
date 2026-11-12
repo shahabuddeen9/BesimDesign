@@ -17,6 +17,7 @@ import { db, initDb } from './db/index.js';
 import { csrfCookieSetter } from './middleware/csrf.js';
 import errorHandler from './middleware/errorHandler.js';
 import { generalLimiter } from './middleware/rateLimit.js';
+import { getSitemapXml } from './controllers/sitemap.controller.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -233,6 +234,10 @@ app.get(['/uploads/:filename', '/api/uploads/:filename'], async (req, res, next)
     next(err);
   }
 });
+
+// Dynamic SEO Sitemap endpoint (Serves fresh database-backed sitemap with 200 OK)
+app.get(['/sitemap.xml', '/api/sitemap.xml'], getSitemapXml);
+
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
 }
@@ -291,7 +296,7 @@ const SLUG_ALIASES = {
 };
 
 // Multi-category project detail route supporting /hospitality/:slug, /hotels/:slug, /residential/:slug, /central-kitchen/:slug
-app.get(['/hospitality/:slug', '/hotels/:slug', '/residential/:slug', '/central-kitchen/:slug'], (req, res, next) => {
+app.get(['/hospitality/:slug', '/hotels/:slug', '/residential/:slug', '/central-kitchen/:slug'], async (req, res, next) => {
   const { slug } = req.params;
   if (!slug) return next();
 
@@ -311,6 +316,39 @@ app.get(['/hospitality/:slug', '/hotels/:slug', '/residential/:slug', '/central-
 
   // If slug has an extension other than .html, let static handler / next middleware handle it
   if (slug.includes('.')) return next();
+
+  // 3. Database check: Return 404 if project is tombstoned/deleted or unpublished
+  try {
+    const isDeleted = await db.get(
+      'SELECT project_id FROM deleted_projects WHERE LOWER(slug) = ?',
+      cleanSlug
+    );
+    if (isDeleted) {
+      if (req.accepts('html')) {
+        const dist404 = path.resolve(distPath, '404.html');
+        const pub404 = path.resolve(publicPath, '404.html');
+        const root404 = path.resolve(projectRoot, '404.html');
+        const target404 = fs.existsSync(dist404) ? dist404 : (fs.existsSync(pub404) ? pub404 : root404);
+        if (fs.existsSync(target404)) return res.status(404).sendFile(target404);
+      }
+      return res.status(404).send('Project Not Found');
+    }
+
+    const projRecord = await db.get(
+      'SELECT id, is_published FROM projects WHERE LOWER(slug) = ?',
+      cleanSlug
+    );
+    if (projRecord && Number(projRecord.is_published) === 0) {
+      if (req.accepts('html')) {
+        const dist404 = path.resolve(distPath, '404.html');
+        const pub404 = path.resolve(publicPath, '404.html');
+        const root404 = path.resolve(projectRoot, '404.html');
+        const target404 = fs.existsSync(dist404) ? dist404 : (fs.existsSync(pub404) ? pub404 : root404);
+        if (fs.existsSync(target404)) return res.status(404).sendFile(target404);
+      }
+      return res.status(404).send('Project Not Found');
+    }
+  } catch (_) {}
 
   const distFile = path.resolve(distPath, 'hospitality-detail.html');
   const pubFile = path.resolve(publicPath, 'hospitality-detail.html');

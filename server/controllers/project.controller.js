@@ -27,6 +27,23 @@ function safeJsonParse(val, fallback = []) {
   }
 }
 
+/**
+ * Safely triggers background update of sitemap.xml on disk when projects change.
+ */
+async function triggerSitemapSync() {
+  try {
+    const { buildSitemapEntries, formatSitemapXml } = await import('./sitemap.controller.js');
+    const entries = await buildSitemapEntries();
+    const xml = formatSitemapXml(entries);
+    const pubFile = path.resolve(__dirname, '../../public/sitemap.xml');
+    fs.writeFileSync(pubFile, xml, 'utf-8');
+    const distFile = path.resolve(__dirname, '../../dist/sitemap.xml');
+    if (fs.existsSync(path.dirname(distFile))) {
+      fs.writeFileSync(distFile, xml, 'utf-8');
+    }
+  } catch (_) {}
+}
+
 // Project Zod Schema
 export const projectSchema = z.object({
   title: z.string().max(150).optional().nullable(),
@@ -301,6 +318,8 @@ export async function createProject(req, res, next) {
       saved.gallery = safeJsonParse(saved.gallery);
     }
 
+    triggerSitemapSync();
+
     return res.status(201).json({
       success: true,
       message: 'Project created successfully',
@@ -400,6 +419,8 @@ export async function updateProject(req, res, next) {
       updated.gallery = safeJsonParse(updated.gallery);
     }
 
+    triggerSitemapSync();
+
     return res.status(200).json({
       success: true,
       message: 'Project updated successfully',
@@ -450,6 +471,8 @@ export async function deleteProject(req, res, next) {
         console.warn(`Post-commit photo cleanup skipped for ${photo}:`, cleanupErr.message);
       }
     }
+
+    triggerSitemapSync();
 
     return res.status(200).json({
       success: true,
