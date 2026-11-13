@@ -23,7 +23,7 @@ const projectRoot = path.resolve(__dirname, '../..');
 const publicPath = path.resolve(projectRoot, 'public');
 const distPath = path.resolve(projectRoot, 'dist');
 
-const DOMAIN = 'https://www.besimdesign.com';
+const DOMAIN = 'https://besimdesign.com';
 
 const CATEGORY_MAP = {
   'hospitality': {
@@ -295,7 +295,7 @@ export async function renderProjectPage(req, res, next) {
         url: DOMAIN,
         logo: {
           '@type': 'ImageObject',
-          url: `${DOMAIN}/assets/aistudio/Screenshot_2026-10-21_at_3.13.59_PM_47176ac5.png`,
+          url: `${DOMAIN}/favicon.svg`,
         },
       },
       mainEntityOfPage: {

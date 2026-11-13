@@ -120,11 +120,13 @@ app.use(cookieParser());
 
 // 6. Canonical Host & URL Normalization (Phase 2 SEO & Routing)
 app.use((req, res, next) => {
-  const host = (req.headers.host || '').toLowerCase();
+  const rawHost = (req.headers.host || '').toLowerCase();
+  const hostname = rawHost.split(':')[0];
+  const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase();
 
-  // Canonical Domain: Redirect apex besimdesign.com to preferred https://www.besimdesign.com
-  if (host === 'besimdesign.com') {
-    return res.redirect(301, `https://www.besimdesign.com${req.originalUrl}`);
+  // Canonical Domain: Redirect www.besimdesign.com and insecure http://besimdesign.com to https://besimdesign.com
+  if (hostname === 'www.besimdesign.com' || (hostname === 'besimdesign.com' && forwardedProto === 'http')) {
+    return res.redirect(301, `https://besimdesign.com${req.originalUrl}`);
   }
 
   // Bypass API, static uploads, and asset paths from URL reshaping
@@ -244,6 +246,16 @@ app.get(['/uploads/:filename', '/api/uploads/:filename'], async (req, res, next)
 
 // Dynamic SEO Sitemap endpoint (Serves fresh database-backed sitemap with 200 OK)
 app.get(['/sitemap.xml', '/api/sitemap.xml'], getSitemapXml);
+
+// Explicit robots.txt handler (ensures 200 OK text/plain in both Express & Vercel serverless)
+app.get('/robots.txt', (req, res) => {
+  const distRobots = path.resolve(distPath, 'robots.txt');
+  const pubRobots = path.resolve(publicPath, 'robots.txt');
+  const target = fs.existsSync(distRobots) ? distRobots : pubRobots;
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  return res.sendFile(target);
+});
 
 // Public SSR & Canonical Page Routes (must precede static index resolution)
 const sendPublicStaticHtml = (filename) => (req, res) => {

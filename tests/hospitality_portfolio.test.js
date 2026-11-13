@@ -142,9 +142,9 @@ describe('Hospitality Projects Portfolio & Detail Suite', () => {
     expect(res.text).toContain('name="description" content="Complete turnkey execution from bare shell to restaurant handover');
 
     // 2. Initial Canonical URL & Open Graph metadata
-    expect(res.text).toContain('<link rel="canonical" href="https://www.besimdesign.com/hospitality/the-nutcracker-jio-mall-bkc"');
+    expect(res.text).toContain('<link rel="canonical" href="https://besimdesign.com/hospitality/the-nutcracker-jio-mall-bkc"');
     expect(res.text).toContain('property="og:title" content="The Nutcracker Café &amp; Restaurant | Hospitality &amp; Dining | Besim Design"');
-    expect(res.text).toContain('property="og:url" content="https://www.besimdesign.com/hospitality/the-nutcracker-jio-mall-bkc"');
+    expect(res.text).toContain('property="og:url" content="https://besimdesign.com/hospitality/the-nutcracker-jio-mall-bkc"');
     expect(res.text).toContain('name="twitter:card" content="summary_large_image"');
 
     // 3. Schema.org JSON-LD Structured Data

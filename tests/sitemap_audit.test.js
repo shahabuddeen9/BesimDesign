@@ -23,7 +23,7 @@ describe('Sitemap Audit & Lifecycle Verification Suite', () => {
       const res = await request(app).get('/api/sitemap.xml');
       expect(res.status).toBe(200);
       expect(res.headers['content-type']).toContain('xml');
-      expect(res.text).toContain('<loc>https://www.besimdesign.com/</loc>');
+      expect(res.text).toContain('<loc>https://besimdesign.com/</loc>');
     });
   });
 
@@ -31,14 +31,14 @@ describe('Sitemap Audit & Lifecycle Verification Suite', () => {
     it('Includes all 8 canonical public pages', async () => {
       const res = await request(app).get('/sitemap.xml');
       const expectedPages = [
-        'https://www.besimdesign.com/',
-        'https://www.besimdesign.com/about',
-        'https://www.besimdesign.com/hotels',
-        'https://www.besimdesign.com/hospitality',
-        'https://www.besimdesign.com/central-kitchen',
-        'https://www.besimdesign.com/residential',
-        'https://www.besimdesign.com/showcase',
-        'https://www.besimdesign.com/privacy',
+        'https://besimdesign.com/',
+        'https://besimdesign.com/about',
+        'https://besimdesign.com/hotels',
+        'https://besimdesign.com/hospitality',
+        'https://besimdesign.com/central-kitchen',
+        'https://besimdesign.com/residential',
+        'https://besimdesign.com/showcase',
+        'https://besimdesign.com/privacy',
       ];
 
       for (const page of expectedPages) {
@@ -63,7 +63,7 @@ describe('Sitemap Audit & Lifecycle Verification Suite', () => {
       for (const proj of activeProjects) {
         const cat = normalizeCategoryForUrl(proj.category);
         if (cat && proj.slug) {
-          const expectedUrl = `https://www.besimdesign.com/${cat}/${proj.slug}`;
+          const expectedUrl = `https://besimdesign.com/${cat}/${proj.slug}`;
           expect(res.text).toContain(`<loc>${expectedUrl}</loc>`);
         }
       }
@@ -129,9 +129,9 @@ describe('Sitemap Audit & Lifecycle Verification Suite', () => {
       const res = await request(app).get('/sitemap.xml');
 
       // The alias 'the-nutcracker' must NOT appear as a sitemap URL
-      expect(res.text).not.toContain('<loc>https://www.besimdesign.com/hospitality/the-nutcracker</loc>');
-      expect(res.text).not.toContain('<loc>https://www.besimdesign.com/hotels/grand-pavilion</loc>');
-      expect(res.text).not.toContain('<loc>https://www.besimdesign.com/residential/sky-villa</loc>');
+      expect(res.text).not.toContain('<loc>https://besimdesign.com/hospitality/the-nutcracker</loc>');
+      expect(res.text).not.toContain('<loc>https://besimdesign.com/hotels/grand-pavilion</loc>');
+      expect(res.text).not.toContain('<loc>https://besimdesign.com/residential/sky-villa</loc>');
 
       // But requesting the alias MUST 301 redirect to the canonical URL
       const redirRes1 = await request(app).get('/hospitality/the-nutcracker');
@@ -160,7 +160,7 @@ describe('Sitemap Audit & Lifecycle Verification Suite', () => {
       const entries = await buildSitemapEntries();
 
       for (const entry of entries) {
-        const pathPart = entry.loc.replace('https://www.besimdesign.com', '') || '/';
+        const pathPart = entry.loc.replace('https://besimdesign.com', '') || '/';
         const res = await request(app).get(pathPart);
         expect(res.status).toBe(200);
       }

@@ -133,7 +133,7 @@ function renderProject(p) {
 
   const canonical = document.querySelector('link[rel="canonical"]');
   if (canonical) {
-    canonical.setAttribute('href', `https://www.besimdesign.com/${catSlugPrefix}/${p.slug}`);
+    canonical.setAttribute('href', `https://besimdesign.com/${catSlugPrefix}/${p.slug}`);
   }
 
   // 2. Breadcrumb & Kicker

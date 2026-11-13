@@ -21,7 +21,7 @@ const projectRoot = path.resolve(__dirname, '../..');
 const publicPath = path.resolve(projectRoot, 'public');
 const distPath = path.resolve(projectRoot, 'dist');
 
-const DOMAIN = 'https://www.besimdesign.com';
+const DOMAIN = 'https://besimdesign.com';
 
 const CATEGORY_SSR_CONFIG = {
   hotels: {

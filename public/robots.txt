@@ -5,6 +5,7 @@ Disallow: /api/auth/
 Disallow: /api/enquiries
 Disallow: /api/upload
 Disallow: /hospitality-detail.html
+Disallow: /404.html
 Allow: /api/projects
 Allow: /api/clients
 Allow: /api/testimonials
@@ -16,4 +17,4 @@ Allow: /uploads/
 Allow: /favicon.svg
 Allow: /
 
-Sitemap: https://www.besimdesign.com/sitemap.xml
+Sitemap: https://besimdesign.com/sitemap.xml

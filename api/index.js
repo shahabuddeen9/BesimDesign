@@ -39,13 +39,21 @@ export default async function handler(req, res) {
   let resolvedPath = '';
 
   const isDirectWebRoute = (p) => {
-    return p.startsWith('/hospitality') ||
+    return p === '/' ||
+           p === '/about' ||
+           p === '/showcase' ||
+           p === '/privacy' ||
+           p === '/robots.txt' ||
+           p === '/favicon.svg' ||
+           p === '/sitemap.xml' ||
+           p === '/contact' ||
+           p.endsWith('.html') ||
+           p.startsWith('/hospitality') ||
            p.startsWith('/hotels') ||
            p.startsWith('/residential') ||
            p.startsWith('/central-kitchen') ||
            p.startsWith('/uploads') ||
-           p.startsWith('/admin') ||
-           p === '/sitemap.xml';
+           p.startsWith('/admin');
   };
 
   // 2. Resolve true concrete request path (avoiding any Vercel internal wildcard template strings)

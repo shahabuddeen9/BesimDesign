@@ -17,7 +17,7 @@ const projectRoot = path.resolve(__dirname, '../..');
 const publicPath = path.resolve(projectRoot, 'public');
 const distPath = path.resolve(projectRoot, 'dist');
 
-export const DOMAIN = 'https://www.besimdesign.com';
+export const DOMAIN = 'https://besimdesign.com';
 
 // Canonical slug aliases (for mapping old/short aliases to canonical URLs)
 export const SLUG_ALIASES = {

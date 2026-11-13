@@ -16,22 +16,40 @@ describe('URL Optimization, Routing & SEO Audit Suite', () => {
   });
 
   describe('1. Canonical Domain & Host Redirects', () => {
-    it('301 redirects apex domain besimdesign.com to www.besimdesign.com', async () => {
+    it('301 redirects www.besimdesign.com to canonical https://besimdesign.com', async () => {
       const res = await request(app)
         .get('/hospitality')
-        .set('Host', 'besimdesign.com');
-      
+        .set('Host', 'www.besimdesign.com');
+
       expect(res.status).toBe(301);
-      expect(res.headers.location).toBe('https://www.besimdesign.com/hospitality');
+      expect(res.headers.location).toBe('https://besimdesign.com/hospitality');
+    });
+
+    it('301 redirects insecure http://besimdesign.com to canonical https://besimdesign.com', async () => {
+      const res = await request(app)
+        .get('/hotels')
+        .set('Host', 'besimdesign.com')
+        .set('x-forwarded-proto', 'http');
+
+      expect(res.status).toBe(301);
+      expect(res.headers.location).toBe('https://besimdesign.com/hotels');
     });
 
     it('Preserves query strings on canonical domain redirect', async () => {
       const res = await request(app)
         .get('/about?ref=social')
-        .set('Host', 'besimdesign.com');
-      
+        .set('Host', 'www.besimdesign.com');
+
       expect(res.status).toBe(301);
-      expect(res.headers.location).toBe('https://www.besimdesign.com/about?ref=social');
+      expect(res.headers.location).toBe('https://besimdesign.com/about?ref=social');
+    });
+
+    it('Does not redirect unrelated preview/localhost hosts', async () => {
+      const res = await request(app)
+        .get('/about')
+        .set('Host', 'example-preview.vercel.app');
+
+      expect(res.status).toBe(200);
     });
   });
 
@@ -227,18 +245,18 @@ describe('URL Optimization, Routing & SEO Audit Suite', () => {
       expect(res.text).toContain('Disallow: /api/admin/');
       expect(res.text).toContain('Disallow: /api/auth/');
       expect(res.text).toContain('Allow: /api/projects');
-      expect(res.text).toContain('Sitemap: https://www.besimdesign.com/sitemap.xml');
+      expect(res.text).toContain('Sitemap: https://besimdesign.com/sitemap.xml');
     });
 
     it('GET /sitemap.xml serves valid XML with canonical URLs', async () => {
       const res = await request(app).get('/sitemap.xml');
       expect(res.status).toBe(200);
       expect(res.text).toContain('<?xml version="1.0" encoding="UTF-8"?>');
-      expect(res.text).toContain('<loc>https://www.besimdesign.com/</loc>');
-      expect(res.text).toContain('<loc>https://www.besimdesign.com/hospitality</loc>');
-      expect(res.text).toContain('<loc>https://www.besimdesign.com/hotels</loc>');
-      expect(res.text).toContain('<loc>https://www.besimdesign.com/central-kitchen</loc>');
-      expect(res.text).toContain('<loc>https://www.besimdesign.com/residential</loc>');
+      expect(res.text).toContain('<loc>https://besimdesign.com/</loc>');
+      expect(res.text).toContain('<loc>https://besimdesign.com/hospitality</loc>');
+      expect(res.text).toContain('<loc>https://besimdesign.com/hotels</loc>');
+      expect(res.text).toContain('<loc>https://besimdesign.com/central-kitchen</loc>');
+      expect(res.text).toContain('<loc>https://besimdesign.com/residential</loc>');
     });
   });
 

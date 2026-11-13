@@ -2,6 +2,69 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.besimdesign.com"
+        }
+      ],
+      "destination": "https://besimdesign.com/:path*",
+      "statusCode": 301
+    },
+    {
+      "source": "/index.html",
+      "destination": "/",
+      "statusCode": 301
+    },
+    {
+      "source": "/about.html",
+      "destination": "/about",
+      "statusCode": 301
+    },
+    {
+      "source": "/hotels.html",
+      "destination": "/hotels",
+      "statusCode": 301
+    },
+    {
+      "source": "/hospitality.html",
+      "destination": "/hospitality",
+      "statusCode": 301
+    },
+    {
+      "source": "/residential.html",
+      "destination": "/residential",
+      "statusCode": 301
+    },
+    {
+      "source": "/central-kitchen.html",
+      "destination": "/central-kitchen",
+      "statusCode": 301
+    },
+    {
+      "source": "/showcase.html",
+      "destination": "/showcase",
+      "statusCode": 301
+    },
+    {
+      "source": "/privacy.html",
+      "destination": "/privacy",
+      "statusCode": 301
+    },
+    {
+      "source": "/contact",
+      "destination": "/#contact",
+      "statusCode": 301
+    },
+    {
+      "source": "/contact.html",
+      "destination": "/#contact",
+      "statusCode": 301
+    }
+  ],
   "rewrites": [
     {
       "source": "/api",
@@ -9,6 +72,10 @@
     },
     {
       "source": "/sitemap.xml",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/robots.txt",
       "destination": "/api/index"
     },
     {
@@ -34,10 +101,6 @@
     {
       "source": "/central-kitchen/:slug",
       "destination": "/api/index"
-    },
-    {
-      "source": "/contact",
-      "destination": "/index.html#contact"
     },
     {
       "source": "/admin",
@@ -70,7 +133,7 @@
   ],
   "functions": {
     "api/*.js": {
-      "includeFiles": "node_modules/sql.js/dist/sql-wasm.wasm,server/db/**"
+      "includeFiles": "node_modules/sql.js/dist/sql-wasm.wasm,server/db/**,public/*.html,public/robots.txt,public/favicon.svg,*.html"
     }
   }
 }

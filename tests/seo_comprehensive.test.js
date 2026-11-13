@@ -36,7 +36,7 @@ describe('Comprehensive Technical & On-Page SEO Audit', () => {
 
       expect(res.text, `${route} meta robots`).toContain('name="robots" content="index, follow');
       expect(res.text, `${route} favicon`).toContain('href="/favicon.svg"');
-      expect(res.text, `${route} canonical`).toContain('<link rel="canonical" href="https://www.besimdesign.com');
+      expect(res.text, `${route} canonical`).toContain('<link rel="canonical" href="https://besimdesign.com');
       expect(res.text, `${route} og:image`).toContain('property="og:image"');
       expect(res.text, `${route} twitter:card`).toContain('name="twitter:card" content="summary_large_image"');
 
@@ -114,7 +114,7 @@ describe('Comprehensive Technical & On-Page SEO Audit', () => {
     expect(robots.status).toBe(200);
     expect(robots.headers['content-type']).toContain('text/plain');
     expect(robots.text).toContain('Disallow: /hospitality-detail.html');
-    expect(robots.text).toContain('Sitemap: https://www.besimdesign.com/sitemap.xml');
+    expect(robots.text).toContain('Sitemap: https://besimdesign.com/sitemap.xml');
 
     const favicon = await request(app).get('/favicon.svg');
     expect(favicon.status).toBe(200);
