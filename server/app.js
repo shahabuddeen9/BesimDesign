@@ -19,6 +19,7 @@ import errorHandler from './middleware/errorHandler.js';
 import { generalLimiter } from './middleware/rateLimit.js';
 import { getSitemapXml } from './controllers/sitemap.controller.js';
 import { renderProjectPage } from './controllers/project-render.controller.js';
+import { renderHomePage, renderCategoryPage } from './controllers/page-render.controller.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -165,7 +166,12 @@ app.get('/showcase.html', (req, res) => res.redirect(301, '/showcase'));
 app.get('/privacy.html', (req, res) => res.redirect(301, '/privacy'));
 app.get(['/contact', '/contact.html'], (req, res) => res.redirect(301, '/#contact'));
 
-// 8. Admin Portal Entry Routes (Must precede static middleware)
+// 8. Admin Portal Entry Routes (Must precede static middleware; strictly noindex)
+app.use('/admin', (req, res, next) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  next();
+});
+
 app.get(['/admin', '/admin/', '/admin/index.html'], (req, res) => {
   const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
   return res.redirect(302, `/admin/dashboard.html${query}`);
@@ -239,48 +245,45 @@ app.get(['/uploads/:filename', '/api/uploads/:filename'], async (req, res, next)
 // Dynamic SEO Sitemap endpoint (Serves fresh database-backed sitemap with 200 OK)
 app.get(['/sitemap.xml', '/api/sitemap.xml'], getSitemapXml);
 
+// Public SSR & Canonical Page Routes (must precede static index resolution)
+const sendPublicStaticHtml = (filename) => (req, res) => {
+  const distFile = path.resolve(distPath, filename);
+  const pubFile = path.resolve(publicPath, filename);
+  const rootFile = path.resolve(projectRoot, filename);
+  const target = fs.existsSync(distFile) ? distFile : (fs.existsSync(pubFile) ? pubFile : rootFile);
+  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=3600, must-revalidate');
+  res.setHeader('X-Robots-Tag', 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1');
+  res.sendFile(target);
+};
+
+app.get('/', renderHomePage);
+app.get('/about', sendPublicStaticHtml('about.html'));
+app.get('/central-kitchen', renderCategoryPage('central-kitchen'));
+app.get('/hotels', renderCategoryPage('hotels'));
+app.get('/hospitality', renderCategoryPage('hospitality'));
+app.get('/residential', renderCategoryPage('residential'));
+app.get('/showcase', sendPublicStaticHtml('showcase.html'));
+app.get('/privacy', sendPublicStaticHtml('privacy.html'));
+
 if (fs.existsSync(distPath)) {
-  app.use(express.static(distPath));
+  app.use(express.static(distPath, { index: false }));
 }
 app.use(express.static(publicPath, {
+  index: false,
   setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.html') || filePath.includes('/admin/')) {
+    if (filePath.includes('/admin/')) {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
+      res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    } else if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=3600, must-revalidate');
+    } else if (filePath.endsWith('robots.txt')) {
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
     }
   },
 }));
-
-// Clean routes for dedicated showcase experiences
-app.get('/about', (req, res) => {
-  const distFile = path.resolve(distPath, 'about.html');
-  const pubFile = path.resolve(publicPath, 'about.html');
-  const rootFile = path.resolve(projectRoot, 'about.html');
-  const target = fs.existsSync(distFile) ? distFile : (fs.existsSync(pubFile) ? pubFile : rootFile);
-  res.sendFile(target);
-});
-
-app.get('/central-kitchen', (req, res) => {
-  const distFile = path.resolve(distPath, 'central-kitchen.html');
-  const pubFile = path.resolve(publicPath, 'central-kitchen.html');
-  const target = fs.existsSync(distFile) ? distFile : pubFile;
-  res.sendFile(target);
-});
-
-app.get('/hotels', (req, res) => {
-  const distFile = path.resolve(distPath, 'hotels.html');
-  const pubFile = path.resolve(publicPath, 'hotels.html');
-  const target = fs.existsSync(distFile) ? distFile : pubFile;
-  res.sendFile(target);
-});
-
-app.get('/hospitality', (req, res) => {
-  const distFile = path.resolve(distPath, 'hospitality.html');
-  const pubFile = path.resolve(publicPath, 'hospitality.html');
-  const target = fs.existsSync(distFile) ? distFile : pubFile;
-  res.sendFile(target);
-});
 
 const SLUG_ALIASES = {
   'the-nutcracker': 'the-nutcracker-jio-mall-bkc',
@@ -308,29 +311,11 @@ app.get([
   '/api/central-kitchen/:slug',
 ], renderProjectPage);
 
-app.get('/residential', (req, res) => {
-  const distFile = path.resolve(distPath, 'residential.html');
-  const pubFile = path.resolve(publicPath, 'residential.html');
-  const target = fs.existsSync(distFile) ? distFile : pubFile;
-  res.sendFile(target);
+// 7. General API Rate Limiting & X-Robots-Tag for /api
+app.use('/api', (req, res, next) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  next();
 });
-
-app.get('/showcase', (req, res) => {
-  const distFile = path.resolve(distPath, 'showcase.html');
-  const pubFile = path.resolve(publicPath, 'showcase.html');
-  const target = fs.existsSync(distFile) ? distFile : pubFile;
-  res.sendFile(target);
-});
-
-app.get('/privacy', (req, res) => {
-  const distFile = path.resolve(distPath, 'privacy.html');
-  const pubFile = path.resolve(publicPath, 'privacy.html');
-  const rootFile = path.resolve(projectRoot, 'privacy.html');
-  const target = fs.existsSync(distFile) ? distFile : (fs.existsSync(pubFile) ? pubFile : rootFile);
-  res.sendFile(target);
-});
-
-// 7. General API Rate Limiting for /api
 app.use('/api', generalLimiter);
 
 // 8. Health Check Endpoint
@@ -376,6 +361,7 @@ app.use('/api/*', (req, res) => {
 
 // 404 handler for unmatched public routes (serving branded 404.html for HTML requests)
 app.use((req, res) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
   if (req.accepts('html')) {
     const dist404 = path.resolve(distPath, '404.html');
     const pub404 = path.resolve(publicPath, '404.html');

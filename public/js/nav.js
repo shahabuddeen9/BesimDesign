@@ -148,7 +148,7 @@
           if (scrollPos >= top && scrollPos < top + height) {
             navAnchors.forEach((link) => {
               const href = link.getAttribute('href');
-              if (href === `#${id}` || href === `/index.html#${id}`) {
+              if (href === `#${id}` || href === `/#${id}` || href === `/index.html#${id}`) {
                 link.classList.add('active');
               } else if (!link.closest('.nav-item-dropdown') || href !== '#projects') {
                 link.classList.remove('active');

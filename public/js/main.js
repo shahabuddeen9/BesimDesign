@@ -780,7 +780,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', () => {
       const cat = btn.dataset.category;
       if (cat === 'central_kitchen') {
-        window.location.href = '/central-kitchen.html';
+        window.location.href = '/central-kitchen';
         return;
       }
       filterBtns.forEach((b) => b.classList.remove('active'));

@@ -219,7 +219,8 @@ function renderProjects(projectsList) {
     }
 
     const safeTitle = p.title || 'Architectural Landmark';
-    const safeSlug = p.slug || ('proj-' + p.id);
+    const catSegment = (p.category || 'hospitality').toLowerCase().replace(/_/g, '-');
+    const detailHref = p.slug ? `/${catSegment}/${encodeURIComponent(p.slug)}` : null;
     const scopeBadges = scopes.slice(0, 3).map(s => `<span class="project-scope-item">${escapeHtml(s)}</span>`).join('');
     const catLabel = (SECTOR_META[p.category]?.name || p.category).toUpperCase();
 
@@ -235,7 +236,7 @@ function renderProjects(projectsList) {
               ${escapeHtml(p.client_name || 'Bespoke Architectural Landmark')}
             </span>
           </div>
-          <h3 class="project-title">${escapeHtml(safeTitle)}</h3>
+          <h3 class="project-title">${detailHref ? `<a href="${escapeHtml(detailHref)}" style="color: inherit; text-decoration: none;">${escapeHtml(safeTitle)}</a>` : escapeHtml(safeTitle)}</h3>
           ${p.location ? `<div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px;">📍 ${escapeHtml(p.location)}</div>` : ''}
           <p class="project-desc">${escapeHtml(p.description)}</p>
           <div class="project-scope-list">

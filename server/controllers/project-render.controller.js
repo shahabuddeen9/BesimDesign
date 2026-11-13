@@ -90,6 +90,7 @@ function getTemplateHtml() {
  */
 function serve404(req, res) {
   res.status(404);
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
   const candidates = [
     path.resolve(distPath, '404.html'),
     path.resolve(publicPath, '404.html'),
@@ -265,7 +266,10 @@ export async function renderProjectPage(req, res, next) {
           .join('')
       : `<div style="padding: 32px; color: #6b7280; text-align: center; width: 100%;">Additional gallery photographs for this project are currently being curated.</div>`;
 
-    // JSON-LD Structured Data
+    // JSON-LD Structured Data (Article + BreadcrumbList)
+    const publishedIso = projectRecord.created_at ? new Date(projectRecord.created_at).toISOString() : undefined;
+    const modifiedIso = projectRecord.updated_at ? new Date(projectRecord.updated_at).toISOString() : publishedIso;
+
     const structuredData = {
       '@context': 'https://schema.org',
       '@type': 'Article',
@@ -274,6 +278,12 @@ export async function renderProjectPage(req, res, next) {
       description: metaDescription,
       image: imageUrl,
       url: canonicalUrl,
+      ...(publishedIso ? { datePublished: publishedIso } : {}),
+      ...(modifiedIso ? { dateModified: modifiedIso } : {}),
+      contentLocation: {
+        '@type': 'Place',
+        name: locationFormatted,
+      },
       author: {
         '@type': 'Organization',
         name: 'Besim Design',
@@ -294,6 +304,31 @@ export async function renderProjectPage(req, res, next) {
       },
     };
 
+    const breadcrumbSchema = {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: 'Home',
+          item: `${DOMAIN}/`,
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: catInfo.name,
+          item: `${DOMAIN}${catInfo.url}`,
+        },
+        {
+          '@type': 'ListItem',
+          position: 3,
+          name: cleanTitle,
+          item: canonicalUrl,
+        },
+      ],
+    };
+
     // Perform replacements in HTML
     let html = template;
 
@@ -312,18 +347,20 @@ export async function renderProjectPage(req, res, next) {
       `<link rel="canonical" href="${escapeAttr(canonicalUrl)}"`
     );
 
-    // 4. Open Graph & Twitter Cards
-    html = html.replace(
-      /<meta\s+property=["']og:title["']\s+content=["'][^"']*["']/i,
-      `<meta property="og:title" content="${escapeAttr(cleanTitle)} | ${escapeAttr(catInfo.name)} | Besim Design"`
-    );
-    html = html.replace(
-      /<meta\s+property=["']og:description["']\s+content=["'][^"']*["']/i,
-      `<meta property="og:description" content="${escapeAttr(metaDescription)}"`
-    );
+    // 4. Open Graph & Twitter Cards (cleanly strip any template defaults before injecting SSR tags)
+    html = html
+      .replace(/<meta\s+property=["']og:title["'][^>]*>\s*/gi, '')
+      .replace(/<meta\s+property=["']og:description["'][^>]*>\s*/gi, '')
+      .replace(/<meta\s+property=["']og:url["'][^>]*>\s*/gi, '')
+      .replace(/<meta\s+property=["']og:image["'][^>]*>\s*/gi, '')
+      .replace(/<meta\s+name=["']twitter:card["'][^>]*>\s*/gi, '')
+      .replace(/<meta\s+name=["']twitter:title["'][^>]*>\s*/gi, '')
+      .replace(/<meta\s+name=["']twitter:description["'][^>]*>\s*/gi, '')
+      .replace(/<meta\s+name=["']twitter:image["'][^>]*>\s*/gi, '');
 
-    // Add og:url, og:image, and Twitter cards if missing
     const ogTags = `
+  <meta property="og:title" content="${escapeAttr(cleanTitle)} | ${escapeAttr(catInfo.name)} | Besim Design">
+  <meta property="og:description" content="${escapeAttr(metaDescription)}">
   <meta property="og:url" content="${escapeAttr(canonicalUrl)}">
   <meta property="og:image" content="${escapeAttr(imageUrl)}">
   <meta name="twitter:card" content="summary_large_image">
@@ -332,6 +369,9 @@ export async function renderProjectPage(req, res, next) {
   <meta name="twitter:image" content="${escapeAttr(imageUrl)}">
   <script type="application/ld+json">
 ${JSON.stringify(structuredData, null, 2)}
+  </script>
+  <script type="application/ld+json">
+${JSON.stringify(breadcrumbSchema, null, 2)}
   </script>`;
     html = html.replace('</head>', `${ogTags}\n</head>`);
 
@@ -434,6 +474,7 @@ ${JSON.stringify(structuredData, null, 2)}
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600');
+    res.setHeader('X-Robots-Tag', 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1');
     return res.status(200).send(html);
   } catch (renderErr) {
     logger.error('Error during project HTML template hydration:', renderErr);

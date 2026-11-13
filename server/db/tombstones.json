@@ -50,6 +50,9 @@
     "Luxury Cafe & Lounge 1794417751863 (Updated)",
     "Luxury Cafe & Lounge 1794421248990 (Updated)",
     "Luxury Cafe & Lounge 1794479365462 (Updated)",
+    "Luxury Cafe & Lounge 1794547616542 (Updated)",
+    "Luxury Cafe & Lounge 1794548050221 (Updated)",
+    "Luxury Cafe & Lounge 1794548095369 (Updated)",
     "Nikita",
     "Otoki",
     "Parinee Group",
@@ -111,6 +114,9 @@
     "Persistence Client Brand 1794417738535",
     "Persistence Client Brand 1794421241218",
     "Persistence Client Brand 1794479358789",
+    "Persistence Client Brand 1794547608437",
+    "Persistence Client Brand 1794548039829",
+    "Persistence Client Brand 1794548082204",
     "Ping's Orient",
     "Ping’s Orient",
     "RSVP",
@@ -162,6 +168,9 @@
     "Test Brand Unique 1794417746268",
     "Test Brand Unique 1794421252952",
     "Test Brand Unique 1794479362310",
+    "Test Brand Unique 1794547611911",
+    "Test Brand Unique 1794548048700",
+    "Test Brand Unique 1794548090850",
     "The Silver Train",
     "White Oak"
   ],
@@ -381,6 +390,22 @@
     {
       "id": 1564,
       "client_name": "Testimonial Author 1794479358790"
+    },
+    {
+      "id": 1567,
+      "client_name": "Testimonial Author 1794547608437"
+    },
+    {
+      "id": 1570,
+      "client_name": "Testimonial Author 1794548039830"
+    },
+    {
+      "id": 1573,
+      "client_name": "Testimonial Author 1794548082205"
+    },
+    {
+      "id": 1574,
+      "client_name": "Anil Kapoor"
     }
   ],
   "projects": [
@@ -1135,19 +1160,9 @@
       "title": null
     },
     {
-      "id": 1056,
-      "slug": null,
-      "title": "Project Without Slug 2"
-    },
-    {
       "id": 1059,
       "slug": "persistence-test-hotel-1794479358788",
       "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
-    },
-    {
-      "id": 1060,
-      "slug": "test-bistro-portfolio-1794479360834",
-      "title": "Velvet Oak Cocktail Bar"
     },
     {
       "id": 1061,
@@ -1158,7 +1173,107 @@
       "id": 1062,
       "slug": null,
       "title": null
+    },
+    {
+      "id": 1064,
+      "slug": "test-luxury-bistro-1794547604359",
+      "title": "Aura Modern Bistronomy & Rooftop Lounge (Updated)"
+    },
+    {
+      "id": 1065,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1066,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1070,
+      "slug": "persistence-test-hotel-1794547608435",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 1072,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1073,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1075,
+      "slug": "persistence-test-hotel-1794548039827",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 1076,
+      "slug": "test-luxury-bistro-1794548041931",
+      "title": "Aura Modern Bistronomy & Rooftop Lounge (Updated)"
+    },
+    {
+      "id": 1077,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1078,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1080,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1081,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1086,
+      "slug": "test-bistro-portfolio-1794548080676",
+      "title": "Velvet Oak Cocktail Bar"
+    },
+    {
+      "id": 1087,
+      "slug": "persistence-test-hotel-1794548082203",
+      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
+    },
+    {
+      "id": 1088,
+      "slug": "test-luxury-bistro-1794548084243",
+      "title": "Aura Modern Bistronomy & Rooftop Lounge (Updated)"
+    },
+    {
+      "id": 1089,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1090,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1091,
+      "slug": null,
+      "title": "Project Without Slug 2"
+    },
+    {
+      "id": 1092,
+      "slug": null,
+      "title": null
+    },
+    {
+      "id": 1093,
+      "slug": null,
+      "title": null
     }
   ],
-  "updated_at": "2026-11-12T10:29:28.772Z"
+  "updated_at": "2026-11-13T05:34:55.988Z"
 }

@@ -275,7 +275,7 @@ function renderProject(p) {
   // 7. CTA prefill text
   const ctaBtn = document.getElementById('projectRfpCtaBtn');
   if (ctaBtn) {
-    ctaBtn.href = `/hospitality.html#hospitalityRfpSection`;
+    ctaBtn.href = `/hospitality#hospitalityRfpSection`;
   }
 }
 

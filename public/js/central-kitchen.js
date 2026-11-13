@@ -55,6 +55,11 @@ async function loadCentralKitchenProjects() {
   const container = document.getElementById('centralKitchenProjectsContainer');
   if (!container) return;
 
+  if (Array.isArray(window.__INITIAL_CATEGORY_PROJECTS__) && window.__INITIAL_CATEGORY_PROJECTS__.length > 0) {
+    state.projects = window.__INITIAL_CATEGORY_PROJECTS__;
+    attachPortfolioListeners();
+  }
+
   try {
     const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects?category=central_kitchen&_t=${Date.now()}`, {
       cache: 'no-store',
@@ -179,6 +184,11 @@ function renderLongScrollProjects(projectsList) {
         )
         .join('');
 
+      const detailHref = p.slug ? `/central-kitchen/${p.slug}` : null;
+      const headingMarkup = detailHref
+        ? `<a href="${escapeHtml(detailHref)}" style="color: inherit; text-decoration: none;">${escapeHtml(displayHeading)}</a>`
+        : escapeHtml(displayHeading);
+
       return `
         <article class="hospitality-project-block" id="${safeSlug}" data-slug="${safeSlug}">
           <!-- Top Section: 3-Column Layout -->
@@ -187,8 +197,9 @@ function renderLongScrollProjects(projectsList) {
             <!-- LEFT COLUMN: Project Identity -->
             <div class="col-identity">
               <span class="hospitality-kicker">CENTRAL KITCHEN PROJECT</span>
-              <h2 class="hospitality-main-title">${escapeHtml(displayHeading)}</h2>
+              <h2 class="hospitality-main-title">${headingMarkup}</h2>
               <div class="hospitality-green-line"></div>
+              ${p.description ? `<p style="color: #4b5563; font-size: 0.9rem; line-height: 1.65; margin-top: 12px;">${escapeHtml(p.description)}</p>` : ''}
             </div>
 
             <!-- MIDDLE COLUMN: Project Information -->
@@ -273,7 +284,8 @@ function renderLongScrollProjects(projectsList) {
           </div>
 
           <!-- Bottom Action Bar for Project -->
-          <div style="display: flex; justify-content: flex-end; align-items: center; padding: 12px 0; margin-top: 8px;">
+          <div style="display: flex; justify-content: flex-end; align-items: center; padding: 12px 0; margin-top: 8px; flex-wrap: wrap; gap: 10px;">
+            ${detailHref ? `<a href="${escapeHtml(detailHref)}" style="font-size: 0.84rem; color: #111827; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; margin-right: 20px;">View Project Case Study →</a>` : ''}
             <a
               href="https://wa.me/919892699850?text=Hello%20Besim%20Design%2C%20I%20am%20interested%20in%20a%20commercial%20central%20kitchen%20facility%20inspired%20by%20${encodeURIComponent(safeTitle)}."
               target="_blank"
