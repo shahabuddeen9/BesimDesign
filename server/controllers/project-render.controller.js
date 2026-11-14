@@ -116,10 +116,21 @@ export async function renderProjectPage(req, res, next) {
   const requestedCategory = pathSegments[0]?.toLowerCase();
   const cleanSlug = slug.toLowerCase().replace(/\.html$/, '');
 
-  // 1. If slug is an alias, 301 redirect to canonical destination URL
+  // 1. If slug is an alias, 301 redirect in a single hop to canonical category + canonical slug
   if (SLUG_ALIASES[cleanSlug]) {
     const canonicalSlug = SLUG_ALIASES[cleanSlug];
-    return res.redirect(301, `/${requestedCategory}/${canonicalSlug}`);
+    let targetCategory = requestedCategory;
+    try {
+      const targetRow = await db.get(
+        'SELECT category FROM projects WHERE LOWER(slug) = ? AND is_published = 1',
+        canonicalSlug
+      );
+      const resolvedCat = targetRow ? normalizeCategoryForUrl(targetRow.category) : null;
+      if (resolvedCat) {
+        targetCategory = resolvedCat;
+      }
+    } catch (_) {}
+    return res.redirect(301, `/${targetCategory}/${canonicalSlug}`);
   }
 
   // 2. If request ends with .html, 301 redirect to clean URL
@@ -286,13 +297,15 @@ export async function renderProjectPage(req, res, next) {
       },
       author: {
         '@type': 'Organization',
+        '@id': `${DOMAIN}/#organization`,
         name: 'Besim Design',
-        url: DOMAIN,
+        url: `${DOMAIN}/`,
       },
       publisher: {
         '@type': 'Organization',
+        '@id': `${DOMAIN}/#organization`,
         name: 'Besim Design',
-        url: DOMAIN,
+        url: `${DOMAIN}/`,
         logo: {
           '@type': 'ImageObject',
           url: `${DOMAIN}/favicon.svg`,

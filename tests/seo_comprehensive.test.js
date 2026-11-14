@@ -36,7 +36,9 @@ describe('Comprehensive Technical & On-Page SEO Audit', () => {
 
       expect(res.text, `${route} meta robots`).toContain('name="robots" content="index, follow');
       expect(res.text, `${route} favicon`).toContain('href="/favicon.svg"');
-      expect(res.text, `${route} canonical`).toContain('<link rel="canonical" href="https://besimdesign.com');
+      const expectedCanonical = `https://besimdesign.com${route === '/' ? '/' : route}`;
+      const canonicalMatches = [...res.text.matchAll(/<link\s+rel=["']canonical["']\s+href=["']([^"']+)["'][^>]*>/gi)].map((m) => m[1]);
+      expect(canonicalMatches, `${route} canonical uniqueness`).toEqual([expectedCanonical]);
       expect(res.text, `${route} og:image`).toContain('property="og:image"');
       expect(res.text, `${route} twitter:card`).toContain('name="twitter:card" content="summary_large_image"');
 

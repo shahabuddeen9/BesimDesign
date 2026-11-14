@@ -118,46 +118,80 @@ app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
 
-// 6. Canonical Host & URL Normalization (Phase 2 SEO & Routing)
+// 6. Canonical Host, URL Normalization & Single-Hop Legacy 301 Redirects (SEO & Routing)
+const LEGACY_REDIRECTS = {
+  '/index.html': '/',
+  '/about.html': '/about',
+  '/central-kitchen.html': '/central-kitchen',
+  '/hotels.html': '/hotels',
+  '/hospitality.html': '/hospitality',
+  '/residential.html': '/residential',
+  '/showcase.html': '/showcase',
+  '/privacy.html': '/privacy',
+  '/projects': '/showcase',
+  '/projects.html': '/showcase',
+  '/testimonials': '/',
+  '/testimonials.html': '/',
+  '/contact': '/#contact',
+  '/contact.html': '/#contact',
+};
+
 app.use((req, res, next) => {
   const rawHost = (req.headers.host || '').toLowerCase();
   const hostname = rawHost.split(':')[0];
   const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase();
+  const isNonCanonicalOrigin = hostname === 'www.besimdesign.com' || (hostname === 'besimdesign.com' && forwardedProto === 'http');
 
-  // Canonical Domain: Redirect www.besimdesign.com and insecure http://besimdesign.com to https://besimdesign.com
-  if (hostname === 'www.besimdesign.com' || (hostname === 'besimdesign.com' && forwardedProto === 'http')) {
-    return res.redirect(301, `https://besimdesign.com${req.originalUrl}`);
-  }
-
-  // Bypass API, static uploads, and asset paths from URL reshaping
-  if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/assets')) {
-    return next();
-  }
+  const isBypassedPath = req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/assets');
 
   let cleanPath = req.path;
   let needsRedirect = false;
 
-  // Trailing slash 301 redirect (ensures single canonical URL without trailing slash, except root '/' and /admin/)
-  if (cleanPath.length > 1 && cleanPath.endsWith('/') && !cleanPath.startsWith('/admin')) {
-    cleanPath = cleanPath.replace(/\/+$/, '');
-    needsRedirect = true;
+  if (!isBypassedPath) {
+    // Trailing slash removal (except root '/' and /admin/)
+    if (cleanPath.length > 1 && cleanPath.endsWith('/') && !cleanPath.startsWith('/admin')) {
+      cleanPath = cleanPath.replace(/\/+$/, '');
+      needsRedirect = true;
+    }
+
+    // Lowercase normalization for public paths (e.g. /Hotels -> /hotels)
+    if (/[A-Z]/.test(cleanPath) && !cleanPath.startsWith('/admin')) {
+      cleanPath = cleanPath.toLowerCase();
+      needsRedirect = true;
+    }
   }
 
-  // Lowercase 301 redirect if uppercase characters exist in public path (e.g. /Hotels -> /hotels)
-  if (/[A-Z]/.test(cleanPath) && !cleanPath.startsWith('/admin')) {
-    cleanPath = cleanPath.toLowerCase();
-    needsRedirect = true;
+  const legacyTarget = (!isBypassedPath && !cleanPath.startsWith('/admin'))
+    ? LEGACY_REDIRECTS[cleanPath]
+    : undefined;
+  const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+
+  // Canonical Domain: Redirect www.besimdesign.com and insecure http://besimdesign.com to https://besimdesign.com in a single hop
+  if (isNonCanonicalOrigin) {
+    if (legacyTarget) {
+      return res.redirect(301, `https://besimdesign.com${legacyTarget}`);
+    }
+    const targetUrl = needsRedirect ? `${cleanPath}${query}` : req.originalUrl;
+    return res.redirect(301, `https://besimdesign.com${targetUrl}`);
+  }
+
+  if (isBypassedPath) {
+    return next();
+  }
+
+  // Direct single-hop 301 redirect for legacy URLs (including trailing-slash or uppercase variants)
+  if (legacyTarget) {
+    return res.redirect(301, legacyTarget);
   }
 
   if (needsRedirect) {
-    const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
     return res.redirect(301, cleanPath + query);
   }
 
   next();
 });
 
-// 7. Legacy .html 301 Permanent Redirects (Preserve SEO equity and prevent duplicate indexing)
+// 7. Legacy .html & Deprecated Route 301 Permanent Redirects (Preserve SEO equity and prevent duplicate indexing)
 app.get('/index.html', (req, res) => res.redirect(301, '/'));
 app.get('/about.html', (req, res) => res.redirect(301, '/about'));
 app.get('/central-kitchen.html', (req, res) => res.redirect(301, '/central-kitchen'));
@@ -166,6 +200,8 @@ app.get('/hospitality.html', (req, res) => res.redirect(301, '/hospitality'));
 app.get('/residential.html', (req, res) => res.redirect(301, '/residential'));
 app.get('/showcase.html', (req, res) => res.redirect(301, '/showcase'));
 app.get('/privacy.html', (req, res) => res.redirect(301, '/privacy'));
+app.get(['/projects', '/projects.html'], (req, res) => res.redirect(301, '/showcase'));
+app.get(['/testimonials', '/testimonials.html'], (req, res) => res.redirect(301, '/'));
 app.get(['/contact', '/contact.html'], (req, res) => res.redirect(301, '/#contact'));
 
 // 8. Admin Portal Entry Routes (Must precede static middleware; strictly noindex)

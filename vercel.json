@@ -4,6 +4,72 @@
   "trailingSlash": false,
   "redirects": [
     {
+      "source": "/projects",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.besimdesign.com"
+        }
+      ],
+      "destination": "https://besimdesign.com/showcase",
+      "statusCode": 301
+    },
+    {
+      "source": "/projects.html",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.besimdesign.com"
+        }
+      ],
+      "destination": "https://besimdesign.com/showcase",
+      "statusCode": 301
+    },
+    {
+      "source": "/testimonials",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.besimdesign.com"
+        }
+      ],
+      "destination": "https://besimdesign.com/",
+      "statusCode": 301
+    },
+    {
+      "source": "/testimonials.html",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.besimdesign.com"
+        }
+      ],
+      "destination": "https://besimdesign.com/",
+      "statusCode": 301
+    },
+    {
+      "source": "/contact",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.besimdesign.com"
+        }
+      ],
+      "destination": "https://besimdesign.com/#contact",
+      "statusCode": 301
+    },
+    {
+      "source": "/contact.html",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.besimdesign.com"
+        }
+      ],
+      "destination": "https://besimdesign.com/#contact",
+      "statusCode": 301
+    },
+    {
       "source": "/:path*",
       "has": [
         {
@@ -52,6 +118,26 @@
     {
       "source": "/privacy.html",
       "destination": "/privacy",
+      "statusCode": 301
+    },
+    {
+      "source": "/projects",
+      "destination": "/showcase",
+      "statusCode": 301
+    },
+    {
+      "source": "/projects.html",
+      "destination": "/showcase",
+      "statusCode": 301
+    },
+    {
+      "source": "/testimonials",
+      "destination": "/",
+      "statusCode": 301
+    },
+    {
+      "source": "/testimonials.html",
+      "destination": "/",
       "statusCode": 301
     },
     {

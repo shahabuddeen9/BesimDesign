@@ -128,7 +128,7 @@ describe('URL Optimization, Routing & SEO Audit Suite', () => {
       expect(res.headers.location).toBe('/privacy');
     });
 
-    it('301 redirects /contact and /contact.html to /#contact', async () => {
+    it('301 redirects /contact and /contact.html to /#contact without redirect chains', async () => {
       const res1 = await request(app).get('/contact');
       expect(res1.status).toBe(301);
       expect(res1.headers.location).toBe('/#contact');
@@ -136,6 +136,61 @@ describe('URL Optimization, Routing & SEO Audit Suite', () => {
       const res2 = await request(app).get('/contact.html');
       expect(res2.status).toBe(301);
       expect(res2.headers.location).toBe('/#contact');
+
+      const res3 = await request(app).get('/contact/');
+      expect(res3.status).toBe(301);
+      expect(res3.headers.location).toBe('/#contact');
+    });
+
+    it('301 redirects legacy /projects routes directly to /showcase in a single hop', async () => {
+      for (const legacyPath of ['/projects', '/projects/', '/Projects', '/projects.html']) {
+        const res = await request(app).get(legacyPath);
+        expect(res.status, `${legacyPath} status`).toBe(301);
+        expect(res.headers.location, `${legacyPath} location`).toBe('/showcase');
+      }
+
+      const wwwRes = await request(app).get('/projects').set('Host', 'www.besimdesign.com');
+      expect(wwwRes.status).toBe(301);
+      expect(wwwRes.headers.location).toBe('https://besimdesign.com/showcase');
+
+      const destRes = await request(app).get('/showcase');
+      expect(destRes.status).toBe(200);
+      expect(destRes.headers['x-robots-tag']).toContain('index, follow');
+    });
+
+    it('301 redirects legacy /testimonials routes directly to / in a single hop', async () => {
+      for (const legacyPath of ['/testimonials', '/testimonials/', '/Testimonials', '/testimonials.html']) {
+        const res = await request(app).get(legacyPath);
+        expect(res.status, `${legacyPath} status`).toBe(301);
+        expect(res.headers.location, `${legacyPath} location`).toBe('/');
+      }
+
+      const wwwRes = await request(app).get('/testimonials').set('Host', 'www.besimdesign.com');
+      expect(wwwRes.status).toBe(301);
+      expect(wwwRes.headers.location).toBe('https://besimdesign.com/');
+
+      const destRes = await request(app).get('/');
+      expect(destRes.status).toBe(200);
+      expect(destRes.headers['x-robots-tag']).toContain('index, follow');
+    });
+
+    it('Preserves /about as HTTP 200 indexable and keeps 404 for unknown URLs', async () => {
+      const aboutRes = await request(app).get('/about');
+      expect(aboutRes.status).toBe(200);
+      expect(aboutRes.headers['x-robots-tag']).toContain('index, follow');
+
+      const unknownRes = await request(app).get('/unrelated-nonexistent-path-999');
+      expect(unknownRes.status).toBe(404);
+    });
+
+    it('Preserves /api/projects and /api/testimonials JSON endpoints untouched by web redirects', async () => {
+      const projApi = await request(app).get('/api/projects');
+      expect(projApi.status).toBe(200);
+      expect(projApi.body.success).toBe(true);
+
+      const testApi = await request(app).get('/api/testimonials');
+      expect(testApi.status).toBe(200);
+      expect(testApi.body.success).toBe(true);
     });
   });
 

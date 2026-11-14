@@ -39,21 +39,24 @@ export default async function handler(req, res) {
   let resolvedPath = '';
 
   const isDirectWebRoute = (p) => {
-    return p === '/' ||
-           p === '/about' ||
-           p === '/showcase' ||
-           p === '/privacy' ||
-           p === '/robots.txt' ||
-           p === '/favicon.svg' ||
-           p === '/sitemap.xml' ||
-           p === '/contact' ||
-           p.endsWith('.html') ||
-           p.startsWith('/hospitality') ||
-           p.startsWith('/hotels') ||
-           p.startsWith('/residential') ||
-           p.startsWith('/central-kitchen') ||
-           p.startsWith('/uploads') ||
-           p.startsWith('/admin');
+    const normalized = p.length > 1 ? p.replace(/\/+$/, '').toLowerCase() : p;
+    return normalized === '/' ||
+           normalized === '/about' ||
+           normalized === '/showcase' ||
+           normalized === '/privacy' ||
+           normalized === '/robots.txt' ||
+           normalized === '/favicon.svg' ||
+           normalized === '/sitemap.xml' ||
+           normalized === '/projects' ||
+           normalized === '/testimonials' ||
+           normalized === '/contact' ||
+           normalized.endsWith('.html') ||
+           normalized.startsWith('/hospitality') ||
+           normalized.startsWith('/hotels') ||
+           normalized.startsWith('/residential') ||
+           normalized.startsWith('/central-kitchen') ||
+           normalized.startsWith('/uploads') ||
+           normalized.startsWith('/admin');
   };
 
   // 2. Resolve true concrete request path (avoiding any Vercel internal wildcard template strings)

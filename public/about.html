@@ -31,11 +31,13 @@
     "@graph": [
       {
         "@type": "AboutPage",
+        "@id": "https://besimdesign.com/about#webpage",
         "name": "About Besim Design",
         "url": "https://besimdesign.com/about",
         "description": "Architecture and turnkey interior design studio in Ghatkopar West, Mumbai, led by Founder & Principal Interior Designer Shahnawaz Shaikh and Principal Architect Ar. Shahzeb.",
         "mainEntity": {
           "@type": "Organization",
+          "@id": "https://besimdesign.com/#organization",
           "name": "Besim Design",
           "url": "https://besimdesign.com/",
           "founder": [
@@ -44,14 +46,14 @@
               "name": "Shahnawaz Shaikh",
               "jobTitle": "Founder & Principal Interior Designer",
               "image": "https://besimdesign.com/assets/aistudio/image_b79c71f5.png",
-              "worksFor": { "@type": "Organization", "name": "Besim Design" }
+              "worksFor": { "@type": "Organization", "@id": "https://besimdesign.com/#organization", "name": "Besim Design" }
             },
             {
               "@type": "Person",
               "name": "Ar. Shahzeb",
               "jobTitle": "Principal Architect",
               "image": "https://besimdesign.com/assets/aistudio/ar_shahzeb.png",
-              "worksFor": { "@type": "Organization", "name": "Besim Design" }
+              "worksFor": { "@type": "Organization", "@id": "https://besimdesign.com/#organization", "name": "Besim Design" }
             }
           ]
         }

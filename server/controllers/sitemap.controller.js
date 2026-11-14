@@ -61,19 +61,49 @@ export function normalizeCategoryForUrl(category) {
 }
 
 /**
- * Formats a date value into YYYY-MM-DD format for XML sitemaps.
+ * Formats a date value into YYYY-MM-DD format for XML sitemaps,
+ * ensuring no future dates are ever emitted.
  */
-function formatDate(dateVal) {
+function formatDate(dateVal, maxDateStr) {
+  const todayStr = maxDateStr || new Date().toISOString().split('T')[0];
   if (!dateVal) {
-    return new Date().toISOString().split('T')[0];
+    return todayStr;
   }
   try {
     const d = new Date(dateVal);
     if (!isNaN(d.getTime())) {
-      return d.toISOString().split('T')[0];
+      const iso = d.toISOString().split('T')[0];
+      return iso > todayStr ? todayStr : iso;
     }
   } catch (_) {}
-  return String(dateVal).split(' ')[0] || new Date().toISOString().split('T')[0];
+  const fallback = String(dateVal).split(' ')[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(fallback)) {
+    return fallback > todayStr ? todayStr : fallback;
+  }
+  return todayStr;
+}
+
+/**
+ * Resolves the filesystem modification date for a static HTML template,
+ * clamped to today's date.
+ */
+function getStaticPageMtime(pagePath, todayStr) {
+  const filename = pagePath === '' ? 'index.html' : `${pagePath.replace(/^\//, '')}.html`;
+  const candidates = [
+    path.resolve(publicPath, filename),
+    path.resolve(projectRoot, filename),
+  ];
+  for (const filePath of candidates) {
+    try {
+      if (fs.existsSync(filePath)) {
+        const stat = fs.statSync(filePath);
+        if (stat && stat.mtime && stat.mtime.getUTCFullYear() >= 2024) {
+          return formatDate(stat.mtime, todayStr);
+        }
+      }
+    } catch (_) {}
+  }
+  return todayStr;
 }
 
 /**
@@ -101,16 +131,42 @@ export async function getActivePublishedProjects() {
 export async function buildSitemapEntries() {
   const entries = [];
   const seenUrls = new Set();
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Fetch active published projects first so sector/showcase lastmod reflects real DB content updates
+  const activeProjects = await getActivePublishedProjects();
+
+  const latestByCategory = {};
+  let latestOverall = '';
+
+  for (const proj of activeProjects) {
+    const routeCategory = normalizeCategoryForUrl(proj.category);
+    if (!routeCategory) continue;
+    const projDate = formatDate(proj.updated_at || proj.created_at, todayStr);
+    if (!latestOverall || projDate > latestOverall) {
+      latestOverall = projDate;
+    }
+    if (!latestByCategory[routeCategory] || projDate > latestByCategory[routeCategory]) {
+      latestByCategory[routeCategory] = projDate;
+    }
+  }
 
   // 1. Static public category & informational pages
-  const today = formatDate(new Date());
   for (const page of STATIC_PAGES) {
     const loc = `${DOMAIN}${page.path === '' ? '/' : page.path}`;
     if (!seenUrls.has(loc)) {
       seenUrls.add(loc);
+      const fileMtime = getStaticPageMtime(page.path, todayStr);
+      const sectorKey = page.path.replace(/^\//, '');
+      let lastmod = fileMtime;
+      if (latestByCategory[sectorKey]) {
+        lastmod = latestByCategory[sectorKey] > fileMtime ? latestByCategory[sectorKey] : fileMtime;
+      } else if ((page.path === '' || page.path === '/showcase') && latestOverall) {
+        lastmod = latestOverall > fileMtime ? latestOverall : fileMtime;
+      }
       entries.push({
         loc,
-        lastmod: today,
+        lastmod: lastmod > todayStr ? todayStr : lastmod,
         changefreq: page.changefreq,
         priority: page.priority,
       });
@@ -118,8 +174,6 @@ export async function buildSitemapEntries() {
   }
 
   // 2. Active published project detail pages
-  const activeProjects = await getActivePublishedProjects();
-
   for (const proj of activeProjects) {
     const routeCategory = normalizeCategoryForUrl(proj.category);
     // Exclude projects whose category does not map to a public route (e.g. 'restaurant')
@@ -138,7 +192,7 @@ export async function buildSitemapEntries() {
       seenUrls.add(loc);
       entries.push({
         loc,
-        lastmod: formatDate(proj.updated_at || proj.created_at || today),
+        lastmod: formatDate(proj.updated_at || proj.created_at, todayStr),
         changefreq: 'monthly',
         priority: '0.7',
       });

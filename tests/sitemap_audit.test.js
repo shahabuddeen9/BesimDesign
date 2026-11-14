@@ -46,12 +46,22 @@ describe('Sitemap Audit & Lifecycle Verification Suite', () => {
       }
     });
 
-    it('Does NOT include internal or non-indexable routes in sitemap', async () => {
+    it('Does NOT include internal, redirected, or non-indexable routes in sitemap', async () => {
       const res = await request(app).get('/sitemap.xml');
       expect(res.text).not.toContain('/admin');
       expect(res.text).not.toContain('/api');
       expect(res.text).not.toContain('/404');
       expect(res.text).not.toContain('.html');
+      expect(res.text).not.toContain('<loc>https://besimdesign.com/projects</loc>');
+      expect(res.text).not.toContain('<loc>https://besimdesign.com/testimonials</loc>');
+      expect(res.text).not.toContain('<loc>https://besimdesign.com/contact</loc>');
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const lastmodMatches = [...res.text.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)].map((m) => m[1]);
+      expect(lastmodMatches.length).toBeGreaterThan(0);
+      for (const lm of lastmodMatches) {
+        expect(lm <= todayStr, `lastmod ${lm} should not be in the future (> ${todayStr})`).toBe(true);
+      }
     });
   });
 
