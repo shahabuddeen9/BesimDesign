@@ -1,455 +1,4 @@
 {
-  "clients": [
-    "CDC",
-    "Dave & Buster's",
-    "Dave & Buster’s",
-    "Grand Hyatt Turnkey Test (Updated)",
-    "HDFC Bank",
-    "HOM",
-    "IGI",
-    "LAPOZ",
-    "Luxury Cafe & Lounge 1793544686339 (Updated)",
-    "Luxury Cafe & Lounge 1793544704313 (Updated)",
-    "Luxury Cafe & Lounge 1793545627566 (Updated)",
-    "Luxury Cafe & Lounge 1793546099756 (Updated)",
-    "Luxury Cafe & Lounge 1793546130600 (Updated)",
-    "Luxury Cafe & Lounge 1793855254905 (Updated)",
-    "Luxury Cafe & Lounge 1793859308505 (Updated)",
-    "Luxury Cafe & Lounge 1793859850896 (Updated)",
-    "Luxury Cafe & Lounge 1793860720201 (Updated)",
-    "Luxury Cafe & Lounge 1793863626232 (Updated)",
-    "Luxury Cafe & Lounge 1793864457154 (Updated)",
-    "Luxury Cafe & Lounge 1793864732591 (Updated)",
-    "Luxury Cafe & Lounge 1793866697123 (Updated)",
-    "Luxury Cafe & Lounge 1793867203291 (Updated)",
-    "Luxury Cafe & Lounge 1793867295333 (Updated)",
-    "Luxury Cafe & Lounge 1794198455243 (Updated)",
-    "Luxury Cafe & Lounge 1794199228656 (Updated)",
-    "Luxury Cafe & Lounge 1794199246146 (Updated)",
-    "Luxury Cafe & Lounge 1794199531229 (Updated)",
-    "Luxury Cafe & Lounge 1794201813060 (Updated)",
-    "Luxury Cafe & Lounge 1794203875163 (Updated)",
-    "Luxury Cafe & Lounge 1794204085332 (Updated)",
-    "Luxury Cafe & Lounge 1794205052271 (Updated)",
-    "Luxury Cafe & Lounge 1794205521105 (Updated)",
-    "Luxury Cafe & Lounge 1794205603301 (Updated)",
-    "Luxury Cafe & Lounge 1794206239970 (Updated)",
-    "Luxury Cafe & Lounge 1794206909011 (Updated)",
-    "Luxury Cafe & Lounge 1794209082979 (Updated)",
-    "Luxury Cafe & Lounge 1794209362460 (Updated)",
-    "Luxury Cafe & Lounge 1794209570646 (Updated)",
-    "Luxury Cafe & Lounge 1794210541719 (Updated)",
-    "Luxury Cafe & Lounge 1794212098400 (Updated)",
-    "Luxury Cafe & Lounge 1794222326336 (Updated)",
-    "Luxury Cafe & Lounge 1794223043859 (Updated)",
-    "Luxury Cafe & Lounge 1794320532645 (Updated)",
-    "Luxury Cafe & Lounge 1794320610179 (Updated)",
-    "Luxury Cafe & Lounge 1794322145513 (Updated)",
-    "Luxury Cafe & Lounge 1794322205955 (Updated)",
-    "Luxury Cafe & Lounge 1794417646667 (Updated)",
-    "Luxury Cafe & Lounge 1794417751863 (Updated)",
-    "Luxury Cafe & Lounge 1794421248990 (Updated)",
-    "Luxury Cafe & Lounge 1794479365462 (Updated)",
-    "Luxury Cafe & Lounge 1794547616542 (Updated)",
-    "Luxury Cafe & Lounge 1794548050221 (Updated)",
-    "Luxury Cafe & Lounge 1794548095369 (Updated)",
-    "Luxury Cafe & Lounge 1794587671947 (Updated)",
-    "Luxury Cafe & Lounge 1794588150339 (Updated)",
-    "Luxury Cafe & Lounge 1794588456693 (Updated)",
-    "Luxury Cafe & Lounge 1794639344470 (Updated)",
-    "Luxury Cafe & Lounge 1794639708418 (Updated)",
-    "Luxury Cafe & Lounge 1794640489687 (Updated)",
-    "Nikita",
-    "Otoki",
-    "Parinee Group",
-    "Persistence Client Brand 1792757540164",
-    "Persistence Client Brand 1792757609647",
-    "Persistence Client Brand 1792758658966",
-    "Persistence Client Brand 1792818736720",
-    "Persistence Client Brand 1792819838448",
-    "Persistence Client Brand 1792820527696",
-    "Persistence Client Brand 1793425015078",
-    "Persistence Client Brand 1793426366049",
-    "Persistence Client Brand 1793426424692",
-    "Persistence Client Brand 1793544382220",
-    "Persistence Client Brand 1793544700485",
-    "Persistence Client Brand 1793545625079",
-    "Persistence Client Brand 1793546096976",
-    "Persistence Client Brand 1793546127577",
-    "Persistence Client Brand 1793546870683",
-    "Persistence Client Brand 1793598335422",
-    "Persistence Client Brand 1793598686848",
-    "Persistence Client Brand 1793688111318",
-    "Persistence Client Brand 1793855173096",
-    "Persistence Client Brand 1793855251382",
-    "Persistence Client Brand 1793859243414",
-    "Persistence Client Brand 1793859303791",
-    "Persistence Client Brand 1793859845092",
-    "Persistence Client Brand 1793860714053",
-    "Persistence Client Brand 1793863620084",
-    "Persistence Client Brand 1793864450055",
-    "Persistence Client Brand 1793864727144",
-    "Persistence Client Brand 1793866690945",
-    "Persistence Client Brand 1793867200033",
-    "Persistence Client Brand 1793867289682",
-    "Persistence Client Brand 1794198449264",
-    "Persistence Client Brand 1794199221060",
-    "Persistence Client Brand 1794199240023",
-    "Persistence Client Brand 1794199522476",
-    "Persistence Client Brand 1794201805414",
-    "Persistence Client Brand 1794203869093",
-    "Persistence Client Brand 1794203984910",
-    "Persistence Client Brand 1794204079052",
-    "Persistence Client Brand 1794205046891",
-    "Persistence Client Brand 1794205512134",
-    "Persistence Client Brand 1794205589852",
-    "Persistence Client Brand 1794206229176",
-    "Persistence Client Brand 1794206899945",
-    "Persistence Client Brand 1794209076436",
-    "Persistence Client Brand 1794209352713",
-    "Persistence Client Brand 1794209559044",
-    "Persistence Client Brand 1794210529824",
-    "Persistence Client Brand 1794212087383",
-    "Persistence Client Brand 1794222319772",
-    "Persistence Client Brand 1794223030645",
-    "Persistence Client Brand 1794320518765",
-    "Persistence Client Brand 1794320598344",
-    "Persistence Client Brand 1794322133083",
-    "Persistence Client Brand 1794322193086",
-    "Persistence Client Brand 1794417640401",
-    "Persistence Client Brand 1794417738535",
-    "Persistence Client Brand 1794421241218",
-    "Persistence Client Brand 1794479358789",
-    "Persistence Client Brand 1794547608437",
-    "Persistence Client Brand 1794548039829",
-    "Persistence Client Brand 1794548082204",
-    "Persistence Client Brand 1794587663496",
-    "Persistence Client Brand 1794588134015",
-    "Persistence Client Brand 1794588439716",
-    "Persistence Client Brand 1794639336461",
-    "Persistence Client Brand 1794639679823",
-    "Persistence Client Brand 1794640464670",
-    "Ping's Orient",
-    "Ping’s Orient",
-    "RSVP",
-    "Royal China",
-    "SAZ American Brasserie",
-    "SEA-Yah",
-    "Saudia Airlines",
-    "Test Brand Unique 1792757545583",
-    "Test Brand Unique 1792757612876",
-    "Test Brand Unique 1792758660791",
-    "Test Brand Unique 1792818741813",
-    "Test Brand Unique 1792819840568",
-    "Test Brand Unique 1792820532678",
-    "Test Brand Unique 1793426356331",
-    "Test Brand Unique 1793855250256",
-    "Test Brand Unique 1793859302180",
-    "Test Brand Unique 1793859846972",
-    "Test Brand Unique 1793860715994",
-    "Test Brand Unique 1793863621938",
-    "Test Brand Unique 1793864453224",
-    "Test Brand Unique 1793864730155",
-    "Test Brand Unique 1793866692919",
-    "Test Brand Unique 1793867204625",
-    "Test Brand Unique 1793867291526",
-    "Test Brand Unique 1794198453867",
-    "Test Brand Unique 1794199223069",
-    "Test Brand Unique 1794199241995",
-    "Test Brand Unique 1794199524404",
-    "Test Brand Unique 1794201808816",
-    "Test Brand Unique 1794203872974",
-    "Test Brand Unique 1794204081965",
-    "Test Brand Unique 1794205050627",
-    "Test Brand Unique 1794205516333",
-    "Test Brand Unique 1794205597168",
-    "Test Brand Unique 1794206238337",
-    "Test Brand Unique 1794206907414",
-    "Test Brand Unique 1794209079791",
-    "Test Brand Unique 1794209360851",
-    "Test Brand Unique 1794209562953",
-    "Test Brand Unique 1794210540123",
-    "Test Brand Unique 1794212093928",
-    "Test Brand Unique 1794222323331",
-    "Test Brand Unique 1794223039451",
-    "Test Brand Unique 1794320526754",
-    "Test Brand Unique 1794320607079",
-    "Test Brand Unique 1794322141346",
-    "Test Brand Unique 1794322201439",
-    "Test Brand Unique 1794417643813",
-    "Test Brand Unique 1794417746268",
-    "Test Brand Unique 1794421252952",
-    "Test Brand Unique 1794479362310",
-    "Test Brand Unique 1794547611911",
-    "Test Brand Unique 1794548048700",
-    "Test Brand Unique 1794548090850",
-    "Test Brand Unique 1794587667281",
-    "Test Brand Unique 1794588143803",
-    "Test Brand Unique 1794588449974",
-    "Test Brand Unique 1794639340556",
-    "Test Brand Unique 1794639692541",
-    "Test Brand Unique 1794640462589",
-    "The Silver Train",
-    "White Oak"
-  ],
-  "testimonials": [
-    {
-      "id": 1427,
-      "client_name": "Testimonial Author 1792819838449"
-    },
-    {
-      "id": 1430,
-      "client_name": "Testimonial Author 1792820527697"
-    },
-    {
-      "id": 1433,
-      "client_name": "Testimonial Author 1793425015078"
-    },
-    {
-      "id": 1434,
-      "client_name": "Testimonial Author 1793426366049"
-    },
-    {
-      "id": 1437,
-      "client_name": "Testimonial Author 1793426424693"
-    },
-    {
-      "id": 1438,
-      "client_name": "Testimonial Author 1793544382221"
-    },
-    {
-      "id": 1439,
-      "client_name": "Testimonial Author 1793544700486"
-    },
-    {
-      "id": 1442,
-      "client_name": "Testimonial Author 1793545625080"
-    },
-    {
-      "id": 1444,
-      "client_name": "Testimonial Author 1793546096976"
-    },
-    {
-      "id": 1445,
-      "client_name": "Testimonial Author 1793546127578"
-    },
-    {
-      "id": 1446,
-      "client_name": "Testimonial Author 1793546870684"
-    },
-    {
-      "id": 1447,
-      "client_name": "Testimonial Author 1793598335423"
-    },
-    {
-      "id": 1449,
-      "client_name": "Testimonial Author 1793598686848"
-    },
-    {
-      "id": 1451,
-      "client_name": "Testimonial Author 1793688111319"
-    },
-    {
-      "id": 1452,
-      "client_name": "Testimonial Author 1793855173097"
-    },
-    {
-      "id": 1453,
-      "client_name": "Testimonial Author 1793855251382"
-    },
-    {
-      "id": 1456,
-      "client_name": "Testimonial Author 1793859243415"
-    },
-    {
-      "id": 1457,
-      "client_name": "Testimonial Author 1793859303791"
-    },
-    {
-      "id": 1460,
-      "client_name": "Testimonial Author 1793859845092"
-    },
-    {
-      "id": 1463,
-      "client_name": "Testimonial Author 1793860714054"
-    },
-    {
-      "id": 1466,
-      "client_name": "Testimonial Author 1793863620085"
-    },
-    {
-      "id": 1469,
-      "client_name": "Testimonial Author 1793864450055"
-    },
-    {
-      "id": 1472,
-      "client_name": "Testimonial Author 1793864727144"
-    },
-    {
-      "id": 1475,
-      "client_name": "Testimonial Author 1793866690945"
-    },
-    {
-      "id": 1478,
-      "client_name": "Testimonial Author 1793867200033"
-    },
-    {
-      "id": 1481,
-      "client_name": "Testimonial Author 1793867289682"
-    },
-    {
-      "id": 1484,
-      "client_name": "Testimonial Author 1794198449264"
-    },
-    {
-      "id": 1488,
-      "client_name": "Testimonial Author 1794199221060"
-    },
-    {
-      "id": 1491,
-      "client_name": "Testimonial Author 1794199240023"
-    },
-    {
-      "id": 1494,
-      "client_name": "Testimonial Author 1794199522477"
-    },
-    {
-      "id": 1497,
-      "client_name": "Testimonial Author 1794201805415"
-    },
-    {
-      "id": 1500,
-      "client_name": "Testimonial Author 1794203869094"
-    },
-    {
-      "id": 1503,
-      "client_name": "Testimonial Author 1794203984910"
-    },
-    {
-      "id": 1504,
-      "client_name": "Testimonial Author 1794204079052"
-    },
-    {
-      "id": 1507,
-      "client_name": "Testimonial Author 1794205046892"
-    },
-    {
-      "id": 1510,
-      "client_name": "Testimonial Author 1794205512135"
-    },
-    {
-      "id": 1513,
-      "client_name": "Testimonial Author 1794205589853"
-    },
-    {
-      "id": 1516,
-      "client_name": "Testimonial Author 1794206229177"
-    },
-    {
-      "id": 1519,
-      "client_name": "Testimonial Author 1794206899946"
-    },
-    {
-      "id": 1522,
-      "client_name": "Testimonial Author 1794209076437"
-    },
-    {
-      "id": 1525,
-      "client_name": "Testimonial Author 1794209352714"
-    },
-    {
-      "id": 1528,
-      "client_name": "Testimonial Author 1794209559044"
-    },
-    {
-      "id": 1531,
-      "client_name": "Testimonial Author 1794210529825"
-    },
-    {
-      "id": 1534,
-      "client_name": "Testimonial Author 1794212087383"
-    },
-    {
-      "id": 1537,
-      "client_name": "Testimonial Author 1794222319772"
-    },
-    {
-      "id": 1540,
-      "client_name": "Testimonial Author 1794223030645"
-    },
-    {
-      "id": 1543,
-      "client_name": "Testimonial Author 1794320518766"
-    },
-    {
-      "id": 1546,
-      "client_name": "Testimonial Author 1794320598345"
-    },
-    {
-      "id": 1549,
-      "client_name": "Testimonial Author 1794322133083"
-    },
-    {
-      "id": 1552,
-      "client_name": "Testimonial Author 1794322193086"
-    },
-    {
-      "id": 1555,
-      "client_name": "Testimonial Author 1794417640402"
-    },
-    {
-      "id": 1558,
-      "client_name": "Testimonial Author 1794417738535"
-    },
-    {
-      "id": 1561,
-      "client_name": "Testimonial Author 1794421241218"
-    },
-    {
-      "id": 1564,
-      "client_name": "Testimonial Author 1794479358790"
-    },
-    {
-      "id": 1567,
-      "client_name": "Testimonial Author 1794547608437"
-    },
-    {
-      "id": 1570,
-      "client_name": "Testimonial Author 1794548039830"
-    },
-    {
-      "id": 1573,
-      "client_name": "Testimonial Author 1794548082205"
-    },
-    {
-      "id": 1576,
-      "client_name": "Testimonial Author 1794587663497"
-    },
-    {
-      "id": 1579,
-      "client_name": "Testimonial Author 1794588134016"
-    },
-    {
-      "id": 1582,
-      "client_name": "Testimonial Author 1794588439717"
-    },
-    {
-      "id": 1585,
-      "client_name": "Testimonial Author 1794639336461"
-    },
-    {
-      "id": 1588,
-      "client_name": "Testimonial Author 1794639679825"
-    },
-    {
-      "id": 1591,
-      "client_name": "Testimonial Author 1794640464671"
-    },
-    {
-      "id": 1592,
-      "client_name": "Anil Kapoor"
-    }
-  ],
   "projects": [
     {
       "id": 825,
@@ -1395,107 +944,189 @@
       "id": 1125,
       "slug": null,
       "title": null
-    },
-    {
-      "id": 1130,
-      "slug": "test-luxury-bistro-1794639331701",
-      "title": "Aura Modern Bistronomy & Rooftop Lounge (Updated)"
-    },
-    {
-      "id": 1131,
-      "slug": null,
-      "title": null
-    },
-    {
-      "id": 1132,
-      "slug": null,
-      "title": null
-    },
-    {
-      "id": 1136,
-      "slug": "persistence-test-hotel-1794639336459",
-      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
-    },
-    {
-      "id": 1138,
-      "slug": null,
-      "title": null
-    },
-    {
-      "id": 1139,
-      "slug": null,
-      "title": null
-    },
-    {
-      "id": 1141,
-      "slug": "persistence-test-hotel-1794639679818",
-      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
-    },
-    {
-      "id": 1142,
-      "slug": "test-luxury-bistro-1794639683227",
-      "title": "Aura Modern Bistronomy & Rooftop Lounge (Updated)"
-    },
-    {
-      "id": 1143,
-      "slug": null,
-      "title": null
-    },
-    {
-      "id": 1144,
-      "slug": null,
-      "title": null
-    },
-    {
-      "id": 1146,
-      "slug": null,
-      "title": null
-    },
-    {
-      "id": 1147,
-      "slug": null,
-      "title": null
-    },
-    {
-      "id": 1152,
-      "slug": "persistence-test-hotel-1794640464668",
-      "title": "Aura Luxury Hotel & Sky Bar — Phase 2"
-    },
-    {
-      "id": 1153,
-      "slug": null,
-      "title": null
-    },
-    {
-      "id": 1154,
-      "slug": null,
-      "title": null
-    },
-    {
-      "id": 1155,
-      "slug": "test-bistro-portfolio-1794640470497",
-      "title": "Velvet Oak Cocktail Bar"
-    },
-    {
-      "id": 1156,
-      "slug": "test-luxury-bistro-1794640473036",
-      "title": "Aura Modern Bistronomy & Rooftop Lounge (Updated)"
-    },
-    {
-      "id": 1157,
-      "slug": null,
-      "title": null
-    },
-    {
-      "id": 1158,
-      "slug": null,
-      "title": null
-    },
-    {
-      "id": 1159,
-      "slug": null,
-      "title": "Project Without Slug 2"
     }
   ],
-  "updated_at": "2026-11-14T07:14:50.659Z"
+  "clients": [
+    "CDC",
+    "Dave & Buster's",
+    "Dave & Buster’s",
+    "HDFC Bank",
+    "HOM",
+    "IGI",
+    "LAPOZ",
+    "Luxury Cafe & Lounge 1793544686339 (Updated)",
+    "Luxury Cafe & Lounge 1793544704313 (Updated)",
+    "Luxury Cafe & Lounge 1793545627566 (Updated)",
+    "Luxury Cafe & Lounge 1793546099756 (Updated)",
+    "Luxury Cafe & Lounge 1793546130600 (Updated)",
+    "Luxury Cafe & Lounge 1793855254905 (Updated)",
+    "Luxury Cafe & Lounge 1793859308505 (Updated)",
+    "Luxury Cafe & Lounge 1793859850896 (Updated)",
+    "Luxury Cafe & Lounge 1793860720201 (Updated)",
+    "Luxury Cafe & Lounge 1793863626232 (Updated)",
+    "Luxury Cafe & Lounge 1793864457154 (Updated)",
+    "Luxury Cafe & Lounge 1793864732591 (Updated)",
+    "Luxury Cafe & Lounge 1793866697123 (Updated)",
+    "Luxury Cafe & Lounge 1793867203291 (Updated)",
+    "Luxury Cafe & Lounge 1793867295333 (Updated)",
+    "Luxury Cafe & Lounge 1794198455243 (Updated)",
+    "Luxury Cafe & Lounge 1794199228656 (Updated)",
+    "Luxury Cafe & Lounge 1794199246146 (Updated)",
+    "Luxury Cafe & Lounge 1794199531229 (Updated)",
+    "Luxury Cafe & Lounge 1794201813060 (Updated)",
+    "Luxury Cafe & Lounge 1794203875163 (Updated)",
+    "Luxury Cafe & Lounge 1794204085332 (Updated)",
+    "Luxury Cafe & Lounge 1794205052271 (Updated)",
+    "Luxury Cafe & Lounge 1794205521105 (Updated)",
+    "Luxury Cafe & Lounge 1794205603301 (Updated)",
+    "Luxury Cafe & Lounge 1794206239970 (Updated)",
+    "Luxury Cafe & Lounge 1794206909011 (Updated)",
+    "Luxury Cafe & Lounge 1794209082979 (Updated)",
+    "Luxury Cafe & Lounge 1794209362460 (Updated)",
+    "Luxury Cafe & Lounge 1794209570646 (Updated)",
+    "Luxury Cafe & Lounge 1794210541719 (Updated)",
+    "Luxury Cafe & Lounge 1794212098400 (Updated)",
+    "Luxury Cafe & Lounge 1794222326336 (Updated)",
+    "Luxury Cafe & Lounge 1794223043859 (Updated)",
+    "Luxury Cafe & Lounge 1794320532645 (Updated)",
+    "Luxury Cafe & Lounge 1794320610179 (Updated)",
+    "Luxury Cafe & Lounge 1794322145513 (Updated)",
+    "Luxury Cafe & Lounge 1794322205955 (Updated)",
+    "Luxury Cafe & Lounge 1794417646667 (Updated)",
+    "Luxury Cafe & Lounge 1794417751863 (Updated)",
+    "Luxury Cafe & Lounge 1794421248990 (Updated)",
+    "Luxury Cafe & Lounge 1794479365462 (Updated)",
+    "Luxury Cafe & Lounge 1794547616542 (Updated)",
+    "Luxury Cafe & Lounge 1794548050221 (Updated)",
+    "Luxury Cafe & Lounge 1794548095369 (Updated)",
+    "Luxury Cafe & Lounge 1794587671947 (Updated)",
+    "Luxury Cafe & Lounge 1794588150339 (Updated)",
+    "Luxury Cafe & Lounge 1794588456693 (Updated)",
+    "Nikita",
+    "Otoki",
+    "Parinee Group",
+    "Persistence Client Brand 1792757540164",
+    "Persistence Client Brand 1792757609647",
+    "Persistence Client Brand 1792758658966",
+    "Persistence Client Brand 1792818736720",
+    "Persistence Client Brand 1792819838448",
+    "Persistence Client Brand 1792820527696",
+    "Persistence Client Brand 1793425015078",
+    "Persistence Client Brand 1793426366049",
+    "Persistence Client Brand 1793426424692",
+    "Persistence Client Brand 1793544382220",
+    "Persistence Client Brand 1793544700485",
+    "Persistence Client Brand 1793545625079",
+    "Persistence Client Brand 1793546096976",
+    "Persistence Client Brand 1793546127577",
+    "Persistence Client Brand 1793546870683",
+    "Persistence Client Brand 1793598335422",
+    "Persistence Client Brand 1793598686848",
+    "Persistence Client Brand 1793688111318",
+    "Persistence Client Brand 1793855173096",
+    "Persistence Client Brand 1793855251382",
+    "Persistence Client Brand 1793859243414",
+    "Persistence Client Brand 1793859303791",
+    "Persistence Client Brand 1793859845092",
+    "Persistence Client Brand 1793860714053",
+    "Persistence Client Brand 1793863620084",
+    "Persistence Client Brand 1793864450055",
+    "Persistence Client Brand 1793864727144",
+    "Persistence Client Brand 1793866690945",
+    "Persistence Client Brand 1793867200033",
+    "Persistence Client Brand 1793867289682",
+    "Persistence Client Brand 1794198449264",
+    "Persistence Client Brand 1794199221060",
+    "Persistence Client Brand 1794199240023",
+    "Persistence Client Brand 1794199522476",
+    "Persistence Client Brand 1794201805414",
+    "Persistence Client Brand 1794203869093",
+    "Persistence Client Brand 1794203984910",
+    "Persistence Client Brand 1794204079052",
+    "Persistence Client Brand 1794205046891",
+    "Persistence Client Brand 1794205512134",
+    "Persistence Client Brand 1794205589852",
+    "Persistence Client Brand 1794206229176",
+    "Persistence Client Brand 1794206899945",
+    "Persistence Client Brand 1794209076436",
+    "Persistence Client Brand 1794209352713",
+    "Persistence Client Brand 1794209559044",
+    "Persistence Client Brand 1794210529824",
+    "Persistence Client Brand 1794212087383",
+    "Persistence Client Brand 1794222319772",
+    "Persistence Client Brand 1794223030645",
+    "Persistence Client Brand 1794320518765",
+    "Persistence Client Brand 1794320598344",
+    "Persistence Client Brand 1794322133083",
+    "Persistence Client Brand 1794322193086",
+    "Persistence Client Brand 1794417640401",
+    "Persistence Client Brand 1794417738535",
+    "Persistence Client Brand 1794421241218",
+    "Persistence Client Brand 1794479358789",
+    "Persistence Client Brand 1794547608437",
+    "Persistence Client Brand 1794548039829",
+    "Persistence Client Brand 1794548082204",
+    "Persistence Client Brand 1794587663496",
+    "Persistence Client Brand 1794588134015",
+    "Persistence Client Brand 1794588439716",
+    "Ping's Orient",
+    "Ping’s Orient",
+    "RSVP",
+    "Royal China",
+    "SAZ American Brasserie",
+    "SEA-Yah",
+    "Saudia Airlines",
+    "Test Brand Unique 1792757545583",
+    "Test Brand Unique 1792757612876",
+    "Test Brand Unique 1792758660791",
+    "Test Brand Unique 1792818741813",
+    "Test Brand Unique 1792819840568",
+    "Test Brand Unique 1792820532678",
+    "Test Brand Unique 1793426356331",
+    "Test Brand Unique 1793855250256",
+    "Test Brand Unique 1793859302180",
+    "Test Brand Unique 1793859846972",
+    "Test Brand Unique 1793860715994",
+    "Test Brand Unique 1793863621938",
+    "Test Brand Unique 1793864453224",
+    "Test Brand Unique 1793864730155",
+    "Test Brand Unique 1793866692919",
+    "Test Brand Unique 1793867204625",
+    "Test Brand Unique 1793867291526",
+    "Test Brand Unique 1794198453867",
+    "Test Brand Unique 1794199223069",
+    "Test Brand Unique 1794199241995",
+    "Test Brand Unique 1794199524404",
+    "Test Brand Unique 1794201808816",
+    "Test Brand Unique 1794203872974",
+    "Test Brand Unique 1794204081965",
+    "Test Brand Unique 1794205050627",
+    "Test Brand Unique 1794205516333",
+    "Test Brand Unique 1794205597168",
+    "Test Brand Unique 1794206238337",
+    "Test Brand Unique 1794206907414",
+    "Test Brand Unique 1794209079791",
+    "Test Brand Unique 1794209360851",
+    "Test Brand Unique 1794209562953",
+    "Test Brand Unique 1794210540123",
+    "Test Brand Unique 1794212093928",
+    "Test Brand Unique 1794222323331",
+    "Test Brand Unique 1794223039451",
+    "Test Brand Unique 1794320526754",
+    "Test Brand Unique 1794320607079",
+    "Test Brand Unique 1794322141346",
+    "Test Brand Unique 1794322201439",
+    "Test Brand Unique 1794417643813",
+    "Test Brand Unique 1794417746268",
+    "Test Brand Unique 1794421252952",
+    "Test Brand Unique 1794479362310",
+    "Test Brand Unique 1794547611911",
+    "Test Brand Unique 1794548048700",
+    "Test Brand Unique 1794548090850",
+    "Test Brand Unique 1794587667281",
+    "Test Brand Unique 1794588143803",
+    "Test Brand Unique 1794588449974",
+    "The Silver Train",
+    "White Oak"
+  ]
 }
