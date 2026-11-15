@@ -308,7 +308,10 @@ function renderGallery(photos, projectTitle) {
           alt="${escapeHtml(projectTitle)} – View ${index + 1}"
           class="gallery-img"
           loading="lazy"
-          onclick="openLightbox(${index})"
+          data-lightbox-index="${index}"
+          tabindex="0"
+          role="button"
+          style="cursor: pointer;"
         >
         <span style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.7); color: #fff; font-size: 0.72rem; padding: 2px 6px; border-radius: 3px; pointer-events: none;">
           ${index + 1}/${photos.length}
@@ -327,7 +330,7 @@ function renderGallery(photos, projectTitle) {
         <button
           class="gallery-dot ${i === 0 ? 'active' : ''}"
           aria-label="Go to slide ${i + 1}"
-          onclick="scrollToGalleryIndex(${i})"
+          data-slide-index="${i}"
         ></button>
       `
       )
@@ -454,6 +457,54 @@ document.addEventListener('DOMContentLoaded', () => {
   if (modal) {
     modal.addEventListener('click', (e) => {
       if (e.target === modal) closeLightbox();
+    });
+  }
+
+  const closeBtn = document.getElementById('lightboxCloseBtn');
+  if (closeBtn) closeBtn.addEventListener('click', () => window.closeLightbox());
+
+  const prevBtn = document.getElementById('lightboxPrevBtn');
+  if (prevBtn) prevBtn.addEventListener('click', () => window.lightboxPrev());
+
+  const nextBtn = document.getElementById('lightboxNextBtn');
+  if (nextBtn) nextBtn.addEventListener('click', () => window.lightboxNext());
+
+  const coverImg = document.getElementById('projectCoverImg');
+  if (coverImg) {
+    coverImg.addEventListener('click', () => window.openLightbox(0));
+    coverImg.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        window.openLightbox(0);
+      }
+    });
+  }
+
+  const galleryTrack = document.getElementById('galleryTrack');
+  if (galleryTrack) {
+    galleryTrack.addEventListener('click', (e) => {
+      const target = e.target.closest('[data-lightbox-index]');
+      if (!target) return;
+      const idx = parseInt(target.dataset.lightboxIndex, 10);
+      if (!Number.isNaN(idx)) window.openLightbox(idx);
+    });
+    galleryTrack.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const target = e.target.closest('[data-lightbox-index]');
+      if (!target) return;
+      e.preventDefault();
+      const idx = parseInt(target.dataset.lightboxIndex, 10);
+      if (!Number.isNaN(idx)) window.openLightbox(idx);
+    });
+  }
+
+  const galleryDots = document.getElementById('galleryDots');
+  if (galleryDots) {
+    galleryDots.addEventListener('click', (e) => {
+      const dot = e.target.closest('[data-slide-index]');
+      if (!dot) return;
+      const idx = parseInt(dot.dataset.slideIndex, 10);
+      if (!Number.isNaN(idx)) window.scrollToGalleryIndex(idx);
     });
   }
 

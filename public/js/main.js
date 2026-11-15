@@ -282,7 +282,7 @@ function renderProjects(projectsList) {
     return `
       <div class="project-card" data-category="${escapeHtml(p.category)}">
         <div class="project-img-wrap">
-          <img src="${escapedImg}" alt="${escapedTitle}" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80'">
+          <img src="${escapedImg}" alt="${escapedTitle}" loading="lazy" data-fallback-src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80">
           <span class="project-cat-badge">${formattedCat}</span>
         </div>
         <div class="project-body">
@@ -393,7 +393,8 @@ async function loadClients() {
                        alt="${escapedName} Logo"
                        class="client-logo-img"
                        loading="lazy"
-                       onerror="window.handleClientLogoError && window.handleClientLogoError(this, '${escapedName}', '${fallbackUrl}');" />
+                       data-client-name="${escapedName}"
+                       data-fallback-url="${escapeHtml(fallbackUrl)}" />
                 ` : `
                   <span class="client-logo-text">${escapedName}</span>
                 `}
@@ -457,7 +458,7 @@ async function openProjectModal(slug, id) {
     modalBody.innerHTML = `
       <h3 style="margin-bottom: 12px; font-family: var(--font-serif);">Commercial Project Blueprint</h3>
       <p style="color: var(--text-muted); margin-bottom: 24px;">Detailed technical drawings, MEP schematics, and photographic walkthroughs are available upon request during initial feasibility consultations.</p>
-      <a href="#contact" class="btn btn-primary btn-sm" onclick="closeProjectModal();">Schedule a Technical Consultation</a>
+      <a href="#contact" class="btn btn-primary btn-sm" data-close-modal="true">Schedule a Technical Consultation</a>
     `;
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -486,7 +487,7 @@ async function openProjectModal(slug, id) {
     </div>
 
     <div style="border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 24px; position: relative; background: #000;">
-      <img id="mainModalHeroImg" src="${escapeHtml(project.image_url)}" alt="${escapeHtml(safeModalTitle)}" style="width: 100%; height: 340px; object-fit: cover; transition: opacity 0.25s ease;" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80'">
+      <img id="mainModalHeroImg" src="${escapeHtml(project.image_url)}" alt="${escapeHtml(safeModalTitle)}" style="width: 100%; height: 340px; object-fit: cover; transition: opacity 0.25s ease;" data-fallback-src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80">
     </div>
 
     <p style="color: var(--text-muted); line-height: 1.7; margin-bottom: 24px; font-size: 1rem;">
@@ -508,8 +509,8 @@ async function openProjectModal(slug, id) {
         </div>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;">
           ${allPhotos.map((img, idx) => `
-            <div style="border-radius: var(--radius-sm); overflow: hidden; position: relative; border: 1px solid var(--border-subtle); height: 110px; cursor: pointer; background: #000;" onclick="const hero = document.getElementById('mainModalHeroImg'); if (hero) hero.src='${escapeHtml(img)}';">
-              <img src="${escapeHtml(img)}" alt="Photo ${idx + 1}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.25s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80'">
+            <div style="border-radius: var(--radius-sm); overflow: hidden; position: relative; border: 1px solid var(--border-subtle); height: 110px; cursor: pointer; background: #000;" data-modal-thumb-src="${escapeHtml(img)}" tabindex="0" role="button">
+              <img src="${escapeHtml(img)}" alt="Photo ${idx + 1}" class="modal-walkthrough-thumb" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.25s ease;" data-fallback-src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80">
               <span style="position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.75); color: var(--accent-gold); font-size: 0.65rem; font-weight: 600; padding: 1px 5px; border-radius: 3px;">
                 #${idx + 1}
               </span>
@@ -520,7 +521,7 @@ async function openProjectModal(slug, id) {
     ` : ''}
 
     <div style="border-top: 1px solid var(--border-subtle); padding-top: 20px; display: flex; justify-content: flex-end;">
-      <a href="#contact" class="btn btn-primary btn-sm" onclick="closeProjectModal();">
+      <a href="#contact" class="btn btn-primary btn-sm" data-close-modal="true">
         Enquire About Similar Project →
       </a>
     </div>
@@ -803,14 +804,78 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 2. Modal Close handlers & Escape key
+  // 2. Modal Close, Walkthrough Thumbnails, & Delegated Image Fallbacks
   const modal = document.getElementById('projectModal');
   const modalClose = document.getElementById('modalClose');
+  const modalBody = document.getElementById('modalBody');
   if (modal && modalClose) {
     modalClose.addEventListener('click', closeProjectModal);
     modal.addEventListener('click', (e) => {
       if (e.target === modal) closeProjectModal();
     });
+  }
+  if (modalBody) {
+    modalBody.addEventListener('click', (e) => {
+      if (e.target.closest('[data-close-modal="true"]')) {
+        closeProjectModal();
+        return;
+      }
+      const thumb = e.target.closest('[data-modal-thumb-src]');
+      if (thumb) {
+        const hero = document.getElementById('mainModalHeroImg');
+        if (hero && thumb.dataset.modalThumbSrc) {
+          hero.src = thumb.dataset.modalThumbSrc;
+        }
+      }
+    });
+    modalBody.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const thumb = e.target.closest('[data-modal-thumb-src]');
+      if (thumb) {
+        e.preventDefault();
+        const hero = document.getElementById('mainModalHeroImg');
+        if (hero && thumb.dataset.modalThumbSrc) {
+          hero.src = thumb.dataset.modalThumbSrc;
+        }
+      }
+    });
+    modalBody.addEventListener('mouseover', (e) => {
+      const img = e.target.closest('.modal-walkthrough-thumb');
+      if (img) img.style.transform = 'scale(1.05)';
+    });
+    modalBody.addEventListener('mouseout', (e) => {
+      const img = e.target.closest('.modal-walkthrough-thumb');
+      if (img) img.style.transform = 'scale(1)';
+    });
+    modalBody.addEventListener('error', (e) => {
+      const img = e.target;
+      if (img && img.tagName === 'IMG' && img.dataset.fallbackSrc && img.dataset.fallbackApplied !== '1') {
+        img.dataset.fallbackApplied = '1';
+        img.src = img.dataset.fallbackSrc;
+      }
+    }, true);
+  }
+  const portfolioGridEl = document.getElementById('portfolioGrid');
+  if (portfolioGridEl) {
+    portfolioGridEl.addEventListener('error', (e) => {
+      const img = e.target;
+      if (img && img.tagName === 'IMG' && img.dataset.fallbackSrc && img.dataset.fallbackApplied !== '1') {
+        img.dataset.fallbackApplied = '1';
+        img.src = img.dataset.fallbackSrc;
+      }
+    }, true);
+  }
+  const clientsGridEl = document.getElementById('clientsGrid');
+  if (clientsGridEl) {
+    clientsGridEl.addEventListener('error', (e) => {
+      const img = e.target;
+      if (img && img.tagName === 'IMG' && img.classList.contains('client-logo-img')) {
+        const card = img.closest('[data-client-name]');
+        const clientName = img.dataset.clientName || card?.dataset.clientName || img.alt?.replace(/\s*Logo$/i, '') || '';
+        const fallbackUrl = img.dataset.fallbackUrl || '';
+        window.handleClientLogoError(img, clientName, fallbackUrl);
+      }
+    }, true);
   }
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {

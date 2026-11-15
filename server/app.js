@@ -19,7 +19,7 @@ import errorHandler from './middleware/errorHandler.js';
 import { generalLimiter } from './middleware/rateLimit.js';
 import { getSitemapXml } from './controllers/sitemap.controller.js';
 import { renderProjectPage } from './controllers/project-render.controller.js';
-import { renderHomePage, renderCategoryPage } from './controllers/page-render.controller.js';
+import { renderHomePage, renderCategoryPage, renderShowcasePage } from './controllers/page-render.controller.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,7 +52,6 @@ app.use((req, res, next) => {
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        scriptSrcAttr: ["'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
         imgSrc: ["'self'", 'data:', 'blob:', 'https://images.unsplash.com', '*'],
@@ -311,7 +310,7 @@ app.get('/central-kitchen', renderCategoryPage('central-kitchen'));
 app.get('/hotels', renderCategoryPage('hotels'));
 app.get('/hospitality', renderCategoryPage('hospitality'));
 app.get('/residential', renderCategoryPage('residential'));
-app.get('/showcase', sendPublicStaticHtml('showcase.html'));
+app.get('/showcase', renderShowcasePage);
 app.get('/privacy', sendPublicStaticHtml('privacy.html'));
 
 if (fs.existsSync(distPath)) {

@@ -233,10 +233,10 @@
 
   <!-- Fullscreen Lightbox Modal -->
   <div class="lightbox-modal" id="lightboxModal" role="dialog" aria-modal="true" aria-label="Fullscreen photo viewer">
-    <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close photo viewer">&times;</button>
-    <button class="lightbox-prev" onclick="lightboxPrev()" aria-label="Previous photo">‹</button>
+    <button class="lightbox-close" id="lightboxCloseBtn" aria-label="Close photo viewer">&times;</button>
+    <button class="lightbox-prev" id="lightboxPrevBtn" aria-label="Previous photo">‹</button>
     <img id="lightboxImg" class="lightbox-img" src="" alt="Fullscreen Project Photo">
-    <button class="lightbox-next" onclick="lightboxNext()" aria-label="Next photo">›</button>
+    <button class="lightbox-next" id="lightboxNextBtn" aria-label="Next photo">›</button>
     <div class="lightbox-counter" id="lightboxCounter"></div>
   </div>
 

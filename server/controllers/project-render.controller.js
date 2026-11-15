@@ -267,7 +267,10 @@ export async function renderProjectPage(req, res, next) {
           alt="${escapeAttr(cleanTitle)} – View ${index + 1}"
           class="gallery-img"
           loading="lazy"
-          onclick="openLightbox(${index})"
+          data-lightbox-index="${index}"
+          tabindex="0"
+          role="button"
+          style="cursor: pointer;"
         >
         <span style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.7); color: #fff; font-size: 0.72rem; padding: 2px 6px; border-radius: 3px; pointer-events: none;">
           ${index + 1}/${allPhotos.length}
@@ -445,7 +448,7 @@ ${JSON.stringify(breadcrumbSchema, null, 2)}
     // 8. Featured Cover Image
     html = html.replace(
       /<img\s+id=["']projectCoverImg["'][^>]*>/i,
-      `<img id="projectCoverImg" class="project-featured-cover" src="${escapeAttr(rawImg)}" alt="${escapeAttr(cleanTitle)} – Featured Cover Photograph" loading="eager" onclick="openLightbox(0)">`
+      `<img id="projectCoverImg" class="project-featured-cover" src="${escapeAttr(rawImg)}" alt="${escapeAttr(cleanTitle)} – Featured Cover Photograph" loading="eager" data-lightbox-index="0" tabindex="0" role="button" style="cursor: pointer;">`
     );
 
     // 9. Gallery Track & Count

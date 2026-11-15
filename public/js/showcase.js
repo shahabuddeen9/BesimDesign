@@ -159,6 +159,10 @@ async function loadProjects() {
   const grid = document.getElementById('showcaseGrid');
   if (!grid) return;
 
+  if (Array.isArray(window.__INITIAL_SHOWCASE_PROJECTS__) && window.__INITIAL_SHOWCASE_PROJECTS__.length > 0) {
+    state.projects = window.__INITIAL_SHOWCASE_PROJECTS__;
+  }
+
   try {
     const res = await fetch(`${CONFIG.API_BASE_URL}/api/projects?_t=${Date.now()}`, {
       cache: 'no-store',
@@ -564,6 +568,11 @@ function initProjectBriefForm() {
 // =============================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Seed initial state from SSR hydration payload when available to avoid render flicker
+  if (Array.isArray(window.__INITIAL_SHOWCASE_PROJECTS__) && window.__INITIAL_SHOWCASE_PROJECTS__.length > 0) {
+    state.projects = window.__INITIAL_SHOWCASE_PROJECTS__;
+  }
+
   // 1. Determine active category from URL
   const initialCat = getInitialCategory();
   setCategory(initialCat, false);

@@ -162,7 +162,10 @@ function renderLongScrollProjects(projectsList) {
               alt="${escapeHtml(safeTitle)} – Photograph ${imgIdx + 1}"
               class="gallery-img"
               loading="lazy"
-              onclick="openPortfolioLightbox('${safeSlug}', ${imgIdx})"
+              data-lightbox-slug="${escapeHtml(safeSlug)}"
+              data-lightbox-index="${imgIdx}"
+              tabindex="0"
+              role="button"
             >
             <span style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.72); color: #fff; font-size: 0.72rem; padding: 2px 6px; border-radius: 3px; pointer-events: none;">
               ${imgIdx + 1}/${allPhotos.length}
@@ -179,7 +182,8 @@ function renderLongScrollProjects(projectsList) {
             class="gallery-dot ${dIdx === 0 ? 'active' : ''}"
             id="dot-${safeSlug}-${dIdx}"
             aria-label="Go to photo ${dIdx + 1}"
-            onclick="scrollProjectGalleryToIndex('${safeSlug}', ${dIdx})"
+            data-gallery-dot-slug="${escapeHtml(safeSlug)}"
+            data-gallery-dot-index="${dIdx}"
           ></button>
         `
         )
@@ -240,7 +244,7 @@ function renderLongScrollProjects(projectsList) {
 
             <!-- RIGHT COLUMN: Main Featured Cover Photograph -->
             <div class="col-cover">
-              <div class="cover-img-wrapper" onclick="openPortfolioLightbox('${safeSlug}', 0)">
+              <div class="cover-img-wrapper" data-lightbox-slug="${escapeHtml(safeSlug)}" data-lightbox-index="0" tabindex="0" role="button">
                 <img
                   src="${escapeHtml(p.image_url)}"
                   alt="${escapeHtml(safeTitle)} – Featured Cover Photograph"
@@ -265,7 +269,7 @@ function renderLongScrollProjects(projectsList) {
             </div>
 
             <div class="gallery-carousel-wrapper" data-slug="${safeSlug}">
-              <button class="gallery-nav-btn gallery-nav-prev" onclick="scrollProjectGallery('${safeSlug}', -1)" aria-label="Previous photograph">
+              <button class="gallery-nav-btn gallery-nav-prev" data-gallery-nav-slug="${escapeHtml(safeSlug)}" data-gallery-dir="-1" aria-label="Previous photograph">
                 ‹
               </button>
 
@@ -273,7 +277,7 @@ function renderLongScrollProjects(projectsList) {
                 ${galleryItemsHtml}
               </div>
 
-              <button class="gallery-nav-btn gallery-nav-next" onclick="scrollProjectGallery('${safeSlug}', 1)" aria-label="Next photograph">
+              <button class="gallery-nav-btn gallery-nav-next" data-gallery-nav-slug="${escapeHtml(safeSlug)}" data-gallery-dir="1" aria-label="Next photograph">
                 ›
               </button>
             </div>
@@ -305,6 +309,39 @@ function renderLongScrollProjects(projectsList) {
 }
 
 function attachPortfolioListeners() {
+  const container = document.getElementById('residentialProjectsContainer');
+  if (container && container.dataset.delegatedBound !== '1') {
+    container.dataset.delegatedBound = '1';
+    container.addEventListener('click', (e) => {
+      const lbTarget = e.target.closest('[data-lightbox-slug]');
+      if (lbTarget) {
+        const idx = parseInt(lbTarget.dataset.lightboxIndex || '0', 10);
+        window.openPortfolioLightbox(lbTarget.dataset.lightboxSlug, Number.isNaN(idx) ? 0 : idx);
+        return;
+      }
+      const dotTarget = e.target.closest('[data-gallery-dot-slug]');
+      if (dotTarget) {
+        const idx = parseInt(dotTarget.dataset.galleryDotIndex || '0', 10);
+        window.scrollProjectGalleryToIndex(dotTarget.dataset.galleryDotSlug, Number.isNaN(idx) ? 0 : idx);
+        return;
+      }
+      const navTarget = e.target.closest('[data-gallery-nav-slug]');
+      if (navTarget) {
+        const dir = parseInt(navTarget.dataset.galleryDir || '1', 10);
+        window.scrollProjectGallery(navTarget.dataset.galleryNavSlug, Number.isNaN(dir) ? 1 : dir);
+      }
+    });
+    container.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const lbTarget = e.target.closest('[data-lightbox-slug]');
+      if (lbTarget) {
+        e.preventDefault();
+        const idx = parseInt(lbTarget.dataset.lightboxIndex || '0', 10);
+        window.openPortfolioLightbox(lbTarget.dataset.lightboxSlug, Number.isNaN(idx) ? 0 : idx);
+      }
+    });
+  }
+
   state.projects.forEach((p) => {
     const slugKey = p.slug || ('proj-' + p.id);
     const track = document.getElementById(`gallery-track-${slugKey}`);

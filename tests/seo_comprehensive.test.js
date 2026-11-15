@@ -142,4 +142,105 @@ describe('Comprehensive Technical & On-Page SEO Audit', () => {
       expect(pubContent, `${file} synced with public/${file}`).toBe(rootContent);
     }
   });
+
+  it('8. All SSR and public HTML pages contain zero loading placeholders and zero inline event attributes under strict CSP', async () => {
+    const routesToCheck = [
+      '/',
+      '/about',
+      '/hotels',
+      '/hospitality',
+      '/residential',
+      '/central-kitchen',
+      '/showcase',
+      '/showcase?category=hospitality',
+      '/hospitality/the-nutcracker-jio-mall-bkc',
+      '/privacy',
+    ];
+
+    const loadingPatterns = [
+      /Loading featured clients/i,
+      /Loading client endorsements/i,
+      /Loading hotels projects/i,
+      /Loading hospitality projects/i,
+      /Loading residential projects/i,
+      /Loading central kitchen projects/i,
+      /Loading architecture portfolio/i,
+      /Loading project detail/i,
+    ];
+
+    const inlineAttrRegex = /\son(?:click|load|error|change|submit|keyup|keydown|focus|blur|mouseover|mouseout|mouseenter|mouseleave)=/i;
+
+    for (const route of routesToCheck) {
+      const res = await request(app).get(route);
+      expect(res.status, `${route} HTTP 200`).toBe(200);
+
+      const csp = res.headers['content-security-policy'] || '';
+      expect(csp, `${route} has CSP header`).toContain("default-src 'self'");
+      expect(csp, `${route} must not weaken script-src-attr with unsafe-inline`).not.toMatch(/script-src-attr[^;]*'unsafe-inline'/i);
+
+      for (const pat of loadingPatterns) {
+        expect(res.text, `${route} must not expose placeholder ${pat}`).not.toMatch(pat);
+      }
+
+      expect(res.text, `${route} must not contain inline on*= event attributes`).not.toMatch(inlineAttrRegex);
+    }
+  });
+
+  it('9. /showcase SSR renders category metadata, crawlable project links, and ItemList JSON-LD', async () => {
+    const res = await request(app).get('/showcase?category=hospitality');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('Hospitality &amp; Fine Dining Portfolio');
+    expect(res.text).toContain('"@type": "ItemList"');
+    expect(res.text).toContain('href="/hospitality/');
+    expect(res.text).toContain('class="showcase-tab active" data-category="hospitality"');
+    expect(res.text).toContain('window.__INITIAL_SHOWCASE_PROJECTS__');
+  });
+
+  it('10. Empty DB / DB fallback never leaves SSR loading placeholders on homepage, sector, or showcase routes', async () => {
+    const { db } = await import('../server/db/index.js');
+    const origAll = db.all.bind(db);
+    db.all = async () => [];
+    try {
+      for (const route of ['/', '/hotels', '/hospitality', '/residential', '/central-kitchen', '/showcase']) {
+        const res = await request(app).get(route);
+        expect(res.status, `${route} empty DB status`).toBe(200);
+        expect(res.text).not.toMatch(/Loading (featured clients|client endorsements|hotels projects|hospitality projects|residential projects|central kitchen projects|architecture portfolio)/i);
+      }
+    } finally {
+      db.all = origAll;
+    }
+  });
+
+  it('11. Vercel serverless entry (api/index.js) routes SSR paths, query params, detail pages, sitemap, and API cleanly', async () => {
+    const http = await import('http');
+    const { default: vercelHandler } = await import('../api/index.js');
+    const vercelApp = http.createServer((req, res) => {
+      vercelHandler(req, res);
+    });
+
+    const showcaseRes = await request(vercelApp).get('/api/index?__ssr=/showcase&category=hospitality');
+    expect(showcaseRes.status).toBe(200);
+    expect(showcaseRes.text).toContain('Hospitality &amp; Fine Dining Portfolio');
+
+    const homeRes = await request(vercelApp).get('/api/index?__ssr=/');
+    expect(homeRes.status).toBe(200);
+    expect(homeRes.text).toContain('Shahnawaz Shaikh');
+
+    const hotelsRes = await request(vercelApp).get('/api/index?__ssr=/hotels');
+    expect(hotelsRes.status).toBe(200);
+    expect(hotelsRes.text).toContain('"@type": "ItemList"');
+
+    const detailRes = await request(vercelApp).get('/hospitality/foo-asian-tapas-bkc');
+    expect(detailRes.status).toBe(200);
+    expect(detailRes.text).toContain('FOO Asian Tapas');
+
+    const sitemapRes = await request(vercelApp).get('/sitemap.xml');
+    expect(sitemapRes.status).toBe(200);
+    expect(sitemapRes.text).toContain('https://besimdesign.com/showcase');
+
+    const apiRes = await request(vercelApp).get('/api/projects');
+    expect(apiRes.status).toBe(200);
+    expect(apiRes.body.success).toBe(true);
+  });
 });
+

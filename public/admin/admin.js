@@ -809,7 +809,7 @@ function renderAdminProjectsTable(projects) {
     tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 36px; color: var(--text-dim);">
       <div style="font-size: 1.8rem; margin-bottom: 8px;">🏛️</div>
       No projects found for this filter.<br>
-      <button class="btn btn-gold btn-sm" onclick="document.getElementById('btnNewProject').click()" style="margin-top: 12px;">+ Add New Project</button>
+      <button type="button" class="btn btn-gold btn-sm btn-empty-new-proj" style="margin-top: 12px;">+ Add New Project</button>
     </td></tr>`;
     return;
   }
@@ -823,8 +823,8 @@ function renderAdminProjectsTable(projects) {
     return `
     <tr id="proj-row-${p.id}" style="transition: all 0.25s ease;">
       <td style="width: 80px;">
-        <div style="position: relative; cursor: pointer; display: inline-block;" title="Click to view and delete project photos" onclick="openProjectPhotosModal('${escapeHtml(p.id)}')">
-          <img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(displayTitle)}" style="width: 68px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid var(--admin-border);" onerror="this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80'">
+        <div class="proj-thumb-trigger" data-id="${escapeHtml(p.id)}" tabindex="0" role="button" style="position: relative; cursor: pointer; display: inline-block;" title="Click to view and delete project photos">
+          <img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(displayTitle)}" style="width: 68px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid var(--admin-border);" data-fallback-src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80">
           <span style="position: absolute; bottom: 2px; right: 2px; background: rgba(0,0,0,0.85); color: var(--gold); font-size: 0.65rem; font-weight: 700; padding: 1px 4px; border-radius: 3px; border: 1px solid rgba(197, 168, 128, 0.4);">📸 ${totalPhotos}</span>
         </div>
       </td>
@@ -870,6 +870,36 @@ function renderAdminProjectsTable(projects) {
     </tr>
   `;
   }).join('');
+
+  if (tbody.dataset.delegatedBound !== '1') {
+    tbody.dataset.delegatedBound = '1';
+    tbody.addEventListener('click', (e) => {
+      if (e.target.closest('.btn-empty-new-proj')) {
+        document.getElementById('btnNewProject')?.click();
+        return;
+      }
+      const thumb = e.target.closest('.proj-thumb-trigger');
+      if (thumb) {
+        openProjectPhotosModal(thumb.dataset.id);
+      }
+    });
+    tbody.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        const thumb = e.target.closest('.proj-thumb-trigger');
+        if (thumb) {
+          e.preventDefault();
+          openProjectPhotosModal(thumb.dataset.id);
+        }
+      }
+    });
+    tbody.addEventListener('error', (e) => {
+      const img = e.target;
+      if (img && img.tagName === 'IMG' && img.dataset.fallbackSrc && img.dataset.fallbackApplied !== '1') {
+        img.dataset.fallbackApplied = '1';
+        img.src = img.dataset.fallbackSrc;
+      }
+    }, true);
+  }
 
   document.querySelectorAll('.btn-toggle-proj').forEach((b) => {
     b.onclick = () => toggleProjectPublish(b.dataset.id, parseInt(b.dataset.pub, 10));
@@ -1057,23 +1087,45 @@ function renderModalProjectPhotosGrid() {
   grid.innerHTML = allPhotos.map((item, idx) => `
     <div class="photo-card ${item.isCover ? 'is-cover' : ''}" style="border-radius: 6px;">
       <div class="photo-card-img-wrap" style="height: 105px;">
-        <img src="${escapeHtml(item.url)}" alt="Photo ${idx + 1}" onerror="this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80'">
+        <img src="${escapeHtml(item.url)}" alt="Photo ${idx + 1}" data-fallback-src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80">
         <span class="photo-card-badge ${item.isCover ? 'badge-cover' : ''}">
           ${item.isCover ? '⭐ Cover' : `Photo ${idx + 1}`}
         </span>
       </div>
       <div class="photo-card-actions" style="padding: 5px 8px;">
         ${!item.isCover ? `
-          <button type="button" class="btn-photo-action btn-photo-cover" title="Set as primary cover photo" onclick="makeFormPhotoCover('${escapeHtml(item.url)}')">
+          <button type="button" class="btn-photo-action btn-photo-cover" title="Set as primary cover photo" data-form-cover-url="${escapeHtml(item.url)}">
             ⭐ Cover
           </button>
         ` : '<span style="font-size: 0.68rem; color: var(--gold); font-weight: 700;">★ Cover</span>'}
-        <button type="button" class="btn-photo-action btn-photo-delete" title="Delete this photo" onclick="removeFormPhoto('${escapeHtml(item.url)}')">
+        <button type="button" class="btn-photo-action btn-photo-delete" title="Delete this photo" data-form-del-url="${escapeHtml(item.url)}">
           🗑️ Del
         </button>
       </div>
     </div>
   `).join('');
+
+  if (grid.dataset.delegatedBound !== '1') {
+    grid.dataset.delegatedBound = '1';
+    grid.addEventListener('click', (e) => {
+      const coverBtn = e.target.closest('[data-form-cover-url]');
+      if (coverBtn) {
+        window.makeFormPhotoCover(coverBtn.dataset.formCoverUrl);
+        return;
+      }
+      const delBtn = e.target.closest('[data-form-del-url]');
+      if (delBtn) {
+        window.removeFormPhoto(delBtn.dataset.formDelUrl);
+      }
+    });
+    grid.addEventListener('error', (e) => {
+      const img = e.target;
+      if (img && img.tagName === 'IMG' && img.dataset.fallbackSrc && img.dataset.fallbackApplied !== '1') {
+        img.dataset.fallbackApplied = '1';
+        img.src = img.dataset.fallbackSrc;
+      }
+    }, true);
+  }
 }
 
 window.makeFormPhotoCover = function(url) {
@@ -1226,7 +1278,7 @@ function renderDedicatedProjectPhotosGrid() {
     <div class="photo-card ${item.isCover ? 'is-cover' : ''}" id="photo-tile-${idx}">
       <div class="photo-card-img-wrap" style="height: 140px;">
         <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" title="Click to open full resolution photo">
-          <img src="${escapeHtml(item.url)}" alt="Project Photo ${idx + 1}" onerror="this.src='https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80'">
+          <img src="${escapeHtml(item.url)}" alt="Project Photo ${idx + 1}" data-fallback-src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80">
         </a>
         <span class="photo-card-badge ${item.isCover ? 'badge-cover' : ''}">
           ${item.isCover ? '⭐ Primary Cover' : `Photo #${idx + 1}`}
@@ -1234,16 +1286,38 @@ function renderDedicatedProjectPhotosGrid() {
       </div>
       <div class="photo-card-actions" style="padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; gap: 6px;">
         ${!item.isCover ? `
-          <button type="button" class="btn-photo-action btn-photo-cover" title="Set this photo as the main project cover" onclick="setProjectCoverDedicated('${escapeHtml(item.url)}')">
+          <button type="button" class="btn-photo-action btn-photo-cover" title="Set this photo as the main project cover" data-ded-cover-url="${escapeHtml(item.url)}">
             ⭐ Set Cover
           </button>
         ` : '<span style="font-size: 0.72rem; color: var(--gold); font-weight: 700; padding: 2px 4px;">★ Cover</span>'}
-        <button type="button" class="btn-photo-action btn-photo-delete" title="Delete this photo from selected project" onclick="deleteProjectPhotoDedicated('${escapeHtml(item.url)}')">
+        <button type="button" class="btn-photo-action btn-photo-delete" title="Delete this photo from selected project" data-ded-del-url="${escapeHtml(item.url)}">
           🗑️ Delete Photo
         </button>
       </div>
     </div>
   `).join('');
+
+  if (grid.dataset.delegatedBound !== '1') {
+    grid.dataset.delegatedBound = '1';
+    grid.addEventListener('click', (e) => {
+      const coverBtn = e.target.closest('[data-ded-cover-url]');
+      if (coverBtn) {
+        window.setProjectCoverDedicated(coverBtn.dataset.dedCoverUrl);
+        return;
+      }
+      const delBtn = e.target.closest('[data-ded-del-url]');
+      if (delBtn) {
+        window.deleteProjectPhotoDedicated(delBtn.dataset.dedDelUrl);
+      }
+    });
+    grid.addEventListener('error', (e) => {
+      const img = e.target;
+      if (img && img.tagName === 'IMG' && img.dataset.fallbackSrc && img.dataset.fallbackApplied !== '1') {
+        img.dataset.fallbackApplied = '1';
+        img.src = img.dataset.fallbackSrc;
+      }
+    }, true);
+  }
 }
 
 window.deleteProjectPhotoDedicated = async function(url) {
@@ -1377,7 +1451,7 @@ function renderAdminClientsTable(clients) {
   tbody.innerHTML = clients.map((c) => `
     <tr>
       <td style="width: 80px;">
-        ${c.logo_url ? `<img src="${escapeHtml(c.logo_url)}" alt="${escapeHtml(c.name)}" style="width: 60px; height: 40px; object-fit: contain; background: #fff; padding: 4px; border-radius: 4px; border: 1px solid var(--admin-border);" onerror="this.onerror=null;this.parentElement.innerHTML='<span style=\\'font-size:0.72rem;font-weight:600;color:var(--gold);line-height:1.2;text-align:center;display:block;\\'>${escapeHtml(c.name)}</span>';">` : '<div style="width: 60px; height: 40px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--text-dim);">No logo</div>'}
+        ${c.logo_url ? `<img src="${escapeHtml(c.logo_url)}" alt="${escapeHtml(c.name)}" class="admin-client-logo-img" data-client-name="${escapeHtml(c.name)}" style="width: 60px; height: 40px; object-fit: contain; background: #fff; padding: 4px; border-radius: 4px; border: 1px solid var(--admin-border);">` : '<div style="width: 60px; height: 40px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--text-dim);">No logo</div>'}
       </td>
       <td>
         <strong style="color: #fff; font-size: 0.95rem;">${escapeHtml(c.name)}</strong>
@@ -1408,6 +1482,19 @@ function renderAdminClientsTable(clients) {
       </td>
     </tr>
   `).join('');
+
+  if (tbody.dataset.logoErrBound !== '1') {
+    tbody.dataset.logoErrBound = '1';
+    tbody.addEventListener('error', (e) => {
+      const img = e.target;
+      if (img && img.tagName === 'IMG' && img.classList.contains('admin-client-logo-img')) {
+        const span = document.createElement('span');
+        span.style.cssText = 'font-size:0.72rem;font-weight:600;color:var(--gold);line-height:1.2;text-align:center;display:block;';
+        span.textContent = img.dataset.clientName || '';
+        img.replaceWith(span);
+      }
+    }, true);
+  }
 
   document.querySelectorAll('.btn-toggle-client').forEach((b) => {
     b.onclick = () => toggleClientFeatured(b.dataset.id, parseInt(b.dataset.feat, 10));

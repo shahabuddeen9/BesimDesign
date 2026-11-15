@@ -221,6 +221,10 @@
       "destination": "/api/index?__ssr=/central-kitchen"
     },
     {
+      "source": "/showcase",
+      "destination": "/api/index?__ssr=/showcase"
+    },
+    {
       "source": "/api",
       "destination": "/api/index"
     },
