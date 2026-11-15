@@ -201,6 +201,26 @@
   ],
   "rewrites": [
     {
+      "source": "/",
+      "destination": "/api/index?__ssr=/"
+    },
+    {
+      "source": "/hotels",
+      "destination": "/api/index?__ssr=/hotels"
+    },
+    {
+      "source": "/hospitality",
+      "destination": "/api/index?__ssr=/hospitality"
+    },
+    {
+      "source": "/residential",
+      "destination": "/api/index?__ssr=/residential"
+    },
+    {
+      "source": "/central-kitchen",
+      "destination": "/api/index?__ssr=/central-kitchen"
+    },
+    {
       "source": "/api",
       "destination": "/api/index"
     },

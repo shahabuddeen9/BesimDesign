@@ -34,7 +34,12 @@ export default async function handler(req, res) {
   let incomingUrl = (typeof rawOriginal === 'string' && rawOriginal.length > 0) ? rawOriginal : (req.url || '/');
 
   const [pathname, search] = incomingUrl.split('?');
-  const querySuffix = search ? `?${search}` : (req.url && req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '');
+  const rawQueryStr = search || (req.url && req.url.includes('?') ? req.url.substring(req.url.indexOf('?') + 1) : '');
+  const queryParams = new URLSearchParams(rawQueryStr);
+  const ssrParam = (req.query && typeof req.query.__ssr === 'string') ? req.query.__ssr : queryParams.get('__ssr');
+  queryParams.delete('__ssr');
+  const cleanSearch = queryParams.toString();
+  const querySuffix = cleanSearch ? `?${cleanSearch}` : '';
 
   let resolvedPath = '';
 
@@ -60,7 +65,9 @@ export default async function handler(req, res) {
   };
 
   // 2. Resolve true concrete request path (avoiding any Vercel internal wildcard template strings)
-  if (typeof rawOriginal === 'string' && rawOriginal.startsWith('/')) {
+  if (typeof ssrParam === 'string' && ssrParam.startsWith('/')) {
+    resolvedPath = ssrParam;
+  } else if (typeof rawOriginal === 'string' && rawOriginal.startsWith('/')) {
     resolvedPath = rawOriginal.split('?')[0];
   } else if (isDirectWebRoute(pathname) || pathname.startsWith('/api/')) {
     resolvedPath = pathname;
