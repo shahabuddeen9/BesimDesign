@@ -400,28 +400,32 @@ export function renderCategoryPage(routeCat) {
           html = replaceContainerInnerHtml(html, cfg.containerId, cardsHtml);
 
           // Inject ItemList Schema.org structured data for the category portfolio
-          const itemListSchema = {
-            '@context': 'https://schema.org',
-            '@type': 'ItemList',
-            name: cfg.listName,
-            url: `${DOMAIN}/${routeCat}`,
-            numberOfItems: projects.length,
-            itemListElement: projects
-              .filter((p) => p.slug)
-              .map((p, idx) => {
-                const catPrefix = normalizeCategoryForUrl(p.category) || routeCat;
-                return {
-                  '@type': 'ListItem',
-                  position: idx + 1,
-                  name: p.title || 'Architectural Project',
-                  url: `${DOMAIN}/${catPrefix}/${p.slug}`,
-                };
-              }),
-          };
+          const listItems = projects
+            .filter((p) => p.slug)
+            .map((p, idx) => {
+              const catPrefix = normalizeCategoryForUrl(p.category) || routeCat;
+              return {
+                '@type': 'ListItem',
+                position: idx + 1,
+                name: p.title || 'Architectural Project',
+                url: `${DOMAIN}/${catPrefix}/${p.slug}`,
+              };
+            });
 
-          const jsonLdTag = `<script type="application/ld+json">\n${JSON.stringify(itemListSchema, null, 2)}\n</script>`;
+          if (listItems.length > 0) {
+            const itemListSchema = {
+              '@context': 'https://schema.org',
+              '@type': 'ItemList',
+              name: cfg.listName,
+              url: `${DOMAIN}/${routeCat}`,
+              numberOfItems: listItems.length,
+              itemListElement: listItems,
+            };
+
+            const jsonLdTag = `<script type="application/ld+json">\n${JSON.stringify(itemListSchema, null, 2)}\n</script>`;
+            html = html.replace('</head>', `  ${jsonLdTag}\n</head>`);
+          }
           const hydrationTag = `<script>window.__INITIAL_CATEGORY_PROJECTS__ = ${JSON.stringify(projects).replace(/</g, '\\u003c')};</script>`;
-          html = html.replace('</head>', `  ${jsonLdTag}\n</head>`);
           html = html.replace('</body>', `  ${hydrationTag}\n</body>`);
         } else {
           const emptyHtml = `<div style="text-align: center; padding: 48px 20px; color: #6b7280; background: #f9fafb; border-radius: 8px; border: 1px dashed #e5e7eb;"><p style="font-size: 1.05rem; margin-bottom: 8px; color: #111827; font-weight: 600;">No ${escapeHtml(routeCat.replace(/-/g, ' '))} projects are currently published.</p></div>`;

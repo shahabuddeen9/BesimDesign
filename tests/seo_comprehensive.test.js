@@ -80,6 +80,11 @@ describe('Comprehensive Technical & On-Page SEO Audit', () => {
       expect(res.text).toContain('"@type": "ItemList"');
       expect(res.text).toContain('<article class="hospitality-project-block"');
       expect(res.text).toContain(`href="${s.prefix}`);
+      const parsedScripts = [...res.text.matchAll(/<script\s+type=["']application\/ld\+json["']>([\s\S]*?)<\/script>/gi)]
+        .map((m) => JSON.parse(m[1].trim()));
+      const parsedList = parsedScripts.find((j) => j['@type'] === 'ItemList');
+      expect(parsedList, `${s.route} ItemList JSON-LD`).toBeDefined();
+      expect(parsedList.numberOfItems).toBe(parsedList.itemListElement.length);
     }
   });
 
