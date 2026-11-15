@@ -283,17 +283,17 @@ export async function renderHomePage(req, res, next) {
         ),
       ]);
 
-      if (Array.isArray(clients) && clients.length > 0) {
-        const clientsHtml = clients
-          .map((c) => {
-            const rawUrl = (c.logo_url || '').trim();
-            let logoSrc = rawUrl;
-            if (logoSrc && !logoSrc.startsWith('http://') && !logoSrc.startsWith('https://') && !logoSrc.startsWith('//') && !logoSrc.startsWith('/')) {
-              logoSrc = '/' + logoSrc;
-            }
-            const escapedName = escapeHtml(c.name);
-            const escapedCat = escapeHtml(c.category || '');
-            return `
+      const clientsHtml = (Array.isArray(clients) && clients.length > 0)
+        ? clients
+            .map((c) => {
+              const rawUrl = (c.logo_url || '').trim();
+              let logoSrc = rawUrl;
+              if (logoSrc && !logoSrc.startsWith('http://') && !logoSrc.startsWith('https://') && !logoSrc.startsWith('//') && !logoSrc.startsWith('/')) {
+                logoSrc = '/' + logoSrc;
+              }
+              const escapedName = escapeHtml(c.name);
+              const escapedCat = escapeHtml(c.category || '');
+              return `
             <div class="client-logo-card" data-client-name="${escapedName}">
               <div class="client-logo-wrap" style="min-height: 52px; display: flex; align-items: center; justify-content: center; width: 100%;">
                 ${logoSrc ? `<img src="${escapeAttr(logoSrc)}" alt="${escapedName} Logo" class="client-logo-img" loading="lazy" />` : `<span class="client-logo-text">${escapedName}</span>`}
@@ -301,20 +301,20 @@ export async function renderHomePage(req, res, next) {
               <span class="client-name-label">${escapedName}</span>
               ${escapedCat ? `<span class="client-cat-label">${escapedCat}</span>` : ''}
             </div>`;
-          })
-          .join('');
+            })
+            .join('')
+        : `<div style="grid-column: 1 / -1; text-align: center; padding: 24px; color: var(--text-dim); font-size: 0.88rem;">Hospitality and architectural partnerships showcase curated by Besim Design Studio.</div>`;
 
-        html = html.replace(
-          /(<div\s+class=["']clients-grid["']\s+id=["']clientsGrid["'][^>]*>)[\s\S]*?(<\/div>\s*<div style=["']text-align:\s*center)/i,
-          `$1${clientsHtml}$2`
-        );
-      }
+      html = html.replace(
+        /(<div\s+class=["']clients-grid["']\s+id=["']clientsGrid["'][^>]*>)[\s\S]*?(<\/div>\s*<div style=["']text-align:\s*center)/i,
+        `$1${clientsHtml}$2`
+      );
 
-      if (Array.isArray(testimonials) && testimonials.length > 0) {
-        const testimonialsHtml = testimonials
-          .map((t) => {
-            const ratingNum = Math.min(5, Math.max(1, parseInt(t.rating, 10) || 5));
-            return `
+      const testimonialsHtml = (Array.isArray(testimonials) && testimonials.length > 0)
+        ? testimonials
+            .map((t) => {
+              const ratingNum = Math.min(5, Math.max(1, parseInt(t.rating, 10) || 5));
+              return `
             <div class="testimonial-card">
               <div>
                 <div class="testimonial-rating">${'★'.repeat(ratingNum)}</div>
@@ -325,14 +325,14 @@ export async function renderHomePage(req, res, next) {
                 <p>${escapeHtml(t.business_type)}</p>
               </div>
             </div>`;
-          })
-          .join('');
+            })
+            .join('')
+        : `<div style="grid-column: 1 / -1; text-align: center; padding: 32px; color: var(--text-dim); font-size: 0.9rem;">Client reviews and endorsements from hospitality partners are featured directly across our project portfolio.</div>`;
 
-        html = html.replace(
-          /(<div\s+class=["']testimonials-grid["']\s+id=["']testimonialsGrid["'][^>]*>)[\s\S]*?(<\/div>\s*<\/div>\s*<\/section>)/i,
-          `$1${testimonialsHtml}$2`
-        );
-      }
+      html = html.replace(
+        /(<div\s+class=["']testimonials-grid["']\s+id=["']testimonialsGrid["'][^>]*>)[\s\S]*?(<\/div>\s*<\/div>\s*<\/section>)/i,
+        `$1${testimonialsHtml}$2`
+      );
     } catch (dbErr) {
       logger.warn('Homepage SSR data hydration skipped:', dbErr.message);
     }
@@ -409,6 +409,9 @@ export function renderCategoryPage(routeCat) {
           const hydrationTag = `<script>window.__INITIAL_CATEGORY_PROJECTS__ = ${JSON.stringify(projects).replace(/</g, '\\u003c')};</script>`;
           html = html.replace('</head>', `  ${jsonLdTag}\n</head>`);
           html = html.replace('</body>', `  ${hydrationTag}\n</body>`);
+        } else {
+          const emptyHtml = `<div style="text-align: center; padding: 48px 20px; color: #6b7280; background: #f9fafb; border-radius: 8px; border: 1px dashed #e5e7eb;"><p style="font-size: 1.05rem; margin-bottom: 8px; color: #111827; font-weight: 600;">No ${escapeHtml(routeCat.replace(/-/g, ' '))} projects are currently published.</p></div>`;
+          html = replaceContainerInnerHtml(html, cfg.containerId, emptyHtml);
         }
       } catch (dbErr) {
         logger.warn(`Category SSR data hydration skipped for ${routeCat}:`, dbErr.message);
